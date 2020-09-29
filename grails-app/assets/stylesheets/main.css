@@ -1,0 +1,187 @@
+body {
+    background-color: #FFF;
+}
+
+#header-logo {
+    height: 105px;
+}
+
+.header {
+    background-color: #FFF;
+    color: #000;
+    /*border-bottom: 2px solid #CCC;*/
+    margin-bottom: 1em;
+}
+
+#wrap {
+    min-height: 100%;
+    height: auto !important;
+    padding-bottom: 60px;
+}
+
+.tatMainContainer {
+    background-color: white;
+}
+
+#footerContainer {
+    clear: both;
+    position: fixed;
+    bottom: 0px;
+    height: 60px;
+    width: 100%;
+
+    text-align: center;
+    font-size: 80%;
+    font-style: italic;
+
+    background-color: #e2e2e2;
+    border-top: 3px double #002b55;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+    padding: 0;
+}
+
+.pageTitle {
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+.pageDescription {
+    font-size: 90%;
+    color: #555;
+}
+
+
+.pageContent {
+    margin-top: 2em;
+}
+
+.step, .currentStep, .nextLink, .prevLink {
+    padding: 5px;
+    border: 1px solid #999;
+    margin-left: 2px;
+    margin-right: 2px;
+}
+.step:hover, .nextLink:hover, .prevLink:hover {
+    background-color: #ccc;
+}
+.gap {
+    border: none;
+}
+.gap:hover {
+    background-color: white;
+}
+
+table td {
+    font-size: inherit !important;
+}
+
+table th {
+    font-size: inherit !important;
+}
+
+/* ================================================================================================================== */
+/* Special styling of nav bar */
+/* ================================================================================================================== */
+
+/* Fixing the main navbar's color scheme to match NIEF... */
+.tatmenu {
+    text-align: left;
+    background-color: #CCC;
+    border: 1px solid #666;
+    color: #0C003B !important;
+}
+.navbar-default .navbar-brand {
+    color: #0C003B !important;
+    font-weight: bold;
+}
+.navbar-default .navbar-brand:hover {
+    color: #0C003B !important;
+    font-weight: bold;
+}
+.navbar-default .navbar-nav a {
+    color: #0C003B !important;
+}
+.navbar-default .navbar-nav a:hover,
+.navbar-default .navbar-nav a:focus {
+    color: #0A497A !important;
+    background-color: transparent !important;
+}
+.navbar-default .navbar-nav > .active > a,
+.navbar-default .navbar-nav > .active > a:hover,
+.navbar-default .navbar-nav > .active > a:focus {
+    color: #0A497A !important;
+    background-color: transparent !important;
+}
+
+.dropdown-menu a {
+    color: #0A497A !important;
+}
+
+/* ================================================================================================================== */
+/* Special styling of twitter typeahead */
+/* ================================================================================================================== */
+.trustmarkTypeaheadContainer .dropdown-menu {
+    max-height: 500px;
+    overflow-y: scroll;
+}
+
+.trustmarkTypeaheadContainer .dropdown-menu li a {
+    white-space: normal;
+    overflow-wrap: normal;
+}
+
+.trustmarkTypeaheadContainer .dropdown-menu  li.active a {
+    color: black;
+    background-color: #d3c09e;
+}
+
+
+.typeaheadItemContainer {
+    width: 700px;
+}
+
+.typeaheadItemName {
+    font-weight: bold;
+    color: #0C003B !important;
+}
+
+.trustmarkTypeaheadContainer .dropdown-menu li.active a .typeaheadItemName {
+    color: black;
+}
+
+
+.typeaheadItemDesc {
+    font-size: 80%;
+    color: #888;
+}
+
+.trustmarkTypeaheadContainer .dropdown-menu li.active a .typeaheadItemDesc {
+    color: #fff;
+}
+
+
+
+
+
+/* ================================================================================================================== */
+/* Layout of Printable Pages */
+/* ================================================================================================================== */
+body.printablePage {
+    background-color: #555;
+    text-align: center;
+}
+body.printablePage .pageContent {
+    margin:0 auto;
+    margin-top: 2em;
+    width: 8.5in;
+    padding: 0.5in;
+    text-align: left;
+    background-color: white;
+    border: 2px solid #111;
+}
+
+
+
+

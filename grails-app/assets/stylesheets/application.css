@@ -1,0 +1,90 @@
+/*
+* This is a manifest file that'll be compiled into application.css, which will include all the files
+* listed below.
+*
+* Any CSS file within this directory can be referenced here using a relative path.
+*
+* You're free to add application-wide styles to this file and they'll appear at the top of the
+* compiled file, but it's generally better to create a new file per style scope.
+*
+*= require bootstrap
+*= require jquery-treetable-3.2.0/css/jquery.treetable.css
+*= require jquery-treetable-3.2.0/css/jquery.treetable.theme.default.css
+*= require jquery-ui.css
+*= require grails
+*= require main
+*= require_self
+*/
+
+dialog {
+    position: absolute;
+    top: -10%;
+    left: 70%;
+    width: 400px;
+    height: 400px;
+    border-top: 5px solid black;
+    float: left;
+    z-index: 50;
+    overflow: auto;
+}
+
+.nestit {
+    margin-left: 5px;
+    padding-left: 0;
+    list-style-type: none;
+    display: none;
+}
+.no-trust-expression {
+    display: none;
+}
+.trust-expression {
+    font-size: 8pt;
+    border: 1px solid #aaa;
+    padding: 0.5em;
+    font-family: monospace;
+    margin-bottom: 2em;
+    display: block;
+}
+.tm-link {
+    margin-left: -1.5em;
+    font-size: 9pt;
+    font-family: monospace;
+}
+.te-link {
+    font-size: 8pt;
+    font-family: Arial;
+}
+.tipindent {
+    margin-left: 5px;
+    padding-left: 0;
+}
+.unnest {
+    margin-left: 5px;
+    padding-left: 0;
+    display: block;
+}
+.currentStep {
+    background-color: #dfd1ba;
+    color: #555;
+}
+.tipcaret {
+    cursor: pointer;
+    user-select: none;
+}
+.tipcaret::before {
+    content: "\25B6";
+}
+.tipcaret-down::before {
+    content: "\25BC";
+}
+.td-block  {
+    display: inline-block;
+    vertical-align: top;
+    float: top;
+}
+.tr-hide {
+    display: none;
+}
+.tr-show {
+    display: table-row;
+}

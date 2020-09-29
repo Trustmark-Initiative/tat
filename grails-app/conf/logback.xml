@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+
+<configuration>
+
+    <property name="LOG_HOME" value="/opt/assessment-tool/logs" />
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <!-- encoders are  by default assigned the type ch.qos.logback.classic.encoder.PatternLayoutEncoder -->
+        <encoder class="nstic.util.JansiPatternLayoutEncoder">
+            <pattern>%date{yyyy-MM-dd HH:mm:ss} [%-5level] %logger{5} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="ERROR">
+        <appender-ref ref="STDOUT" />
+    </root>
+
+
+    <!--<logger name="org.grails.orm.hibernate" level="DEBUG" />-->
+    <!--<logger name="org.hibernate" level="DEBUG" />-->
+    <!--<logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" />-->
+    <!--<logger name="org.hibernate.SQL" level="TRACE" />-->
+
+    <logger name="grails.app" level="DEBUG" />
+    <logger name="nstic" level="DEBUG" />
+
+    <logger name="edu.gatech.gtri.trustmark" level="WARN" />
+
+    <!--<logger name="org.springframework.security" level="DEBUG" />-->
+    <!--<logger name="org.springframework.security.web.FilterChainProxy" level="ERROR" />-->
+    <!--<logger name="org.springframework.security.web.util.matcher.AntPathRequestMatcher" level="ERROR" />-->
+    <!--<logger name="grails.plugin.springsecurity" level="DEBUG" />-->
+
+
+    <!-- Useful for debugging errors in the TMF API -->
+    <!--<logger name="edu.gatech.gtri.trustmark.v1_0.impl.io" level="DEBUG" />-->
+
+    <!-- STACKTRACE ONLY LOG EXAMPLE -->
+<!--
+    <appender name="FULL_STACKTRACE" class="ch.qos.logback.core.FileAppender">
+        <file>${LOG_HOME}/stacktrace.log</file>
+        <append>true</append>
+        <encoder>
+            <pattern>%date{yyyy-MM-dd HH:mm:ss} [%-5level] %logger{5} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="StackTrace" level="ERROR" additivity="false">
+        <appender-ref ref="FULL_STACKTRACE" />
+    </logger>
+-->
+
+
+</configuration>
+
+
