@@ -939,6 +939,31 @@ class TrustmarkController {
         }// end if
     } // end reissueTrustmarksFromMetadataSet
 
+    def revokeAll() {
+        User user = springSecurityService.currentUser
+        if( StringUtils.isEmpty(params.id) )
+            throw new ServletException("Missing required parameter 'id'.")
+        if( StringUtils.isEmpty(params.reason) )
+            throw new ServletException("Missing required parameter 'reason'.")
+
+        Organization org = Organization.findById(params.id)
+        if( org == null )
+            throw new ServletException("Missing organization")
+
+        List<Trustmark> trustmarks = Trustmark.findAllByProviderOrganization(org)
+
+        if( trustmarks && !trustmarks.isEmpty() ){
+
+            trustmarks.each { trustmark ->
+                trustmark.status = TrustmarkStatus.REVOKED
+                trustmark.revokedReason = params.reason
+                trustmark.revokingUser = user
+                trustmark.revokedTimestamp = Calendar.getInstance().getTime()
+                trustmark.save(failOnError: true, flush: true)
+            }
+        }
+
+    }
 
     //==================================================================================================================
     //  Helper Methods

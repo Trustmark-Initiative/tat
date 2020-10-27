@@ -112,9 +112,6 @@
                                     <th class="certificateUrlCol certificateUrlColHeader">URL</th>
                                     <th class="certificateStatusCol certificateStatusColHeader">Status</th>
                                     <th class="certificateDefaultCol certificateDefaultColHeader">Default</th>
-
-%{--                                     deferred functionality--}%
-%{--                                    <th class="certificateRevokedCol certificateRevokedColHeader">Revoked</th>--}%
                                 </tr>
                             </thead>
                             <tbody>
@@ -131,13 +128,6 @@
                                                     <span class="glyphicon glyphicon-download"></span>
                                                 </a>
 
-%{--                                                deferred functionality--}%
-%{--                                                <g:if test="${cert.revoked == false}">--}%
-%{--                                                    <a href="${createLink(controller:'signingCertificates',action:'revoke', id:cert.id)}"--}%
-%{--                                                        title="Revoke ${cert.distinguishedName}">--}%
-%{--                                                        <span class="glyphicon glyphicon-remove"></span>--}%
-%{--                                                    </a>--}%
-%{--                                                </g:if>--}%
                                             </td>
                                             <td class="certificateDistinguishedNameCol">
                                                 <a href="${createLink(controller:'signingCertificates', action:'view', id:cert.id)}"
@@ -194,6 +184,75 @@
                 </sec:ifAllGranted>
             </sec:ifLoggedIn>
 
+            <!-- Trustmarks -->
+            <div style="margin-top: 2em;">
+                <h4>Trustmarks</h4>
+                <div class="sectionDescription text-muted">
+                    The number of Trustmarks granted for this organization.
+                </div>
+
+                <%
+                    Integer numberOfTrustmarks = nstic.web.assessment.Trustmark.findAllByProviderOrganization(organization).size()
+                %>
+                <table class="infoTable">
+                    <tr>
+                        <td>Number of Trustmarks</td>
+                        <td>
+                            <a href="${createLink(controller:'trustmark', action:'list')}" title="View Trustmarks">
+                                <span>${numberOfTrustmarks}</span>
+                            </a>
+                        </td>
+
+                    </tr>
+                </table>
+
+                <g:if test="${numberOfTrustmarks > 0}">
+                    <div style="margin-top: 2em; margin-bottom: 3em;">
+                        <a href="javascript:revokeAllTrustmarks()" class="btn btn-danger">Revoke All Trustmarks</a>
+                        <div id="revokeAllTrustmarksStatusMessage">
+
+                        </div>
+                    </div>
+                </g:if>
+
+                <script type="text/javascript">
+                    function revokeAllTrustmarks() {
+
+                        if( !confirm("Are you sure you want to revoke all trustmarks? This operation cannot be reversed.") ){
+                            return;
+                        }
+
+                        var url = '${createLink(controller:'trustmark', action: 'revokeAll', id: organization.id)}';
+
+                        var reason = prompt("What is the reason you are revoking all trustmarks?");
+                        if( !reason){
+                            alert("A reason is required.");
+                        }else {
+
+                            $.ajax({
+                                url: url,
+                                type: 'POST',
+                                data: {
+                                    format: 'json',
+                                    reason: reason
+                                },
+                                beforeSend: function () {
+                                    $('#revokeAllTrustmarksStatusMessage').html('<asset:image src="spinner.gif" /> Revoking all trustmarks...');
+                                },
+                                success: function (data, statusText, jqXHR) {
+
+                                    $('#revokeAllTrustmarksStatusMessage').html("All trustmarks have been revoked!");
+
+                                },
+                                error: function (jqXHR, statusText, errorThrown) {
+                                    $('#revokeAllTrustmarksStatusMessage').html("An error has occurred...");
+                                }
+                            });
+                        }
+
+                    }
+                </script>
+            </div>
 
             <!-- Artifacts -->
             <div style="margin-top: 2em;">
@@ -454,9 +513,6 @@
                 </div>
             </div>
 
-
-
-
             <!-- Trustmark Metadata Sets -->
             <div style="margin-top: 2em;">
                 <h4>Trustmark Metadata Sets</h4>
@@ -494,10 +550,6 @@
                     </tbody>
                 </table>
             </div>
-
-
-
-
 
         </div>
 
