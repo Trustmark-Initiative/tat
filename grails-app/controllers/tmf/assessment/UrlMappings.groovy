@@ -84,6 +84,8 @@ class UrlMappings {
         "/trustmarks/$id/status"(controller: "trustmark", action: "generateStatusXML")
         "/trustmarks/$id/revoke"(controller: "trustmark", action: "revoke")
 
+        "/trustmarks/$originalCertId/$newCertId"(controller: "trustmark", action: "reissueTrustmarks")
+
         "/binaries"(controller:'binary', action:'list')
         "/binaries/upload"(controller:'binary', action:'upload')
         "/binaries/$id"(controller:'binary', action:'view')
@@ -133,6 +135,17 @@ class UrlMappings {
         "/documents/$id/updateDocument"(controller:'documents', action: 'updateDocument')
         "/documents/$id/view"(controller:'documents', action: 'view')
         "/documents/pdf/$documentId"(controller:'documents', action: 'pdf')
+
+        "/signingcertificates/$id"(controller: "signingCertificates", action: "view")
+        "/signingcertificates/$id/$certId?"(controller: "signingCertificates", action: "add")
+        "/signingcertificates/$id/generateNewCertificate"(controller: "signingCertificates",
+                action: "generateNewCertificateFromExpiredOrRevokedCertificate")
+
+        "/signingcertificates/$id/generateNewCertificateAndUpdateMetdata"(controller: "signingCertificates",
+                action: "generateNewCertificateAndUpdateTrustmarkMetadataSets")
+
+        "/signingcertificates/$id/generateNewCertificateUpdateMetadataSetsReissueTrustmarks"(controller: "signingCertificates",
+                action: "generateNewCertificateAndUpdateTrustmarkMetadataSetsAndReissueTrustmarks")
 
         "/publiccertificates/$filename"(controller:'publicCertificates', action: 'download', id: '$filename')
 

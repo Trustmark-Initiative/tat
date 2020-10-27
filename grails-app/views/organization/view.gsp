@@ -110,9 +110,10 @@
                                     <th class="certificateDistinguishedNameCol certificateDistinguishedNameColHeader">Distinguished Name</th>
                                     <th class="certificateEmailAddressCol certificateEmailAddressColHeader">Email Address</th>
                                     <th class="certificateUrlCol certificateUrlColHeader">URL</th>
+                                    <th class="certificateStatusCol certificateStatusColHeader">Status</th>
                                     <th class="certificateDefaultCol certificateDefaultColHeader">Default</th>
 
-                                    // deferred functionality
+%{--                                     deferred functionality--}%
 %{--                                    <th class="certificateRevokedCol certificateRevokedColHeader">Revoked</th>--}%
                                 </tr>
                             </thead>
@@ -139,7 +140,10 @@
 %{--                                                </g:if>--}%
                                             </td>
                                             <td class="certificateDistinguishedNameCol">
-                                                ${cert.distinguishedName}
+                                                <a href="${createLink(controller:'signingCertificates', action:'view', id:cert.id)}"
+                                                   title="View ${cert.distinguishedName}">
+                                                    <span>${cert.distinguishedName}</span>
+                                                </a>
                                             </td>
                                             <td class="certificateEmailAddressCol">
                                                 ${cert.emailAddress}
@@ -149,24 +153,25 @@
                                                     ${cert.certificatePublicUrl}
                                                 </g:link>
                                             </td>
+                                            <td class="certificateStatusCol">
+                                                <g:if test="${cert.status == nstic.web.SigningCertificateStatus.ACTIVE}">
+                                                    <span style="color: darkgreen;" class="glyphicon glyphicon-ok-sign" title="Certificate still valid"></span>
+                                                </g:if>
+                                                <g:if test="${cert.status == nstic.web.SigningCertificateStatus.REVOKED}">
+                                                    <span style="color: darkred;" class="glyphicon glyphicon-remove-sign" title="Certificate has been revoked."></span>
+                                                </g:if>
+                                                <g:if test="${cert.status == nstic.web.SigningCertificateStatus.EXPIRED}">
+                                                    <span style="color: rgb(150, 150, 0);" class="glyphicon glyphicon-minus-sign" title="Certificate has expired."></span>
+                                                </g:if>
+                                            </td>
                                             <td class="certificateDefaultCol">
                                                 <g:if test="${cert.defaultCertificate}">
-                                                    <span class="glyphicon glyphicon-ok"></span>
+                                                    <span>Yes</span>
                                                 </g:if>
                                                 <g:else>
-                                                    <span class="glyphicon glyphicon-remove"></span>
+                                                    <span>No</span>
                                                 </g:else>
                                             </td>
-
-%{--                                             deferred functionality--}%
-%{--                                            <td class="certificateRevokedCol">--}%
-%{--                                                <g:if test="${cert.revoked}">--}%
-%{--                                                    <span class="glyphicon glyphicon-ok"></span>--}%
-%{--                                                </g:if>--}%
-%{--                                                <g:else>--}%
-%{--                                                    <span class="glyphicon glyphicon-remove"></span>--}%
-%{--                                                </g:else>--}%
-%{--                                            </td>--}%
                                         </tr>
                                     </g:each>
 
@@ -452,11 +457,11 @@
 
 
 
-            <!-- Contacts List -->
+            <!-- Trustmark Metadata Sets -->
             <div style="margin-top: 2em;">
-                <h4>Trustmark Metadata Provider</h4>
+                <h4>Trustmark Metadata Sets</h4>
                 <div class="sectionDescription text-muted">
-                    A list of Trustmark Metadata instances for which this organization is the provider.
+                    A list of Trustmark Metadata sets for which this organization is the provider.
                 </div>
                 <table class="table table-striped table-bordered table-condensed">
                     <thead>

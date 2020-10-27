@@ -277,6 +277,7 @@ class PublicApiController {
             }
         }
     }
+
     /**
      * generates the Trustmark URL from the trustmark id
      * @param trustmarkId

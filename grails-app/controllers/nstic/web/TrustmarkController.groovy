@@ -764,6 +764,182 @@ class TrustmarkController {
         return render(file: new FileInputStream(zipFile), contentType: 'application/zip')
     }//end doBulkExport()
 
+    def reissueTrustmarks() {
+
+        int existingCertificateId = Integer.parseInt(params.originalCertId)
+        int newCertificateId = Integer.parseInt(params.newCertId)
+
+        // we assume that the trustmark metadata set has been updated with
+        // the new certificate
+        def metadata = TrustmarkMetadata.findByDefaultSigningCertificateId(newCertificateId)
+
+        if( metadata != null ) {
+
+            Calendar now = Calendar.getInstance()
+
+            TrustmarkIdentifierGenerator identifierGenerator = Class.forName(metadata.generatorClass).newInstance()
+
+            // get a collection of trustmarks that were signed with the expired/revoked certificate
+            def trustmarks = Trustmark.findAllBySigningCertificateId(existingCertificateId)
+
+            trustmarks.each { Trustmark trustmark ->
+
+                String id = identifierGenerator.generateNext()
+                Trustmark reissuedTrustmark = new Trustmark(trustmarkDefinition: trustmark.trustmarkDefinition,
+                        assessment: trustmark.assessment)
+                reissuedTrustmark.identifier = id
+                reissuedTrustmark.identifierURL = replaceIdentifier(metadata.identifierPattern, id)
+                reissuedTrustmark.statusURL = replaceIdentifier(metadata.statusUrlPattern, id)
+                reissuedTrustmark.status = TrustmarkStatus.OK
+                reissuedTrustmark.recipientOrganization = trustmark.recipientOrganization
+                reissuedTrustmark.recipientContactInformation = trustmark.recipientContactInformation
+                reissuedTrustmark.issueDateTime = now.getTime()
+                reissuedTrustmark.policyPublicationURL = metadata.policyUrl
+                reissuedTrustmark.relyingPartyAgreementURL = metadata.relyingPartyAgreementUrl
+                reissuedTrustmark.providerOrganization = trustmark.providerOrganization
+                reissuedTrustmark.providerContactInformation = trustmark.providerContactInformation
+                reissuedTrustmark.providerExtension = trustmark.providerExtension
+                reissuedTrustmark.grantingUser = trustmark.grantingUser
+                reissuedTrustmark.definitionExtension = trustmark.definitionExtension
+                reissuedTrustmark.hasExceptions = trustmark.hasExceptions
+                reissuedTrustmark.assessorComments = trustmark.assessorComments
+                reissuedTrustmark.expirationDateTime = trustmark.expirationDateTime
+
+                // Parameters
+                AssessmentStepData[] stepList = trustmark.assessment.getStepListByTrustmarkDefinition(
+                        trustmark.trustmarkDefinition)
+                TdParameter[] firstUnfilledRequiredParametersPerStep = stepList.collect { it.firstUnfilledRequiredParameter }
+                TdParameter firstUnfilledRequiredParameter = firstUnfilledRequiredParametersPerStep.find { it }
+                if (firstUnfilledRequiredParameter) {
+                    String message = String.format(
+                            "Unfilled required parameter: TD[%s] >> Step[%s] >> Parameter[%s]",
+                            trustmark.trustmarkDefinition.name,
+                            firstUnfilledRequiredParameter.assessmentStep.name,
+                            firstUnfilledRequiredParameter.name
+                    )
+                    throw new InvalidRequestError(message)
+                }
+                ParameterValue[] assessmentParameterValues = stepList.collectMany { it.parameterValues }
+                for (assessmentParameterValue in assessmentParameterValues) {
+                    ParameterValue parameterValue = new ParameterValue(
+                            parameter: assessmentParameterValue.parameter,
+                            userValue: assessmentParameterValue.userValue
+                    )
+                    reissuedTrustmark.addToParameterValues(parameterValue)
+                }
+
+                // generate and save xml signature for this trustmark
+                SigningCertificate signingCertificate = SigningCertificate.findById(newCertificateId)
+                if (signingCertificate == null) {
+                    throw new ServletException("Need at least one signing certificate to perform this operation.")
+                }
+
+                signTrustmark(signingCertificate, reissuedTrustmark)
+
+                reissuedTrustmark.save(failOnError: true, flush: true)
+
+                // update original trustmark status
+                log.warn("Revoking trustmark due to an expired certificate.  Updating...")
+                trustmark.status = TrustmarkStatus.REVOKED
+                trustmark.revokedTimestamp = now.getTime()
+                trustmark.supersededBy = reissuedTrustmark
+                trustmark.revokedReason = "This trustmark has been revoked because the certificate" +
+                        " used to generate its XML signature has been revoked or has expired."
+                trustmark.save(failOnError: true, flush: true)
+            }
+        }
+    }
+
+
+    def reissueTrustmarksFromMetadataSet() {
+
+        int existingCertificateId = Integer.parseInt(params.originalCertId)
+        int metadataSetId = Integer.parseInt(params.metadataSetId)
+
+        // we assume that the trustmark metadata set has been updated with
+        // the new certificate
+        def metadata = TrustmarkMetadata.findById(metadataSetId)
+
+        if( metadata != null ) {
+
+            int newCertificateId = metadata.defaultSigningCertificateId
+
+            Calendar now = Calendar.getInstance()
+
+            TrustmarkIdentifierGenerator identifierGenerator = Class.forName(metadata.generatorClass).newInstance()
+
+            // get a collection of trustmarks that were signed with the expired/revoked certificate
+            def trustmarks = Trustmark.findAllBySigningCertificateId(existingCertificateId)
+
+            trustmarks.each { Trustmark trustmark ->
+
+                String id = identifierGenerator.generateNext()
+                Trustmark reissuedTrustmark = new Trustmark(trustmarkDefinition: trustmark.trustmarkDefinition,
+                        assessment: trustmark.assessment)
+                reissuedTrustmark.identifier = id
+                reissuedTrustmark.identifierURL = replaceIdentifier(metadata.identifierPattern, id)
+                reissuedTrustmark.statusURL = replaceIdentifier(metadata.statusUrlPattern, id)
+                reissuedTrustmark.status = TrustmarkStatus.OK
+                reissuedTrustmark.recipientOrganization = trustmark.recipientOrganization
+                reissuedTrustmark.recipientContactInformation = trustmark.recipientContactInformation
+                reissuedTrustmark.issueDateTime = now.getTime()
+                reissuedTrustmark.policyPublicationURL = metadata.policyUrl
+                reissuedTrustmark.relyingPartyAgreementURL = metadata.relyingPartyAgreementUrl
+                reissuedTrustmark.providerOrganization = trustmark.providerOrganization
+                reissuedTrustmark.providerContactInformation = trustmark.providerContactInformation
+                reissuedTrustmark.providerExtension = trustmark.providerExtension
+                reissuedTrustmark.grantingUser = trustmark.grantingUser
+                reissuedTrustmark.definitionExtension = trustmark.definitionExtension
+                reissuedTrustmark.hasExceptions = trustmark.hasExceptions
+                reissuedTrustmark.assessorComments = trustmark.assessorComments
+                reissuedTrustmark.expirationDateTime = trustmark.expirationDateTime
+
+                // Parameters
+                AssessmentStepData[] stepList = trustmark.assessment.getStepListByTrustmarkDefinition(
+                        trustmark.trustmarkDefinition)
+                TdParameter[] firstUnfilledRequiredParametersPerStep = stepList.collect { it.firstUnfilledRequiredParameter }
+                TdParameter firstUnfilledRequiredParameter = firstUnfilledRequiredParametersPerStep.find { it }
+                if (firstUnfilledRequiredParameter) {
+                    String message = String.format(
+                            "Unfilled required parameter: TD[%s] >> Step[%s] >> Parameter[%s]",
+                            trustmark.trustmarkDefinition.name,
+                            firstUnfilledRequiredParameter.assessmentStep.name,
+                            firstUnfilledRequiredParameter.name
+                    )
+                    throw new InvalidRequestError(message)
+                }
+                ParameterValue[] assessmentParameterValues = stepList.collectMany { it.parameterValues }
+                for (assessmentParameterValue in assessmentParameterValues) {
+                    ParameterValue parameterValue = new ParameterValue(
+                            parameter: assessmentParameterValue.parameter,
+                            userValue: assessmentParameterValue.userValue
+                    )
+                    reissuedTrustmark.addToParameterValues(parameterValue)
+                }
+
+                // generate and save xml signature for this trustmark
+                SigningCertificate signingCertificate = SigningCertificate.findById(newCertificateId)
+                if (signingCertificate == null) {
+                    throw new ServletException("Need at least one signing certificate to perform this operation.")
+                }
+
+                signTrustmark(signingCertificate, reissuedTrustmark)
+
+                reissuedTrustmark.save(failOnError: true, flush: true)
+
+                // update original trustmark status
+                log.warn("Revoking trustmark due to an expired certificate.  Updating...")
+                trustmark.status = TrustmarkStatus.REVOKED
+                trustmark.revokedTimestamp = now.getTime()
+                trustmark.supersededBy = reissuedTrustmark
+                trustmark.revokedReason = "This trustmark has been revoked because the certificate" +
+                        " used to generate its XML signature has been revoked or has expired."
+                trustmark.save(failOnError: true, flush: true)
+            } // end each
+        }// end if
+    } // end reissueTrustmarksFromMetadataSet
+
+
     //==================================================================================================================
     //  Helper Methods
     //==================================================================================================================
@@ -924,6 +1100,9 @@ ${trustmark.providerExtension ?: ""}
 
         // save the signed trustmark's XML string to the db
         trustmark.signedXml = signedXml
+
+        // save the signing certificate used
+        trustmark.signingCertificateId = signingCertificate.id
     }
 
 }//end TrustmarkController

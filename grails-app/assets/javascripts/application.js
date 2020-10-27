@@ -8,6 +8,7 @@
 //= require jquery-2.2.0.min
 //= require jquery-ui-1.12.1.min
 //= require bootstrap
+//= require bootstrap-select
 //= require jquery-treetable-3.2.0/jquery.treetable.js
 //= require_self
 //= require json2.js

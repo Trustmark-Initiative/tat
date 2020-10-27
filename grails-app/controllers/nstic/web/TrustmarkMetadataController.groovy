@@ -162,18 +162,26 @@ class TrustmarkMetadataController {
 
         List<SigningCertificate> certs = SigningCertificate.findAllByOrganization(org)
 
+        def activeCertificates = []
+        certs.each { signingCertificate ->
+            if (signingCertificate.status == nstic.web.SigningCertificateStatus.ACTIVE) {
+
+                activeCertificates.add(signingCertificate);
+            }
+        }
+
         log.debug("Rendering list...")
         withFormat {
             html {
                 throw new ServletException("Not Yet Implemented")
             }
             xml {
-                render certs as XML
+                render activeCertificates as XML
             }
             json {
                 // render certs as JSON
                 def resultsJSON = []
-                certs.each{ result ->
+                activeCertificates.each{ result ->
                     def resultJSON = [
                             id: result.id,
                             distinguishedName: result.distinguishedName ?: "",
