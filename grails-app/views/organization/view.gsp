@@ -168,7 +168,7 @@
                                 </g:if>
                                 <g:else>
                                     <tr>
-                                        <td colspan="5">
+                                        <td colspan="6">
                                             <em>There are no signing certificates tied to this organization.</em>
                                         </td>
                                     </tr>
@@ -185,30 +185,78 @@
             </sec:ifLoggedIn>
 
             <!-- Trustmarks -->
+%{--            <div class="row" style="margin-top: 2em;">--}%
             <div style="margin-top: 2em;">
                 <h4>Trustmarks</h4>
                 <div class="sectionDescription text-muted">
-                    The number of Trustmarks granted for this organization.
+                    The number of trustmarks granted to this organization.
                 </div>
 
                 <%
-                    Integer numberOfTrustmarks = nstic.web.assessment.Trustmark.findAllByProviderOrganization(organization).size()
+
+                    Console.println("=========================================================")
+                    Console.println("Viewing Recipient Organization: " + organization.name)
+
+                    Integer numberOfActiveTrustmarks = 0
+                    Integer numberOfExpiredTrustmarks = 0
+                    Integer numberOfRevokedTrustmarks = 0
+                    List<nstic.web.assessment.Trustmark> trustmarks  = nstic.web.assessment.Trustmark.findAllByRecipientOrganization(organization)
+
+                    if (trustmarks && trustmarks.size() > 0) {
+                        trustmarks.each { nstic.web.assessment.Trustmark trustmark ->
+                            if (trustmark.status == nstic.web.assessment.TrustmarkStatus.EXPIRED) {
+                                numberOfExpiredTrustmarks++
+                            } else if (trustmark.status == nstic.web.assessment.TrustmarkStatus.REVOKED){
+                                numberOfRevokedTrustmarks++
+                            } else {
+                                numberOfActiveTrustmarks++;
+                            }
+                        }
+                    }
+                    Console.println("numberOfActiveTrustmarks: " + numberOfActiveTrustmarks)
+                    Console.println("numberOfExpiredTrustmarks: " + numberOfExpiredTrustmarks)
+                    Console.println("numberOfRevokedTrustmarks: " + numberOfRevokedTrustmarks)
+                    Console.println("----------------------------------------------------------------------------------")
                 %>
-                <table class="infoTable">
+
+                <table class="infotable table table-bordered table-striped table-condensed"
+                       style="white-space:nowrap;width:100%;">
                     <tr>
-                        <td>Number of Trustmarks</td>
-                        <td>
-                            <a href="${createLink(controller:'trustmark', action:'list')}" title="View Trustmarks">
-                                <span>${numberOfTrustmarks}</span>
+                        <th class="block" style="width:30%">Active Trustmarks</th>
+                        <td class="block" style="width:40%">
+                            <div>
+                                <span id="activeTrustmarks">${numberOfActiveTrustmarks}</span>
+                            </div>
+                        </td>
+                    </tr>
+                        <th class="block" style="width:30%">Expired Trustmarks</th>
+                        <td class="block" style="width:40%">
+                            <div>
+                                <span id="expiredTrustmarks">${numberOfExpiredTrustmarks}</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="block" style="width:30%">Revoked Trustmarks</th>
+                        <td class="block" style="width:40%">
+                            <div>
+                                <span id="revokedTrustmarks">${numberOfRevokedTrustmarks}</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="block" style="width:30%">Total</th>
+                        <td class="block" style="width:40%">
+                            <a href="${createLink(controller:'trustmark', action:'list', id: organization.id)}" title="View Trustmarks">
+                                <span id="totalTrustmarks">${numberOfActiveTrustmarks + numberOfExpiredTrustmarks + numberOfRevokedTrustmarks}</span>
                             </a>
                         </td>
-
                     </tr>
                 </table>
 
-                <g:if test="${numberOfTrustmarks > 0}">
+                <g:if test="${numberOfActiveTrustmarks > 0}">
                     <div style="margin-top: 2em; margin-bottom: 3em;">
-                        <a href="javascript:revokeAllTrustmarks()" class="btn btn-danger">Revoke All Trustmarks</a>
+                        <a href="javascript:revokeAllTrustmarks()" class="btn btn-danger">Revoke All Active Trustmarks</a>
                         <div id="revokeAllTrustmarksStatusMessage">
 
                         </div>
@@ -240,6 +288,25 @@
                                     $('#revokeAllTrustmarksStatusMessage').html('<asset:image src="spinner.gif" /> Revoking all trustmarks...');
                                 },
                                 success: function (data, statusText, jqXHR) {
+
+                                    // get trustmark stats
+                                    $.ajax({
+                                        url: '${createLink(controller: 'trustmark', action: 'getTrustmarkStats', id: organization.id)}',
+                                        beforeSend: function() {
+                                        },
+                                        success: function(data, statusText, jqXHR){
+
+                                            $('#activeTrustmarks').html(data["numberOfActiveTrustmarks"]);
+                                            $('#expiredTrustmarks').html(data["numberOfExpiredTrustmarks"]);
+                                            $('#revokedTrustmarks').html(data["numberOfRevokedTrustmarks"]);
+                                            $('#totalTrustmarks').html(data["totalNumberOfTrustmarks"]);
+
+                                            numberOfActiveTrustmarks = parseInt(data["numberOfActiveTrustmarks"]);
+                                        },
+                                        error: function(jqXHR, statusText, errorThrown){
+                                        }
+                                    });
+
 
                                     $('#revokeAllTrustmarksStatusMessage').html("All trustmarks have been revoked!");
 

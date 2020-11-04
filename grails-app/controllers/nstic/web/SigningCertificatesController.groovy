@@ -255,21 +255,31 @@ class SigningCertificatesController {
 
         Integer id = Integer.parseInt(params.id)
         SigningCertificate newCert = generateNewCertificateFromExistingCertificate(id)
+
+        def model = [newCert: newCert]
+        render model as JSON
     }
 
     def generateNewCertificateAndUpdateTrustmarkMetadataSets() {
 
         Integer id = Integer.parseInt(params.id)
 
+        log.info("Generating a new certificate and updating metadata from expired/revoked certificate: [${params.id}]...")
+
         // First, clone the expired/revoked certificate
         SigningCertificate newCert = generateNewCertificateFromExistingCertificate(id)
 
         updtateTrustmarkMetadataSets(id, newCert.id)
+
+        def model = [newCert: newCert]
+        render model as JSON
     }
 
     def generateNewCertificateAndUpdateTrustmarkMetadataSetsAndReissueTrustmarks() {
 
         Integer id = Integer.parseInt(params.id)
+
+        log.info("Generating a new certificate, updating metadata, and reissuing trustmarks from expired/revoked certificate: [${params.id}]...")
 
         // First, clone the expired/revoked certificate
         SigningCertificate newCert = generateNewCertificateFromExistingCertificate(id)
@@ -347,6 +357,8 @@ class SigningCertificatesController {
         int existingCertificateId = Integer.parseInt(params.id)
         int newCertificateId = Integer.parseInt(params.newCertId)
 
+        log.info("Updating metadata sets from expired/revoked certificate: [${params.id}] to new certificate: [${params.newCertId}]...")
+
         updtateTrustmarkMetadataSets(existingCertificateId, newCertificateId)
 
         Integer numberOfMetadataSets = numberOfTrustmarkMetadataSetsAssociatedWithCertificate(existingCertificateId)
@@ -359,57 +371,11 @@ class SigningCertificatesController {
         int existingCertificateId = Integer.parseInt(params.id)
         int selectedMetadataId = Integer.parseInt(params.selectedMetadataId)
 
+        log.info("Reissuing trustmarks from certificate: [${params.id}] and metadata sets: [${params.selectedMetadataId}]...")
+
         return redirect(controller: 'trustmark', action: 'reissueTrustmarksFromMetadataSet',
                 params: [originalCertId: existingCertificateId, metadataSetId: selectedMetadataId])
     }
-
-    // This attempts to clone the expired/revoked certificate, updtates the metadata and generate trustmarks
-//    def generateCertificateFromExpiredOrRevoked() {
-//        log.info("Generating a new certificate from revoked/expired certificate: [${params.id}]...")
-//
-//        // SigningCertificate domain object
-//        SigningCertificate oldCert = SigningCertificate.findById(params.id)
-//        if( !oldCert ) {
-//            log.info("oldCert == null...")
-//            throw new ServletException("No such certificate: ${params.id}")
-//        }
-//
-//        GenerateSigningCertificateCommand cmd = buildGenerateSigningCertificateCommand(oldCert)
-//
-//        SigningCertificate newCert = createNewSigningCertificate(cmd)
-//
-//        newCert.save(failOnError: true, flush: true)
-//
-//        // update relate TM Metadata
-//        TrustmarkMetadata metadata = TrustmarkMetadata.findByDefaultSigningCertificateId(oldCert.id)
-//        if (metadata != null) {
-//            metadata.defaultSigningCertificateId = newCert.id
-//        }
-//
-//        // regenerate affected Trustmarks signatures
-//        List<Trustmark> trustmarks = Trustmark.findAllBySigningCertificate(oldCert)
-//        if (trustmarks.size() > 0) {
-//            trustmarks.each{ trustmark ->
-//                signTrustmark(newCert, trustmark)
-//            }
-//        }
-//
-//        def responseData = [status: "SUCCESS", message: "Successfully revoked certificate ${newCert.id}",
-//                            certificate: [id: newCert.id, distinguishedName: newCert.distinguishedName,
-//                                          status: newCert.status.toString()]]
-//        withFormat {
-//            html {
-//                flash.message = "Successfully regenerated certificate and soigned affected Trustmarks"
-//                return redirect(controller: 'signingCertificates', action: 'view', id: newCert.id)
-//            }
-//            xml {
-//                render responseData as XML
-//            }
-//            json {
-//                render responseData as JSON
-//            }
-//        }
-//    }
 
     private int numberOfTrustmarksAssociatedWithCertificate(int certificateId) {
         Integer numberOfTrustmarksAffected = 0
@@ -553,141 +519,6 @@ class SigningCertificatesController {
         }
     }
 
-//    private void signTrustmark(SigningCertificate signingCertificate, Trustmark trustmark) {
-//
-//        // get the X509 certificate and private key
-//        X509CertificateService certService = new X509CertificateService()
-//        X509Certificate x509Certificate = certService.convertFromPem(signingCertificate.x509CertificatePem)
-//        PrivateKey privateKey = certService.getPrivateKeyFromPem(signingCertificate.privateKeyPem)
-//
-//        // get the trustmark's XML string
-//        String trustmarkXml = toXml(trustmark)
-//
-//        // get the signed trustmark's XML string
-//        TrustmarkXmlSignatureImpl trustmarkXmlSignature = new TrustmarkXmlSignatureImpl()
-//
-//        String referenceUri = "tf:id"
-//        String signedXml = trustmarkXmlSignature.generateXmlSignature(x509Certificate, privateKey,
-//                referenceUri, trustmarkXml)
-//
-//        // Validate the trustmark's signed xml against the Trustmark Framework XML schema
-//        XmlHelper.validateXml(signedXml)
-//        log.debug("Successfully validated trustmark's signed XML")
-//
-//        // validate the signature before saving
-//        boolean validSignature = trustmarkXmlSignature.validateXmlSignature(referenceUri, signedXml)
-//
-//        if (!validSignature) {
-//            throw new ServletException("The Trustmark's XML signature failed validation.")
-//        }
-//
-//        // save the signed trustmark's XML string to the db
-//        trustmark.signedXml = signedXml
-//
-//        // save the signing certificate used
-//        trustmark.signingCertificateId = signingCertificate.id
-//    }
-//
-//    private String toXml( Trustmark trustmark ){
-//        StringBuilder xmlBuilder = new StringBuilder()
-//
-//        Calendar issueDateTimeCal = Calendar.getInstance()
-//        issueDateTimeCal.setTime(trustmark.issueDateTime)
-//
-//        Calendar expirationDateTimeCal = Calendar.getInstance()
-//        expirationDateTimeCal.setTime(trustmark.expirationDateTime)
-//
-//        xmlBuilder.append("""<?xml version="1.0"?>
-//
-//<tf:Trustmark xmlns:tf="https://trustmarkinitiative.org/specifications/trustmark-framework/1.4/schema/"
-//        tf:id="_${trustmark.identifier}">
-//
-//    <tf:Identifier>${trustmark.identifierURL}</tf:Identifier>
-//
-//    <tf:TrustmarkDefinitionReference>
-//        <tf:Identifier>${trustmark.trustmarkDefinition.uri}</tf:Identifier>
-//        <tf:Name>${trustmark.trustmarkDefinition.name}</tf:Name>
-//        <tf:Version>${trustmark.trustmarkDefinition.tdVersion}</tf:Version>
-//    </tf:TrustmarkDefinitionReference>
-//
-//    <tf:IssueDateTime>${DatatypeConverter.printDateTime(issueDateTimeCal)}</tf:IssueDateTime>
-//    <tf:ExpirationDateTime>${DatatypeConverter.printDateTime(expirationDateTimeCal)}</tf:ExpirationDateTime>
-//
-//    <tf:PolicyURL>${trustmark.policyPublicationURL}</tf:PolicyURL>
-//    <tf:RelyingPartyAgreementURL>${trustmark.relyingPartyAgreementURL}</tf:RelyingPartyAgreementURL>
-//    <tf:StatusURL>${trustmark.statusURL}</tf:StatusURL>
-//
-//    <tf:Provider>
-//        <tf:Identifier>${trustmark.providerOrganization.uri}</tf:Identifier>
-//        <tf:Name>${trustmark.providerOrganization.name}</tf:Name>
-//        <tf:Contact>
-//            <tf:Kind>PRIMARY</tf:Kind>
-//            <tf:Responder>${trustmark.providerContactInformation.responder ?: ""}</tf:Responder>
-//            <tf:Email>${trustmark.providerContactInformation.email ?: ""}</tf:Email>
-//            <tf:Telephone>${trustmark.providerContactInformation.phoneNumber ?: ""}</tf:Telephone>
-//            <tf:MailingAddress>${trustmark.providerContactInformation.mailingAddress ?: ""}</tf:MailingAddress>
-//            <tf:Notes>${trustmark.providerContactInformation.notes ?: ""}</tf:Notes>
-//        </tf:Contact>
-//    </tf:Provider>
-//
-//    <tf:Recipient>
-//        <tf:Identifier>${trustmark.recipientOrganization.uri}</tf:Identifier>
-//        <tf:Name>${trustmark.recipientOrganization.name}</tf:Name>
-//        <tf:Contact>
-//            <tf:Kind>PRIMARY</tf:Kind>
-//            <tf:Responder>${trustmark.recipientContactInformation.responder ?: ""}</tf:Responder>
-//            <tf:Email>${trustmark.recipientContactInformation.email ?: ""}</tf:Email>
-//            <tf:Telephone>${trustmark.recipientContactInformation.phoneNumber ?: ""}</tf:Telephone>
-//            <tf:MailingAddress>${trustmark.recipientContactInformation.mailingAddress ?: ""}</tf:MailingAddress>
-//            <tf:Notes>${trustmark.recipientContactInformation.notes ?: ""}</tf:Notes>
-//        </tf:Contact>
-//    </tf:Recipient>
-//""")
-//
-//        if( StringUtils.isNotEmpty(trustmark.definitionExtension) ) {
-//            xmlBuilder.append("""
-//    <tf:DefinitionExtension>
-//${trustmark.definitionExtension ?: ""}
-//    </tf:DefinitionExtension>
-//""")
-//        }
-//
-//
-//        xmlBuilder.append("""
-//    <tf:ProviderExtension>
-//${trustmark.providerExtension ?: ""}
-//        <nief:TrustmarkProviderExtension xmlns:nief="https://nief.gfipm.net/trustmarks">
-//            <nief:has-exceptions>${trustmark.hasExceptions}</nief:has-exceptions>
-//            """)
-//
-//        if( trustmark.hasExceptions || StringUtils.isNotEmpty(trustmark.assessorComments) ){
-//            xmlBuilder.append("            <nief:exception-details><![CDATA[${trustmark.assessorComments}]]></nief:exception-details>\n")
-//        }
-//
-//        xmlBuilder.append("""
-//        </nief:TrustmarkProviderExtension>
-//    </tf:ProviderExtension>
-//""")
-//        if (trustmark?.parameterValues?.size()) {
-//            xmlBuilder.append("""
-//    <tf:ParameterBindings>""")
-//            for (parameterValue in trustmark.parameterValues) {
-//                xmlBuilder.append("""
-//        <tf:ParameterBinding tf:identifier="${parameterValue.parameter.identifier}" tf:kind="${parameterValue.parameter.kind}">${parameterValue.userValue}</tf:ParameterBinding>""")
-//            }
-//            xmlBuilder.append("""
-//    </tf:ParameterBindings>
-//""")
-//        }
-//
-//        xmlBuilder.append("""
-//</tf:Trustmark>
-//
-//""")
-//
-//        return xmlBuilder.toString()
-//    }
-
     private String getBaseAppUrl() {
         return AssessmentToolProperties.getProperties().getProperty(AssessmentToolProperties.BASE_URL)
     }
@@ -716,51 +547,6 @@ class SigningCertificatesController {
         response.setHeader("Content-Disposition", "attachment;filename=${filename}")
         response.getOutputStream() << new ByteArrayInputStream(certificate.x509CertificatePem.getBytes())
     }
-
-    // TEMP
-    void emailCertificateSubscriber(String email, SigningCertificate cert) {
-
-        if( StringUtils.isEmpty(email) )  {
-            log.warn("email is empty.")
-        } else {
-            log.debug("Sending certificate expiration email to ${email}...")
-
-            TrustmarkMailClientImpl emailClient = new TrustmarkMailClientImpl(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_USER),
-                    TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_PSWD))
-
-
-            def template = message(cert)//groovyPageRenderer.render(template: "/templates/signingCertificateExpired", model: [cert: cert])
-            log.debug("template: ${template}...")
-
-            emailClient.setSmtpHost(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_HOST))
-                    .setSmtpPort(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_PORT))
-                    .setFromAddress(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.FROM_ADDRESS))
-                    .setSmtpAuthorization(Boolean.parseBoolean(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_AUTH)))
-                    .setSubject("The following signing X509 certificate has expired: ${cert.distinguishedName}.")
-                    .addRecipient(email)
-                    .setText(template)
-
-            emailClient.sendMail()
-
-//            emailClient.setSmtpHost(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_HOST))
-//                    .setSmtpPort(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_PORT))
-//                    .setFromAddress(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.FROM_ADDRESS))
-//                    .setSmtpAuthorization(Boolean.parseBoolean(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_AUTH)))
-//                    .setSubject("The following signing X509 certificate has expired: ${cert.distinguishedName}.")
-//                    .addRecipient(email)
-//                    .setContent(template, "text/html")
-//                    .sendMail()
-        }
-    }
-
-    String message(SigningCertificate cert) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("The following Signing Certificate has expired: ${cert.distinguishedName} ");
-        sb.append("Link: http://localhost:8080/trustmark-assessments/signingCertificates/view/${cert.id}");
-
-        return sb.toString();
-    }
-    // END TEMP
 }
 
 class GenerateSigningCertificateCommand {
@@ -773,7 +559,6 @@ class GenerateSigningCertificateCommand {
         this.stateOrProvinceName = cert.stateOrProvinceName
         this.countryName = cert.countryName
         this.emailAddress = cert.emailAddress
-        //this.organization = cert.organization
         this.organizationName = cert.organizationName
         this.organizationalUnitName = cert.organizationalUnitName
         this.defaultCertificate = cert.defaultCertificate
@@ -848,5 +633,6 @@ class GenerateSigningCertificateCommand {
             }
             log.debug("Successfully validated org id.")
         })
+        expirationDate(nullable: true)
     }
 }

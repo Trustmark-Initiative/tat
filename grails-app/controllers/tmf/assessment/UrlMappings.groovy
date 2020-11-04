@@ -75,6 +75,7 @@ class UrlMappings {
         "/trustmark-metadata/$id/update"(controller: "trustmarkMetadata", action: "update")
 
         "/trustmarks"(controller: "trustmark", action: "list")
+        "/trustmarks/$id/recipient-organization"(controller: "trustmark", action: "list")
         "/trustmarks/create"(controller: "trustmark", action: "create") // Note parameter assessmentId holds the assessment id to create from.
         "/trustmarks/save"(controller: "trustmark", action: "save")
         "/trustmarks/$id"(controller: "trustmark", action: "view")
@@ -84,7 +85,7 @@ class UrlMappings {
         "/trustmarks/$id/status"(controller: "trustmark", action: "generateStatusXML")
         "/trustmarks/$id/revoke"(controller: "trustmark", action: "revoke")
 
-        "/trustmarks/$originalCertId/$newCertId"(controller: "trustmark", action: "reissueTrustmarks")
+        "/trustmarks/$originalCertId/reissue-trustmarks/$newCertId"(controller: "trustmark", action: "reissueTrustmarks")
 
         "/binaries"(controller:'binary', action:'list')
         "/binaries/upload"(controller:'binary', action:'upload')
@@ -138,14 +139,16 @@ class UrlMappings {
 
         "/signingcertificates/$id"(controller: "signingCertificates", action: "view")
         "/signingcertificates/$id/$certId?"(controller: "signingCertificates", action: "add")
-        "/signingcertificates/$id/generateNewCertificate"(controller: "signingCertificates",
+        "/signingcertificates/$id/generate-certificate"(controller: "signingCertificates",
                 action: "generateNewCertificateFromExpiredOrRevokedCertificate")
-
-        "/signingcertificates/$id/generateNewCertificateAndUpdateMetdata"(controller: "signingCertificates",
+        "/signingcertificates/$id/generate-certificate-update-trustmark-metadata"(controller: "signingCertificates",
                 action: "generateNewCertificateAndUpdateTrustmarkMetadataSets")
-
-        "/signingcertificates/$id/generateNewCertificateUpdateMetadataSetsReissueTrustmarks"(controller: "signingCertificates",
+        "/signingcertificates/$id/generate-certificate-update-trustmark-metadata-reissue-trustmarks"(controller: "signingCertificates",
                 action: "generateNewCertificateAndUpdateTrustmarkMetadataSetsAndReissueTrustmarks")
+        "/signingcertificates/$id/update-trustmark-metadata/$newCertId"(controller: "signingCertificates",
+                action: "updateTrustmarkMetadataSet")
+        "/signingcertificates/$id/reissue-trustmarks-from-metadata/$selectedMetadataId"(controller: "signingCertificates",
+                action: "reissueTrustmarksFromMetadataSet")
 
         "/publiccertificates/$filename"(controller:'publicCertificates', action: 'download', id: '$filename')
 

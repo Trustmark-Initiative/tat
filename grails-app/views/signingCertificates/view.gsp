@@ -12,6 +12,10 @@
             width: 480px;
             /*width: 120px;*/
         }
+        .tab {
+            display:inline-block;
+            margin-left: 40px;
+        }
     </style>
 </head>
 
@@ -177,6 +181,8 @@
                     The following actions may be useful if you have a trustmark signinig certificate that is revoked or expired. Review all available actions carefully before taking any action.
                 </div>
                 <table class="infoTable table table-striped table-bordered table-condensed">
+
+%{--                    Generate new certificate using the same data (common name, email address, etc.) as the revoked or expired certificate--}%
                     <tr>
                         <th>
                             <a href="javascript:generateNewCertificate();"
@@ -189,6 +195,8 @@
                         <td>Pressing this button will generate a new trustmark signing certificate with the same identifying data (common name, email address, etc.) as the revoked or expired certificate on this page.</td>
                     </tr>
 
+%{--                    Generate new certificate using the same data (common name, email address, etc.) as the revoked or expired certificate --}%
+%{--                    and update the metadata sets that use the expired/revoked certificate--}%
                     <tr>
                         <th>
                             <a href="javascript:generateNewCertificateAndUpdateMetadataSets();"
@@ -209,6 +217,8 @@
                         </td>
                     </tr>
 
+%{--                    Generate new certificate using the same  data (common name, email address, etc.) as the revoked or expired certificate, --}%
+%{--                    update the metadata sets that use the expired/revoked certificate, and reissue affected trustmarks--}%
                     <tr>
                         <th>
                             <a href="javascript:generateNewCertificateAndUpdateAllDependencies();"
@@ -231,6 +241,7 @@
                         </td>
                     </tr>
 
+%{--                    Update affected metadata sets with the selected and valid certificate --}%
                     <tr>
                         <th>
 
@@ -261,7 +272,7 @@
                                         <select name="metadataCertificate" id="metadataCertificate" class="selectpicker form-control"  data-width="75%" value="${validCerts[0].id}">
                                             <g:each in="${validCerts}" var="cert">
                                                 <li>
-                                                    <option data-content="${cert.distinguishedName}<br>    Expires on: ${cert.expirationDate}" value="${cert.id}">${cert.distinguishedName}</option>
+                                                    <option data-content="${cert.distinguishedName}<br>&emsp;Expires on: ${cert.expirationDate}" value="${cert.id}">${cert.distinguishedName}</option>
                                                 </li>
                                             </g:each>
                                         </select>
@@ -279,6 +290,7 @@
                         <td>Pressing this button will allow you to update all trustmark signing metadata sets that currently use the revoked or expired certificate on this page, using a different certificate of your choice.</td>
                     </tr>
 
+%{--                    Reissue affected trustmarks with the selected metadata set--}%
                     <tr>
                         <th>
                             <div class="form-group">
@@ -343,7 +355,7 @@
     var SELECTED_ORG = null;
 
     $(document).ready(function(){
-        $('#trustmarkUpdateStatusMessage').html("Status:");
+
     })
 
     function revoke() {
@@ -357,7 +369,9 @@
         }
     }
 
+    // Generate new certificate using the same data (common name, email address, etc.) as the revoked or expired certificate
     function generateNewCertificate(){
+
         $.ajax({
             url: '${createLink(controller: 'signingCertificates', action: 'generateNewCertificateFromExpiredOrRevokedCertificate', id: cert.id)}',
             beforeSend: function() {
@@ -365,58 +379,22 @@
             },
             success: function(data, statusText, jqXHR){
 
-                $.ajax({
-                    url: '${createLink(controller: 'signingCertificates', action: 'getActiveCertificates', id: cert.organization.id)}',
-                    beforeSend: function() {
-                    },
-                    success: function(data, statusText, jqXHR){
+                var cert = data["newCert"];
 
-                        $('#newCertificateStatusMessage').html("Status: Generated new certificate!");
+                updateActiveCertificatesDropDown(cert);
 
-                        var certificates = data["activeCertificates"];
-
-                        if (certificates) {
-                            var rselect = document.getElementById('metadataCertificate');
-
-                            // Clear all previous options
-                            var l = rselect.length;
-
-                            while (l > 0) {
-                                l--;
-                                rselect.remove(l);
-                            }
-
-                            // Rebuild the select
-                            for (var i = 0; i < certificates.length; i++) {
-                                var cert = certificates[i]
-
-                                // select the 1st option
-                                // TODO: does not work. Investigate
-                                if (i == 0) {
-                                    $('#metadataCertificate').append('<option data-content="' + cert.distinguishedName + '<br>    Expires on: ' + cert.expirationDate
-                                        + '" value="' + cert.id + '" selected>' + cert.distinguishedName + '</option>');
-                                } else {
-                                    $('#metadataCertificate').append('<option data-content="' + cert.distinguishedName + '<br>    Expires on: ' + cert.expirationDate
-                                        + '" value="' + cert.id + '">' + cert.distinguishedName + '</option>');
-                                }
-                            }
-
-                            $("#metadataCertificate").selectpicker("refresh");
-                        }
-
-                    },
-                    error: function(jqXHR, statusText, errorThrown){
-
-                    }
-                });
-
+                $('#newCertificateStatusMessage').html("Status: Generated new certificate!");
             },
             error: function(jqXHR, statusText, errorThrown){
+                console.log("Error: " + errorThrown);
 
+                $('#newCertificateStatusMessage').html(errorThrown);
             }
         });
     }
 
+    // Generate new certificate using the same data (common name, email address, etc.) as the revoked or expired certificate
+    // and update the metadata sets that use the expired/revoked certificate
     function generateNewCertificateAndUpdateMetadataSets() {
 
         $.ajax({
@@ -427,46 +405,9 @@
             success: function(data, statusText, jqXHR){
 
                 // update certificates drop down
-                $.ajax({
-                    url: '${createLink(controller: 'signingCertificates', action: 'getActiveCertificates', id: cert.organization.id)}',
-                    beforeSend: function() {
-                    },
-                    success: function(data, statusText, jqXHR){
+                var cert = data["newCert"];
 
-                        $('#newCertificateStatusMessage').html("Status: Generated new certificate!");
-
-                        var certificates = data["activeCertificates"];
-
-                        if (certificates) {
-                            var rselect = document.getElementById('metadataCertificate');
-
-                            // Clear all previous options
-                            var l = rselect.length;
-
-                            while (l > 0) {
-                                l--;
-                                rselect.remove(l);
-                            }
-
-                            // Rebuild the select
-                            for (var i = 0; i < certificates.length; i++) {
-                                var cert = certificates[i]
-                                var opt = document.createElement('option');
-                                opt.text = cert.distinguishedName;
-                                opt.value = cert.id;
-                                try {
-                                    rselect.add(opt, null);// standards compliant; doesn't work in IE
-                                } catch (ex) {
-                                    rselect.add(opt); // IE only
-                                }
-                            }
-                        }
-
-                    },
-                    error: function(jqXHR, statusText, errorThrown){
-
-                    }
-                });
+                updateActiveCertificatesDropDown(cert);
 
                 // update metadata sets drop down
                 $.ajax({
@@ -474,8 +415,6 @@
                     beforeSend: function() {
                     },
                     success: function(data, statusText, jqXHR){
-
-                        $('#trustmarksFromMetadataUpdateStatusMessage').html("Status: Generated new certificate and updated metadata sets!");
 
                         var metadataSets = data["activeMetadataSets"];
 
@@ -503,33 +442,54 @@
                                 }
                             }
                         }
-
                     },
                     error: function(jqXHR, statusText, errorThrown){
+                        $('#newCertificateAndUpdateMetadataStatusMessage').html(errorThrown);
+                    }
+                });
 
+                // update metadata sets dependency
+                $.ajax({
+                    url: '${createLink(controller: 'signingCertificates', action: 'getCertificateMetadataDependency', id: cert.id)}',
+                    beforeSend: function() {
+                    },
+                    success: function(data, statusText, jqXHR){
+
+                        $('#affectedTrustmarkMetadata').html(data["numberOfMetadataSets"]);
+
+                        $('#newCertificateAndUpdateMetadataStatusMessage').html("Status: Generated new certificate and updated metadata sets!");
+                    },
+                    error: function(jqXHR, statusText, errorThrown){
                     }
                 });
 
             },
             error: function(jqXHR, statusText, errorThrown){
-
+                $('#newCertificateAndUpdateMetadataStatusMessage').html(errorThrown);
             }
         });
     }
 
+    // Generate new certificate using the same  data (common name, email address, etc.) as the revoked or expired certificate,
+    // update the metadata sets that use the expired/revoked certificate, and reissue affected trustmarks
     function generateNewCertificateAndUpdateAllDependencies(){
+
         $.ajax({
             url: '${createLink(controller: 'signingCertificates', action: 'generateNewCertificateAndUpdateTrustmarkMetadataSetsAndReissueTrustmarks', id: cert.id)}',
             beforeSend: function() {
+
                 $('#trustmarkUpdateStatusMessage').html('<asset:image src="spinner.gif" /> Updating Trustmarks...');
             },
             success: function(data, statusText, jqXHR){
+
+                console.log("generateNewCertificateAndUpdateTrustmarkMetadataSetsAndReissueTrustmarks SUCCESS");
 
                 $.ajax({
                     url: '${createLink(controller: 'signingCertificates', action: 'getCertificateDependencies', id: cert.id)}',
                     beforeSend: function() {
                     },
                     success: function(data, statusText, jqXHR){
+                        console.log("getCertificateDependencies SUCCESS");
 
                         $('#trustmarkUpdateStatusMessage').html("Status: Trustmarks updated!");
 
@@ -541,20 +501,18 @@
 
                     },
                     error: function(jqXHR, statusText, errorThrown){
-
                     }
                 });
             },
             error: function(jqXHR, statusText, errorThrown){
-
             }
         });
     }
 
+    // Update affected metadata sets with the selected and valid certificate
     function updateTrustmarkMetadataSet() {
-        var newCert = document.getElementById("metadataCertificate").value;
 
-        console.log("newCert: " + newCert);
+        var newCert = document.getElementById("metadataCertificate").value;
 
         var url = '${createLink(controller: 'signingCertificates', action: 'updateTrustmarkMetadataSet', id: cert.id)}';
 
@@ -578,16 +536,14 @@
 
             },
             error: function(jqXHR, statusText, errorThrown){
-
             }
         });
-
     }
 
+    // Reissue affected trustmarks with the selected metadata set
     function reissueTrustmarksFromMetadataSet() {
-        var selectedMetadata = document.getElementById("trustmarkmetadata").value;
 
-        console.log("selectedMetadata: " + selectedMetadata);
+        var selectedMetadata = document.getElementById("trustmarkmetadata").value;
 
         var url = '${createLink(controller: 'signingCertificates', action: 'reissueTrustmarksFromMetadataSet', id: cert.id)}';
 
@@ -617,21 +573,24 @@
 
                     },
                     error: function(jqXHR, statusText, errorThrown){
-
                     }
                 });
-
-
             },
             error: function(jqXHR, statusText, errorThrown){
-
             }
         });
     }
 
-    function selectedMetadata(value) {
+    function updateActiveCertificatesDropDown(cert) {
+        if (cert) {
 
+            $('#metadataCertificate').append('<option data-content="' + cert.distinguishedName + '<br>&emsp;Expires on: ' + cert.expirationDate
+                + '" value="' + cert.id + '">' + cert.distinguishedName + '</option>');
+
+            $("#metadataCertificate").selectpicker("refresh");
+        }
     }
+
 </script>
 
 </body>
