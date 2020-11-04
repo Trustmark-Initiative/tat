@@ -3,6 +3,7 @@ package nstic.web.assessment
 import nstic.web.BinaryObject
 import nstic.web.ContactInformation
 import nstic.web.Organization
+import nstic.web.SigningCertificate
 import nstic.web.User
 import nstic.web.td.TrustmarkDefinition
 
@@ -28,7 +29,9 @@ class Trustmark {
     String relyingPartyAgreementURL;
     String statusURL;
 
-    String signedXml
+    String signedXml;
+
+    int signingCertificateId;
 
     Organization providerOrganization;
     ContactInformation providerContactInformation;
@@ -65,6 +68,7 @@ class Trustmark {
         relyingPartyAgreementURL(nullable: false, blank: false, maxSize: 1024)
         statusURL(nullable: false, blank: false, maxSize: 1024)
         signedXml(nullable:false, blank:false, maxSize: 65535)
+        signingCertificateId(nullable: false)
         definitionExtension(nullable: true, blank: true, maxSize: 65535)
         providerExtension(nullable: true, blank: true, maxSize: 65535)
         providerOrganization(nullable: false)

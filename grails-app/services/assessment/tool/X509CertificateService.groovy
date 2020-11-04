@@ -26,14 +26,22 @@ class X509CertificateService {
      * @param days      how many days from now the Example is valid for
      * @param algorithm the signing algorithm, eg "SHA1withRSA"
      */
-    X509Certificate generateCertificate(String dn, KeyPair pair, int days, String algorithm) {
+    X509Certificate generateCertificate(String dn, KeyPair pair, int days, String algorithm,
+                                        BigInteger serialNumber = null) {
 
         PrivateKey privkey = pair.getPrivate()
         X509CertInfo info = new X509CertInfo()
         Date from = new Date()
         Date to = new Date(from.getTime() + days * 86400000l)
         CertificateValidity interval = new CertificateValidity(from, to)
-        BigInteger sn = new BigInteger(64, new SecureRandom())
+
+        BigInteger sn = null
+        if (serialNumber != null) {
+            sn = serialNumber
+        } else {
+            sn = new BigInteger(64, new SecureRandom())
+        }
+
         X500Name owner = new X500Name(dn)
 
         info.set(X509CertInfo.VALIDITY, interval)

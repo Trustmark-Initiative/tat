@@ -27,11 +27,14 @@
             <table class="infoTable">
                 <tr>
                     <td>Unique Database Id</td><td>${trustmark.id}</td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Identifier</td><td><a href="${trustmark.identifier}">${trustmark.identifier}</a></td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Identifier URL</td><td><a href="${trustmark.identifierURL}">${trustmark.identifierURL}</a></td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Assessment</td>
                     <td>
                         <a href="${createLink(controller:'assessment', action:'view', id:trustmark.assessment.id)}">
@@ -39,7 +42,8 @@
                             ${trustmark.assessment.assessmentName}
                         </a>
                     </td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Trustmark Definition</td>
                     <td>
                         <a href="${trustmark.trustmarkDefinition.uri}" target="_blank">
@@ -49,31 +53,54 @@
                             ${trustmark.trustmarkDefinition.name}, version ${trustmark.trustmarkDefinition.tdVersion}
                         </a>
                     </td>
-                </tr><tr>
+                </tr>
+
+                <tr>
+                    <td>Signing Certificate</td>
+                    <td>
+                        <%
+                            nstic.web.SigningCertificate cert =  nstic.web.SigningCertificate.findById(trustmark.signingCertificateId)
+                        %>
+                        <g:link controller="signingCertificates" action="view" id="${cert.id}">
+                            ${cert.distinguishedName}
+                        </g:link>
+                    </td>
+                </tr>
+
+                <tr>
                     <td>Issue Date Time</td>
                     <td>
                         <g:formatDate format="yyyy-MM-dd" date="${trustmark.issueDateTime}" />
                     </td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Expiration Date Time</td>
                     <td>
                         <g:formatDate format="yyyy-MM-dd" date="${trustmark.expirationDateTime}" />
                     </td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Recipient Organization</td><td>${trustmark.recipientOrganization.name}</td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Recipient Contact</td><td>${trustmark.recipientContactInformation.responder} - ${trustmark.recipientContactInformation.email}</td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Provider Organization</td><td>${trustmark.providerOrganization.name}</td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Provider Contact</td><td>${trustmark.providerContactInformation.responder} - ${trustmark.providerContactInformation.email}</td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Policy Publication URL</td><td><a href="${trustmark.policyPublicationURL}">${trustmark.policyPublicationURL}</a></td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Relying Party Agreement URL</td><td><a href="${trustmark.relyingPartyAgreementURL}">${trustmark.relyingPartyAgreementURL}</a></td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Status URL</td><td><a href="${trustmark.statusURL}">${trustmark.statusURL}</a></td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Definition Extension</td>
                     <td>
                         <g:if test="${org.apache.commons.lang.StringUtils.isNotEmpty(trustmark.definitionExtension)}">
@@ -82,7 +109,8 @@
                             <em>No Data</em>
                         </g:else>
                     </td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Provider Extension</td>
                     <td>
                         <g:if test="${org.apache.commons.lang.StringUtils.isNotEmpty(trustmark.providerExtension)}">
@@ -91,12 +119,15 @@
                             <em>No Data</em>
                         </g:else>
                     </td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Has Exceptions</td><td>${trustmark.hasExceptions}</td>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Exception Comments</td><td>${trustmark.assessorComments}</td>
                 </tr>
-                </tr><tr>
+                </tr>
+                <tr>
                     <td>Parameter Values</td>
                     <td>
                         <table class="table table-hover">

@@ -1,8 +1,20 @@
 package nstic.web
 
+import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.TrustmarkXmlSignatureImpl
+import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.XmlHelper
+import edu.gatech.gtri.trustmark.v1_0.impl.util.TrustmarkMailClientImpl
+import nstic.TATPropertiesHolder
+import nstic.util.AssessmentToolProperties
+import nstic.web.SigningCertificateStatus
+
 import assessment.tool.X509CertificateService
+import grails.converters.JSON
+import grails.converters.XML
 import grails.gorm.transactions.Transactional
 import grails.plugin.springsecurity.annotation.Secured
+import nstic.web.assessment.Trustmark
+import nstic.web.assessment.TrustmarkStatus
+import nstic.web.td.TrustmarkDefinition
 import org.apache.commons.lang.StringUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -12,8 +24,10 @@ import sun.security.x509.X500Name
 import javax.servlet.ServletException
 import org.grails.web.util.WebUtils
 
+import javax.xml.bind.DatatypeConverter
 import java.security.KeyPair
 import java.security.KeyPairGenerator
+import java.security.PrivateKey
 import java.security.cert.Certificate
 import java.security.cert.X509Certificate
 import java.security.cert.CertificateFactory
@@ -66,6 +80,29 @@ class SigningCertificatesController {
         generateSigningCertificateCommand.organizationName = org.name
         generateSigningCertificateCommand.organizationalUnitName = ""
         generateSigningCertificateCommand.orgId = org.id
+
+        if (params.containsKey("certId")) {
+            SigningCertificate cert = SigningCertificate.findById(params.certId)
+
+            if (cert) {
+                generateSigningCertificateCommand.commonName = cert.commonName
+
+                generateSigningCertificateCommand.countryName = cert.countryName
+                generateSigningCertificateCommand.emailAddress = cert.emailAddress
+                generateSigningCertificateCommand.organizationName = cert.organizationName
+                generateSigningCertificateCommand.organizationalUnitName = cert.organizationalUnitName
+                generateSigningCertificateCommand.orgId = cert.organization.id
+
+                generateSigningCertificateCommand.organizationalUnitName = cert.organizationalUnitName
+                generateSigningCertificateCommand.localityName = cert.localityName
+                generateSigningCertificateCommand.stateOrProvinceName = cert.stateOrProvinceName
+
+                generateSigningCertificateCommand.validPeriod = cert.validPeriod
+                generateSigningCertificateCommand.keyLength = cert.keyLength
+
+                generateSigningCertificateCommand.expirationDate = cert.expirationDate
+            }
+        }
 
         [
             generateSigningCertificateCommand: generateSigningCertificateCommand,
@@ -138,35 +175,59 @@ class SigningCertificatesController {
 
         log.debug("Rendering signing certificate view [id=${cert.id}] " +
                 "page for certificate #${cert.distinguishedName})...)");
+
+        Integer numberOfTrustmarksAffected = numberOfTrustmarksAssociatedWithCertificate(cert.id)
+        Integer numberOfTrustMarkMetadataSetsAffected = numberOfTrustmarkMetadataSetsAssociatedWithCertificate(cert.id)
+
         withFormat {
             html {
                 [certId: cert.id, cert: cert, version: version, serialNumber: serialNumber,
                  signatureAlgorithm: signatureAlgorithm, issuer: issuer,
                  notBefore: notBefore, notAfter: notAfter, subject: subject,
-                 publicKeyAlgorithm: publicKeyAlgorithm, keyUsageString: keyUsageString]
+                 publicKeyAlgorithm: publicKeyAlgorithm, keyUsageString: keyUsageString,
+                 numberOfTrustmarksAffected: numberOfTrustmarksAffected,
+                 numberOfTrustMarkMetadataSetsAffected: numberOfTrustMarkMetadataSetsAffected]
             }
         }
     }
 
-    // deferred functionality
-//    def revoke() {
-//        log.info("Revoking certificate: [${params.id}]...")
-//
-//        // SigningCertificate domain object
-//        SigningCertificate cert = SigningCertificate.findById(params.id)
-//        if( !cert ) {
-//            log.info("cert == null...")
-//            throw new ServletException("No such certificate: ${params.id}")
-//        }
-//
-//        cert.revoked = true
-//
-//        //cert.defaultCertificate = false
-//
-//        cert.save(failOnError: true, flush: true)
-//
-//        return redirect(controller: 'organization', action:'view', id: cert.organization.id)
-//    }
+    /**
+     * Called when the user clicks on the "Revoke" button on the view trustmark page.  Should mark the trustmark as
+     * revoked, indicating that it is no longer valid.
+     */
+    def revoke() {
+        User user = springSecurityService.currentUser
+        if( StringUtils.isEmpty(params.id) )
+            throw new ServletException("Missing required parameter 'id'.")
+        if( StringUtils.isEmpty(params.reason) )
+            throw new ServletException("Missing required parameter 'reason'.")
+
+        SigningCertificate certificate = SigningCertificate.findById(params.id)
+        if( !certificate )
+            throw new ServletException("Unknown certificate: ${params.id}")
+
+        certificate.status = SigningCertificateStatus.REVOKED
+        certificate.revokedReason = params.reason
+        certificate.revokingUser = user
+        certificate.revokedTimestamp = Calendar.getInstance().getTime()
+        certificate.save(failOnError: true, flush: true)
+
+        def responseData = [status: "SUCCESS", message: "Successfully revoked certificate ${certificate.id}",
+                            certificate: [id: certificate.id, distinguishedName: certificate.distinguishedName,
+                                          status: certificate.status.toString()]]
+        withFormat {
+            html {
+                flash.message = "Successfully revoked certificate"
+                return redirect(controller:'signingCertificates', action:'view', id: certificate.id)
+            }
+            xml {
+                render responseData as XML
+            }
+            json {
+                render responseData as JSON
+            }
+        }
+    }
 
     def generateCertificate(GenerateSigningCertificateCommand cmd) {
 
@@ -178,6 +239,180 @@ class SigningCertificatesController {
             }
             return render(view: 'add', model: [generateSigningCertificateCommand: cmd])
         }
+
+        SigningCertificate signingCertificate = createNewSigningCertificate(cmd)
+
+        signingCertificate.save(failOnError: true, flush: true)
+
+        flash.message = "Successfully generated signing certificate " +
+                "'${signingCertificate.distinguishedName}' for organization ${cmd.organizationName}"
+
+        return redirect(controller: 'organization', action:'view', id: cmd.orgId)
+    }
+
+    def generateNewCertificateFromExpiredOrRevokedCertificate() {
+        log.info("Generating a new certificate from expired/revoked certificate: [${params.id}]...")
+
+        Integer id = Integer.parseInt(params.id)
+        SigningCertificate newCert = generateNewCertificateFromExistingCertificate(id)
+
+        def model = [newCert: newCert]
+        render model as JSON
+    }
+
+    def generateNewCertificateAndUpdateTrustmarkMetadataSets() {
+
+        Integer id = Integer.parseInt(params.id)
+
+        log.info("Generating a new certificate and updating metadata from expired/revoked certificate: [${params.id}]...")
+
+        // First, clone the expired/revoked certificate
+        SigningCertificate newCert = generateNewCertificateFromExistingCertificate(id)
+
+        updtateTrustmarkMetadataSets(id, newCert.id)
+
+        def model = [newCert: newCert]
+        render model as JSON
+    }
+
+    def generateNewCertificateAndUpdateTrustmarkMetadataSetsAndReissueTrustmarks() {
+
+        Integer id = Integer.parseInt(params.id)
+
+        log.info("Generating a new certificate, updating metadata, and reissuing trustmarks from expired/revoked certificate: [${params.id}]...")
+
+        // First, clone the expired/revoked certificate
+        SigningCertificate newCert = generateNewCertificateFromExistingCertificate(id)
+
+        updtateTrustmarkMetadataSets(id, newCert.id)
+
+        return redirect(controller: 'trustmark', action: 'reissueTrustmarks', params: [originalCertId: id, newCertId: newCert.id])
+    }
+
+    def getCertificateDependencies() {
+        Integer id = Integer.parseInt(params.id)
+
+        Integer numberOfTrustmarksAffected = numberOfTrustmarksAssociatedWithCertificate(id)
+        Integer numberOfMetadataSets = numberOfTrustmarkMetadataSetsAssociatedWithCertificate(id)
+
+        def model = [numberOfTrustmarks: numberOfTrustmarksAffected,
+                     numberOfMetadataSets: numberOfMetadataSets]
+        render model as JSON
+    }
+
+    def getCertificateTrustmarkDependencies() {
+        Integer id = Integer.parseInt(params.id)
+
+        Integer numberOfTrustmarksAffected = numberOfTrustmarksAssociatedWithCertificate(id)
+
+        def model = [numberOfTrustmarks: numberOfTrustmarksAffected]
+        render model as JSON
+    }
+
+    def getCertificateMetadataDependency() {
+        Integer id = Integer.parseInt(params.id)
+
+        Integer numberOfMetadataSets = numberOfTrustmarkMetadataSetsAssociatedWithCertificate(id)
+
+        def model = [numberOfMetadataSets: numberOfMetadataSets]
+        render model as JSON
+    }
+
+    def getActiveCertificates() {
+        Integer orgId = Integer.parseInt(params.id)
+        Organization org = Organization.findById(orgId)
+
+        def activeCerts = []
+
+        org.certificates.each { nstic.web.SigningCertificate cert ->
+            if (cert.status == nstic.web.SigningCertificateStatus.ACTIVE) {
+                Console.println("Adding certificate: " + cert.distinguishedName + " - " + cert.serialNumber);
+                activeCerts.add(cert);
+            }
+        }
+
+        def model = [activeCertificates: activeCerts]
+        render model as JSON
+    }
+
+    def getActiveMetadataSets() {
+        Integer orgId = Integer.parseInt(params.id)
+        Organization org = Organization.findById(orgId)
+
+        List<nstic.web.TrustmarkMetadata> validMetadata = [];
+        List<nstic.web.TrustmarkMetadata> metadata = nstic.web.TrustmarkMetadata.findAllByProvider(org);
+
+        metadata.each { nstic.web.TrustmarkMetadata md ->
+            nstic.web.SigningCertificate signingCertificate = nstic.web.SigningCertificate.findById(md.defaultSigningCertificateId)
+            if (signingCertificate.status == nstic.web.SigningCertificateStatus.ACTIVE) {
+                validMetadata.add(md)
+            }
+        }
+
+        def model = [activeMetadataSets: validMetadata]
+        render model as JSON
+    }
+
+    def updateTrustmarkMetadataSet() {
+        int existingCertificateId = Integer.parseInt(params.id)
+        int newCertificateId = Integer.parseInt(params.newCertId)
+
+        log.info("Updating metadata sets from expired/revoked certificate: [${params.id}] to new certificate: [${params.newCertId}]...")
+
+        updtateTrustmarkMetadataSets(existingCertificateId, newCertificateId)
+
+        Integer numberOfMetadataSets = numberOfTrustmarkMetadataSetsAssociatedWithCertificate(existingCertificateId)
+
+        def model = [numberOfMetadataSets: numberOfMetadataSets]
+        render model as JSON
+    }
+
+    def reissueTrustmarksFromMetadataSet() {
+        int existingCertificateId = Integer.parseInt(params.id)
+        int selectedMetadataId = Integer.parseInt(params.selectedMetadataId)
+
+        log.info("Reissuing trustmarks from certificate: [${params.id}] and metadata sets: [${params.selectedMetadataId}]...")
+
+        return redirect(controller: 'trustmark', action: 'reissueTrustmarksFromMetadataSet',
+                params: [originalCertId: existingCertificateId, metadataSetId: selectedMetadataId])
+    }
+
+    private int numberOfTrustmarksAssociatedWithCertificate(int certificateId) {
+        Integer numberOfTrustmarksAffected = 0
+        Trustmark.findAllBySigningCertificateId(certificateId).forEach { trustmark ->
+            if (trustmark.status == TrustmarkStatus.ACTIVE || trustmark.status == TrustmarkStatus.OK) {
+                numberOfTrustmarksAffected++
+            }
+        }
+
+        return numberOfTrustmarksAffected
+    }
+
+    private int numberOfTrustmarkMetadataSetsAssociatedWithCertificate(int certificateId) {
+
+        TrustmarkMetadata.findAllByDefaultSigningCertificateId(certificateId).size()
+    }
+
+    private SigningCertificate generateNewCertificateFromExistingCertificate(int existingCertificateId) {
+
+        // SigningCertificate domain object
+        SigningCertificate oldCert = SigningCertificate.findById(existingCertificateId)
+        if( !oldCert ) {
+            log.info("oldCert == null...")
+            throw new ServletException("No such certificate: ${existingCertificateId}")
+        }
+
+        GenerateSigningCertificateCommand cmd = new GenerateSigningCertificateCommand()
+        cmd.setData(oldCert)
+
+        SigningCertificate newCert = createNewSigningCertificate(cmd)
+
+        newCert.save(failOnError: true, flush: true)
+
+        return newCert
+    }
+
+    private SigningCertificate createNewSigningCertificate(GenerateSigningCertificateCommand cmd) {
 
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA")
 
@@ -221,8 +456,22 @@ class SigningCertificatesController {
         signingCertificate.thumbPrintWithColons = thumbprintWithColons
         signingCertificate.privateKeyPem = pemKey
         signingCertificate.x509CertificatePem = pemCert
+        signingCertificate.status = SigningCertificateStatus.ACTIVE
+
+        signingCertificate.validPeriod = cmd.validPeriod
+        signingCertificate.keyLength = cmd.keyLength
+
+        X509CertificateService certService = new X509CertificateService()
+        X509Certificate x509Certificate = certService.convertFromPem(signingCertificate.x509CertificatePem)
+        signingCertificate.expirationDate = x509Certificate.notAfter
 
         Organization org = Organization.findById(cmd.orgId)
+
+        if( !org ) {
+            log.info("There is no organization with ordId: ${cmd.orgId}}")
+            throw new ServletException("There is no organization with ordId: ${cmd.orgId}")
+        }
+
         signingCertificate.organization = org
 
         // URL: create a unique filename to create the downloadable file
@@ -243,9 +492,11 @@ class SigningCertificatesController {
             signingCertificate.defaultCertificate = cmd.defaultCertificate
         }
 
+        // TODO: Only change the certificates for the organization!!!
+
         // reset default certificate flag in db
         if (cmd.defaultCertificate) {
-            SigningCertificate.list().each { cert ->
+            org.certificates.toList().each { cert ->
                 if (cert.defaultCertificate) {
                     cert.defaultCertificate = false
                     cert.save(failOnError: true, flush: true)
@@ -253,29 +504,23 @@ class SigningCertificatesController {
             }
         }
 
-        signingCertificate.save(failOnError: true, flush: true)
+        return signingCertificate
+    }
 
-        flash.message = "Successfully generated signing certificate " +
-                "'${signingCertificate.distinguishedName}' for organization ${cmd.organizationName}"
+    private void updtateTrustmarkMetadataSets(int existingCertificateId, int newCertificateId) {
 
-        return redirect(controller: 'organization', action:'view', id: cmd.orgId)
+        // get a collection of trustmark metadata sets that use the expired/revoked certificate
+        def trustmarkMetadataSets = TrustmarkMetadata.findAllByDefaultSigningCertificateId(existingCertificateId)
+
+        trustmarkMetadataSets.each{ TrustmarkMetadata trustmarkMetadata ->
+            trustmarkMetadata.defaultSigningCertificateId = newCertificateId
+
+            trustmarkMetadata.save(failOnError: true, flush: true)
+        }
     }
 
     private String getBaseAppUrl() {
-        def request = WebUtils.retrieveGrailsWebRequest().getCurrentRequest()
-
-        def protocol = "http://"
-        if (request.isSecure()) {
-            protocol = "https://"
-        }
-        StringBuilder sb = new StringBuilder(protocol)
-        sb.append(request.getServerName())
-        sb.append(':')
-        sb.append(request.getServerPort())
-        // getContextPath already has the '/' prepended
-        sb.append(request.getContextPath())
-
-        return sb.toString()
+        return AssessmentToolProperties.getProperties().getProperty(AssessmentToolProperties.BASE_URL)
     }
 
     def download() {
@@ -307,6 +552,22 @@ class SigningCertificatesController {
 class GenerateSigningCertificateCommand {
     static Logger log = LoggerFactory.getLogger(GenerateSigningCertificateCommand.class);
 
+    public void setData(SigningCertificate cert) {
+
+        this.commonName = cert.commonName
+        this.localityName = cert.localityName
+        this.stateOrProvinceName = cert.stateOrProvinceName
+        this.countryName = cert.countryName
+        this.emailAddress = cert.emailAddress
+        this.organizationName = cert.organizationName
+        this.organizationalUnitName = cert.organizationalUnitName
+        this.defaultCertificate = cert.defaultCertificate
+        this.validPeriod = cert.validPeriod
+        this.keyLength = cert.keyLength
+        this.expirationDate = cert.expirationDate
+        this.orgId = cert.organization.id
+    }
+
     String commonName
     String localityName
     String stateOrProvinceName
@@ -317,8 +578,8 @@ class GenerateSigningCertificateCommand {
     Boolean defaultCertificate = Boolean.FALSE
     Integer validPeriod
     Integer keyLength
+    Date expirationDate
     Integer orgId
-
 
     static constraints = {
         commonName(nullable: false, blank: false, maxSize: 255)
@@ -372,5 +633,6 @@ class GenerateSigningCertificateCommand {
             }
             log.debug("Successfully validated org id.")
         })
+        expirationDate(nullable: true)
     }
 }

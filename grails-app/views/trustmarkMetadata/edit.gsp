@@ -170,7 +170,7 @@
 
                             setSigningCertificate(EXISTING_CERTIFICATES[0].id);
                         }else{
-                            html += '<div class="alert alert-danger">There are no signing certificates associated with the selected organization.  Please add at least one signing certificate and try again.</div>';
+                            html += '<div class="alert alert-danger">There are no signing certificates associated for the selected organization.  Please add at least one signing certificate and try again.</div>';
                         }
 
                         $('#selectExistingCertificatesControl').html(html);
@@ -420,6 +420,10 @@
                 console.log('Initially selected organization: ' + orgId);
 
                 updateDocsAndCerts(orgId);
+
+                if (EXISTING_CERTIFICATES && EXISTING_CERTIFICATES.length > 0) {
+                    setSigningCertificate(EXISTING_CERTIFICATES[0].id);
+                }
             });
         </script>
 

@@ -110,10 +110,8 @@
                                     <th class="certificateDistinguishedNameCol certificateDistinguishedNameColHeader">Distinguished Name</th>
                                     <th class="certificateEmailAddressCol certificateEmailAddressColHeader">Email Address</th>
                                     <th class="certificateUrlCol certificateUrlColHeader">URL</th>
+                                    <th class="certificateStatusCol certificateStatusColHeader">Status</th>
                                     <th class="certificateDefaultCol certificateDefaultColHeader">Default</th>
-
-                                    // deferred functionality
-%{--                                    <th class="certificateRevokedCol certificateRevokedColHeader">Revoked</th>--}%
                                 </tr>
                             </thead>
                             <tbody>
@@ -130,16 +128,12 @@
                                                     <span class="glyphicon glyphicon-download"></span>
                                                 </a>
 
-%{--                                                deferred functionality--}%
-%{--                                                <g:if test="${cert.revoked == false}">--}%
-%{--                                                    <a href="${createLink(controller:'signingCertificates',action:'revoke', id:cert.id)}"--}%
-%{--                                                        title="Revoke ${cert.distinguishedName}">--}%
-%{--                                                        <span class="glyphicon glyphicon-remove"></span>--}%
-%{--                                                    </a>--}%
-%{--                                                </g:if>--}%
                                             </td>
                                             <td class="certificateDistinguishedNameCol">
-                                                ${cert.distinguishedName}
+                                                <a href="${createLink(controller:'signingCertificates', action:'view', id:cert.id)}"
+                                                   title="View ${cert.distinguishedName}">
+                                                    <span>${cert.distinguishedName}</span>
+                                                </a>
                                             </td>
                                             <td class="certificateEmailAddressCol">
                                                 ${cert.emailAddress}
@@ -149,31 +143,32 @@
                                                     ${cert.certificatePublicUrl}
                                                 </g:link>
                                             </td>
+                                            <td class="certificateStatusCol">
+                                                <g:if test="${cert.status == nstic.web.SigningCertificateStatus.ACTIVE}">
+                                                    <span style="color: darkgreen;" class="glyphicon glyphicon-ok-sign" title="Certificate still valid"></span>
+                                                </g:if>
+                                                <g:if test="${cert.status == nstic.web.SigningCertificateStatus.REVOKED}">
+                                                    <span style="color: darkred;" class="glyphicon glyphicon-remove-sign" title="Certificate has been revoked."></span>
+                                                </g:if>
+                                                <g:if test="${cert.status == nstic.web.SigningCertificateStatus.EXPIRED}">
+                                                    <span style="color: rgb(150, 150, 0);" class="glyphicon glyphicon-minus-sign" title="Certificate has expired."></span>
+                                                </g:if>
+                                            </td>
                                             <td class="certificateDefaultCol">
                                                 <g:if test="${cert.defaultCertificate}">
-                                                    <span class="glyphicon glyphicon-ok"></span>
+                                                    <span>Yes</span>
                                                 </g:if>
                                                 <g:else>
-                                                    <span class="glyphicon glyphicon-remove"></span>
+                                                    <span>No</span>
                                                 </g:else>
                                             </td>
-
-%{--                                             deferred functionality--}%
-%{--                                            <td class="certificateRevokedCol">--}%
-%{--                                                <g:if test="${cert.revoked}">--}%
-%{--                                                    <span class="glyphicon glyphicon-ok"></span>--}%
-%{--                                                </g:if>--}%
-%{--                                                <g:else>--}%
-%{--                                                    <span class="glyphicon glyphicon-remove"></span>--}%
-%{--                                                </g:else>--}%
-%{--                                            </td>--}%
                                         </tr>
                                     </g:each>
 
                                 </g:if>
                                 <g:else>
                                     <tr>
-                                        <td colspan="5">
+                                        <td colspan="6">
                                             <em>There are no signing certificates tied to this organization.</em>
                                         </td>
                                     </tr>
@@ -189,6 +184,142 @@
                 </sec:ifAllGranted>
             </sec:ifLoggedIn>
 
+            <!-- Trustmarks -->
+%{--            <div class="row" style="margin-top: 2em;">--}%
+            <div style="margin-top: 2em;">
+                <h4>Trustmarks</h4>
+                <div class="sectionDescription text-muted">
+                    The number of trustmarks granted to this organization.
+                </div>
+
+                <%
+
+                    Console.println("=========================================================")
+                    Console.println("Viewing Recipient Organization: " + organization.name)
+
+                    Integer numberOfActiveTrustmarks = 0
+                    Integer numberOfExpiredTrustmarks = 0
+                    Integer numberOfRevokedTrustmarks = 0
+                    List<nstic.web.assessment.Trustmark> trustmarks  = nstic.web.assessment.Trustmark.findAllByRecipientOrganization(organization)
+
+                    if (trustmarks && trustmarks.size() > 0) {
+                        trustmarks.each { nstic.web.assessment.Trustmark trustmark ->
+                            if (trustmark.status == nstic.web.assessment.TrustmarkStatus.EXPIRED) {
+                                numberOfExpiredTrustmarks++
+                            } else if (trustmark.status == nstic.web.assessment.TrustmarkStatus.REVOKED){
+                                numberOfRevokedTrustmarks++
+                            } else {
+                                numberOfActiveTrustmarks++;
+                            }
+                        }
+                    }
+                    Console.println("numberOfActiveTrustmarks: " + numberOfActiveTrustmarks)
+                    Console.println("numberOfExpiredTrustmarks: " + numberOfExpiredTrustmarks)
+                    Console.println("numberOfRevokedTrustmarks: " + numberOfRevokedTrustmarks)
+                    Console.println("----------------------------------------------------------------------------------")
+                %>
+
+                <table class="infotable table table-bordered table-striped table-condensed"
+                       style="white-space:nowrap;width:100%;">
+                    <tr>
+                        <th class="block" style="width:30%">Active Trustmarks</th>
+                        <td class="block" style="width:40%">
+                            <div>
+                                <span id="activeTrustmarks">${numberOfActiveTrustmarks}</span>
+                            </div>
+                        </td>
+                    </tr>
+                        <th class="block" style="width:30%">Expired Trustmarks</th>
+                        <td class="block" style="width:40%">
+                            <div>
+                                <span id="expiredTrustmarks">${numberOfExpiredTrustmarks}</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="block" style="width:30%">Revoked Trustmarks</th>
+                        <td class="block" style="width:40%">
+                            <div>
+                                <span id="revokedTrustmarks">${numberOfRevokedTrustmarks}</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="block" style="width:30%">Total</th>
+                        <td class="block" style="width:40%">
+                            <a href="${createLink(controller:'trustmark', action:'list', id: organization.id)}" title="View Trustmarks">
+                                <span id="totalTrustmarks">${numberOfActiveTrustmarks + numberOfExpiredTrustmarks + numberOfRevokedTrustmarks}</span>
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+
+                <g:if test="${numberOfActiveTrustmarks > 0}">
+                    <div style="margin-top: 2em; margin-bottom: 3em;">
+                        <a href="javascript:revokeAllTrustmarks()" class="btn btn-danger">Revoke All Active Trustmarks</a>
+                        <div id="revokeAllTrustmarksStatusMessage">
+
+                        </div>
+                    </div>
+                </g:if>
+
+                <script type="text/javascript">
+                    function revokeAllTrustmarks() {
+
+                        if( !confirm("Are you sure you want to revoke all trustmarks? This operation cannot be reversed.") ){
+                            return;
+                        }
+
+                        var url = '${createLink(controller:'trustmark', action: 'revokeAll', id: organization.id)}';
+
+                        var reason = prompt("What is the reason you are revoking all trustmarks?");
+                        if( !reason){
+                            alert("A reason is required.");
+                        }else {
+
+                            $.ajax({
+                                url: url,
+                                type: 'POST',
+                                data: {
+                                    format: 'json',
+                                    reason: reason
+                                },
+                                beforeSend: function () {
+                                    $('#revokeAllTrustmarksStatusMessage').html('<asset:image src="spinner.gif" /> Revoking all trustmarks...');
+                                },
+                                success: function (data, statusText, jqXHR) {
+
+                                    // get trustmark stats
+                                    $.ajax({
+                                        url: '${createLink(controller: 'trustmark', action: 'getTrustmarkStats', id: organization.id)}',
+                                        beforeSend: function() {
+                                        },
+                                        success: function(data, statusText, jqXHR){
+
+                                            $('#activeTrustmarks').html(data["numberOfActiveTrustmarks"]);
+                                            $('#expiredTrustmarks').html(data["numberOfExpiredTrustmarks"]);
+                                            $('#revokedTrustmarks').html(data["numberOfRevokedTrustmarks"]);
+                                            $('#totalTrustmarks').html(data["totalNumberOfTrustmarks"]);
+
+                                            numberOfActiveTrustmarks = parseInt(data["numberOfActiveTrustmarks"]);
+                                        },
+                                        error: function(jqXHR, statusText, errorThrown){
+                                        }
+                                    });
+
+
+                                    $('#revokeAllTrustmarksStatusMessage').html("All trustmarks have been revoked!");
+
+                                },
+                                error: function (jqXHR, statusText, errorThrown) {
+                                    $('#revokeAllTrustmarksStatusMessage').html("An error has occurred...");
+                                }
+                            });
+                        }
+
+                    }
+                </script>
+            </div>
 
             <!-- Artifacts -->
             <div style="margin-top: 2em;">
@@ -449,14 +580,11 @@
                 </div>
             </div>
 
-
-
-
-            <!-- Contacts List -->
+            <!-- Trustmark Metadata Sets -->
             <div style="margin-top: 2em;">
-                <h4>Trustmark Metadata Provider</h4>
+                <h4>Trustmark Metadata Sets</h4>
                 <div class="sectionDescription text-muted">
-                    A list of Trustmark Metadata instances for which this organization is the provider.
+                    A list of Trustmark Metadata sets for which this organization is the provider.
                 </div>
                 <table class="table table-striped table-bordered table-condensed">
                     <thead>
@@ -489,10 +617,6 @@
                     </tbody>
                 </table>
             </div>
-
-
-
-
 
         </div>
 

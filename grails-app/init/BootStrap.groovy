@@ -12,6 +12,7 @@ import nstic.web.Organization
 import nstic.web.Role
 import nstic.web.ScanHostJob
 import nstic.web.SigningCertificate
+import nstic.web.SigningCertificateStatus
 import nstic.web.SystemVariable
 import nstic.web.TrustmarkMetadata
 import nstic.web.User
@@ -26,6 +27,7 @@ import javax.servlet.ServletContext
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.cert.Certificate
+import java.security.cert.X509Certificate
 import java.util.regex.Pattern
 
 class BootStrap {
@@ -403,8 +405,10 @@ ${grailsMailProps(config)}
             String defaultCertificateDistinguishedName = props.getProperty("trustmark.certificate.default.distinguishedname")
                     ?: "CN=https://trustmarkinitiative.org/, OU=TI, O=Trustmark Initiative, L=Atlanta, ST=GA, C=US"
 
-            SigningCertificate certificate = SigningCertificate.findByDistinguishedName(
-                    defaultCertificateDistinguishedName)
+            String serialNumber = props.getProperty("trustmark.certificate.default.serialNumber")
+                    ?: "6038133832474291075"
+
+            SigningCertificate certificate = SigningCertificate.findBySerialNumber(serialNumber)
             metadata.defaultSigningCertificateId = certificate.id
 
             String orgUri = props.getProperty("trustmark.metadata.orgUri") ?: null
@@ -438,6 +442,12 @@ ${grailsMailProps(config)}
             String distinguishedName = props.getProperty("trustmark.certificate.default.distinguishedname")
                     ?: "CN=https://trustmarkinitiative.org/, OU=TI, O=Trustmark Initiative, L=Atlanta, ST=GA, C=US"
 
+            // serial number
+            String serialNumber = props.getProperty("trustmark.certificate.default.serialNumber")
+                    ?: "6038133832474291075"
+
+            BigInteger sn = new BigInteger(serialNumber)
+
             X500Name x500Name = new X500Name(distinguishedName)
 
             X509CertificateService x509CertificateService = new X509CertificateService()
@@ -446,7 +456,7 @@ ${grailsMailProps(config)}
                     props.getProperty("trustmark.certificate.default.validperiod") ?: "10")
 
             Certificate certificate = x509CertificateService.generateCertificate(distinguishedName,
-                    keyPair, validPeriod * 365, "SHA256withRSA")
+                    keyPair, validPeriod * 365, "SHA256withRSA", sn)
 
             // public cert string
             String pemCert = x509CertificateService.convertToPem(certificate)
@@ -482,8 +492,14 @@ ${grailsMailProps(config)}
             signingCertificate.thumbPrintWithColons = thumbprintWithColons
             signingCertificate.privateKeyPem = pemKey
             signingCertificate.x509CertificatePem = pemCert
+            signingCertificate.validPeriod = validPeriod
+            signingCertificate.keyLength = keyLength
+            signingCertificate.status = SigningCertificateStatus.ACTIVE
             signingCertificate.organization = org
 
+            X509CertificateService certService = new X509CertificateService()
+            X509Certificate x509Certificate = certService.convertFromPem(pemCert)
+            signingCertificate.expirationDate = x509Certificate.notAfter
 
             // URL: create a unique filename to create the downloadable file
             // filename: commonName-thumbprint.pem
@@ -499,6 +515,7 @@ ${grailsMailProps(config)}
             signingCertificate.defaultCertificate = true
 
             signingCertificate.save(failOnError: true)
+            
         }catch(Throwable t){
             log.error("Unable to create default signing certificate!", t)
             // This is a recoverable error, so we just continue on ignoring this failure.

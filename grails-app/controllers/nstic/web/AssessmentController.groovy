@@ -217,7 +217,7 @@ LIMIT 10
 
         log.info("Processing TD resolution for TIP ${databaseTip.name}, version ${databaseTip.version}...")
         for( String key : params.keySet() )  {
-            if( key.startsWith("tdCheckbox") && params.boolean(key) == true ){
+            if( key.startsWith("tdCheckbox") && params.boolean(key) ){
                 String[] tdtip = key.split("-")
                 if(tdtip.length > 1)  {
                     Long tipId = Long.parseLong(tdtip[1])
@@ -233,7 +233,7 @@ LIMIT 10
                         }
                         assessmentTipData.getTdUris().add(td.uri)
                     }
-                    log.debug("  User has selected to add TD ${td.uri} ${tdtip[0]}  ${tdtip[1]}")
+                    log.debug("* User has selected to add TD ${td.uri} ${tdtip[0]}  ${tdtip[1]}")
                 } else {
                     Long tdId = Long.parseLong(tdtip[0].replace("tdCheckbox", ""))
                     TrustmarkDefinition td = TrustmarkDefinition.get(tdId)
@@ -809,7 +809,7 @@ LIMIT 10
         tipData.version = tip.tipVersion
         tipData.uri = tip.uri
         tipData.processed = false
-        tipData.useAllTds = true
+        tipData.useAllTds = false
         return tipData;
     }
 

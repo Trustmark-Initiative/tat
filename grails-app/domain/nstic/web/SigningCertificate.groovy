@@ -1,5 +1,7 @@
 package nstic.web
 
+import nstic.web.SigningCertificateStatus
+
 class SigningCertificate {
 
     static belongsTo = [organization: Organization]
@@ -20,12 +22,18 @@ class SigningCertificate {
     String x509CertificatePem
     String filename
 
+    Integer validPeriod
+    Integer keyLength
+
     Date dateCreated
+    Date expirationDate
     String certificatePublicUrl
     Boolean defaultCertificate = Boolean.FALSE
 
-    // deferred functionality
-//    Boolean revoked = Boolean.FALSE
+    SigningCertificateStatus status
+    User revokingUser
+    Date revokedTimestamp
+    String revokedReason
 
     static constraints = {
         organization(nullable: false)
@@ -43,10 +51,12 @@ class SigningCertificate {
         privateKeyPem(nullable: false, blank: false, size:0..65535)
         x509CertificatePem(nullable: false, blank: false, size:0..65535)
         filename(nullable: false, blank: false, maxSize: 255)
-        defaultCertificate(null: false)
+        defaultCertificate(nullable: false)
 
-        // deferred functionality
-//        revoked(null: false)
+        status(nullable: false)
+        revokingUser(nullable: true)
+        revokedTimestamp(nullable: true)
+        revokedReason(nullable: true, blank: true, maxSize: 65535)
     }
 
     static mapping = {
@@ -55,6 +65,7 @@ class SigningCertificate {
         privateKeyPem(type:'text', column: 'private_key')
         x509CertificatePem(type:'text', column: 'x509_certificate')
         distinguishedName(type:'text', column: 'distinguished_name')
+        revokedReason(type: 'text')
         sort defaultCertificate: "desc"
     }
 

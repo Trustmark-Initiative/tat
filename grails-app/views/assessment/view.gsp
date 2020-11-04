@@ -43,10 +43,6 @@
         </style>
 	</head>
 	<body>
-        %{--<ol class="breadcrumb">--}%
-            %{--<li class="active">Home</li>--}%
-        %{--</ol>--}%
-
         <div class="row">
             <div class="col-md-12">
                 <a href="#metadata">Metadata</a> |
