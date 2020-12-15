@@ -41,6 +41,9 @@ class CheckExpiredCertificatesJob {
 
         Calendar now = Calendar.getInstance()
 
+        Integer expirationWarningPeriodInDays = Integer.parseInt(AssessmentToolProperties.getProperties().getProperty(
+                "trustmark.certificate.default.expirationWarningPeriod")) ?: 30
+
         X509CertificateService certService = new X509CertificateService()
 
         def organizations = Organization.findAll()
@@ -54,9 +57,6 @@ class CheckExpiredCertificatesJob {
                 Date notAfter = x509Certificate.getNotAfter()
                 Calendar expiration = Calendar.getInstance()
                 expiration.setTime(notAfter)
-
-                Integer expirationWarningPeriodInDays = AssessmentToolProperties.getProperties().getProperty(
-                        "trustmark.certificate.default.expirationWarningPeriod")
 
                 Calendar expirationWarning = Calendar.getInstance()
                 expirationWarning.setTime(notAfter)

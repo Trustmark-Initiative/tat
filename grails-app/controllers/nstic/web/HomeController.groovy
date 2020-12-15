@@ -22,8 +22,15 @@ class HomeController {
         //def connectionUrl = sessionFactory.getCurrentSession().connection().getMetaData().getURL()
         //log.info "Connection URL: $connectionUrl"
 
+        boolean firstTimeLogin = (UserRole.countByRole(Role.findByAuthority(Role.ROLE_ADMIN)) == 0)
+
+        boolean noTpatRegistryUrl = (AssessmentToolProperties.getRegistryUrl() == null)
+
+        // We also include the missing of the registry url as a trigger to the first time login page
+        firstTimeLogin = firstTimeLogin || noTpatRegistryUrl
+
         [
-                firstTimeLogin: (UserRole.countByRole(Role.findByAuthority(Role.ROLE_ADMIN)) == 0),
+                firstTimeLogin: firstTimeLogin,
                 trustmarkDefinitionCount: TrustmarkDefinition.count(),
                 trustmarkDefinitions: TrustmarkDefinition.list([max:10]), // TODO Improve this to most relevant 10
                 assessmentCount: Assessment.count(),
@@ -37,43 +44,64 @@ class HomeController {
 
         if(params.password == params.passwordAgain)  {
             User.withTransaction {
-                ContactInformation contactInformation = new ContactInformation()
-                contactInformation.responder = params.contactResponder
-                contactInformation.email = params.contactEmail
-                contactInformation.phoneNumber = params.contactPhone
-                contactInformation.mailingAddress = params.contactAddr
-                contactInformation.notes = 'Initial Administator contact'
-                contactInformation.save(failOnError: true)
 
-                Organization databaseOrg = new Organization()
-                databaseOrg.name = params.organizationName
-                databaseOrg.identifier = params.organizationId
-                databaseOrg.uri = params.organizationUri
-                databaseOrg.primaryContact = contactInformation
-                databaseOrg.save(failOnError: true)
+                ContactInformation contactInformation = ContactInformation.findByResponderAndEmailAndPhoneNumberAndMailingAddress(
+                        params.contactResponder, params.contactEmail, params.contactPhone, params.contactAddr)
 
-                User databaseUser = new User()
-                databaseUser.username = params.username
-                databaseUser.password = params.password
-                databaseUser.enabled = true
-                databaseUser.accountExpired = false
-                databaseUser.accountLocked = false
-                databaseUser.passwordExpired = false
-                databaseUser.contactInformation = contactInformation
-                databaseUser.organization = databaseOrg
+                if (!contactInformation) {
+                    contactInformation = new ContactInformation()
+                    contactInformation.responder = params.contactResponder
+                    contactInformation.email = params.contactEmail
+                    contactInformation.phoneNumber = params.contactPhone
+                    contactInformation.mailingAddress = params.contactAddr
+                    contactInformation.notes = 'Initial Administator contact'
+                    contactInformation.save(failOnError: true)
+                }
 
-                log.debug("Saving User[@|cyan ${databaseUser.username}|@]...")
-                databaseUser.save(failOnError: true)
-                Role role = Role.findByAuthority('ROLE_ADMIN')
-                UserRole.create(databaseUser, role, true)
-                role = Role.findByAuthority('ROLE_USER')
-                UserRole.create(databaseUser, role, true)
+                Organization databaseOrg = Organization.findByNameAndIdentifierAndUri(
+                        params.organizationName, params.organizationId, params.organizationUri)
 
-                Registry registry = new Registry()
-                registry.registryUrl = params.registryUrl
-                registry.name = 'TPAT Registry'
-                registry.lastUpdated = new Date()
-                registry.save(failOnError: true)
+                if (!databaseOrg) {
+                    databaseOrg = new Organization()
+                    databaseOrg.name = params.organizationName
+                    databaseOrg.identifier = params.organizationId
+                    databaseOrg.uri = params.organizationUri
+                    databaseOrg.primaryContact = contactInformation
+                    databaseOrg.save(failOnError: true)
+                }
+
+                User databaseUser = User.findByUsername(params.username)
+
+                if (!databaseUser) {
+                    databaseUser = new User()
+                    databaseUser.username = params.username
+                    databaseUser.password = params.password
+                    databaseUser.enabled = true
+                    databaseUser.accountExpired = false
+                    databaseUser.accountLocked = false
+                    databaseUser.passwordExpired = false
+                    databaseUser.contactInformation = contactInformation
+                    databaseUser.organization = databaseOrg
+
+                    log.debug("Saving User[@|cyan ${databaseUser.username}|@]...")
+                    databaseUser.save(failOnError: true)
+
+                    Role role = Role.findByAuthority('ROLE_ADMIN')
+                    UserRole.create(databaseUser, role, true)
+                    role = Role.findByAuthority('ROLE_USER')
+                    UserRole.create(databaseUser, role, true)
+                }
+
+
+                Registry registry = Registry.findByRegistryUrl(params.registryUrl)
+
+                if (!registry) {
+                    registry = new Registry()
+                    registry.registryUrl = params.registryUrl
+                    registry.name = 'TPAT Registry'
+                    registry.lastUpdated = new Date()
+                    registry.save(failOnError: true)
+                }
 
                 if (AssessmentToolProperties.getProperties().getProperty("registry.url") == null)  {
                     AssessmentToolProperties.setRegistryUrl(params.registryUrl)

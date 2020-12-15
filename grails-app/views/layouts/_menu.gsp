@@ -57,9 +57,9 @@
                 </li>
                 <sec:ifAllGranted roles="ROLE_USER">
                     <li>
-                        <a href="${createLink(controller:'reports', action:'index')}" title="Generate Assessment Reports">
+                        <a href="${createLink(controller:'reports', action: 'organizationReport')}" title="Generate Organizational Reports">
                             <span class="glyphicon glyphicon-stats"></span>
-                            Reports
+                            Organizational Reports
                         </a>
                     </li>
                 </sec:ifAllGranted>
@@ -73,7 +73,7 @@
                     <ul class="dropdown-menu" role="menu">
                         <li><a href="${createLink(controller: 'admin', action: 'importExportView')}">Import/Export</a></li>
                         <li><a href="${createLink(controller: 'error')}">Error Tests</a></li>
-                        <li><a href="${createLink(controller: 'tdAndTipUpdate')}">TD & TIP Update</a></li>
+                        <li><a href="${createLink(controller: 'tdAndTipUpdate')}">TPAT Management</a></li>
                     </ul>
                 </li>
             </sec:ifAllGranted>

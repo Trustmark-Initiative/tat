@@ -151,8 +151,12 @@ class ScanHostJob {
     }
 
     private static List<String> getRemoteHostURLs(){
-        String registryURL = AssessmentToolProperties.getRegistryUrl()
-        return [registryURL]
+        List<String> registryURLs = []
+        Registry.findAll().each { Registry registry ->
+            registryURLs.add(registry.registryUrl)
+        }
+
+        return registryURLs
     }
 
     /**

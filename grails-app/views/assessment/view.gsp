@@ -79,6 +79,20 @@
                     <g:link controller="assessmentPerform" action="startAssessment" id="${assessment.id}" class="btn btn-primary">
                         Perform Assessment
                     </g:link>
+                    <g:link controller="assessmentPerform" action="importAssessmentResults" id="${assessment.id}" class="btn btn-primary confirmLink">
+                        Import Assessment Results
+                    </g:link>
+
+%{--                This is the popup ci=onfirmation dialog for the automated assessment task--}%
+                    <div id="dialog" title="Confirmation Required">
+                        Please take caution when using this feature.  The uploaded artifact should be an audit
+                        letter or report that shows the organization has undergone a thorough audit that covers
+                        the same criteria for which this assessment covers.  The assessor should have very high
+                        confidence that this existing audit event has thoroughly verified conformance to this TIP.
+                        <br>
+                        The assessor is still required to provide any parameters required by this assessment.
+                    </div>
+
                     <g:link controller="assessment" action="delete" id="${assessment.id}" class="btn btn-danger" onclick="return confirm('Really delete?  There is no undoing this operation.');">
                         Delete
                     </g:link>
@@ -94,6 +108,29 @@
                         $.get(url, function(data){
                             $('#assessmentStatusSummaryContainer').html(data);
                         });
+
+                        $("#dialog").dialog({
+                            autoOpen: false,
+                            modal: true
+                        });
+                    });
+
+                    $(".confirmLink").click(function(e) {
+                        e.preventDefault();
+                        var targetUrl = $(this).attr("href");
+
+                        $("#dialog").dialog({
+                            buttons : {
+                                "Confirm" : function() {
+                                    window.location.href = targetUrl;
+                                },
+                                "Cancel" : function() {
+                                    $(this).dialog("close");
+                                }
+                            }
+                        });
+
+                        $("#dialog").dialog("open");
                     });
                 </script>
             </div>

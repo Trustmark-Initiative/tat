@@ -193,7 +193,7 @@
             }
             else {
                 html += '  <div class="checkbox">\n';
-                html += '    <label><input type="checkbox"' + checkedCheckbox + ' name="td'+tdId+'HasExceptions" id="td'+tdId+'HasExceptions" onchange="updateExceptionsDesc(this, \'td'+tdId+'ExceptionsDesc\')" /> Has Exceptions</lable> <br/>\n';
+                html += '    <label><input class="hasExceptions" type="checkbox"' + checkedCheckbox + ' name="td'+tdId+'HasExceptions" id="td'+tdId+'HasExceptions" onchange="updateExceptionsDesc(this, \'td'+tdId+'ExceptionsDesc\')" /> Has Exceptions</lable> <br/>\n';
                 html += '  </div>\n';
                 html += '  <textarea rows="2" class="form-control" style="margin-left: 0; width: 100%; resize: none;" name="td'+tdId+'ExceptionsDesc" id="td'+tdId+'ExceptionsDesc"' + disabledTextbox + '></textarea>\n';
             }

@@ -60,6 +60,9 @@ class PublicApiController {
             json {
                 render (contentType: 'text/html', text: 'JSON not supported, yet')
             }
+            jwt {
+                render(contentType: 'text/jwt', text: trustmark.signedJson)
+            }
             xml {
                 render(contentType: 'text/xml', text: trustmark.signedXml)
             }

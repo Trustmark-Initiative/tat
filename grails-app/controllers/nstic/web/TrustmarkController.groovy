@@ -2,6 +2,7 @@ package nstic.web
 
 import assessment.tool.X509CertificateService
 import edu.gatech.gtri.trustmark.v1_0.FactoryLoader
+import edu.gatech.gtri.trustmark.v1_0.impl.io.json.TrustmarkJsonWebSignatureImpl
 import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.SerializerXml
 import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.XmlHelper
 import edu.gatech.gtri.trustmark.v1_0.impl.model.TrustmarkStatusReportImpl
@@ -33,6 +34,7 @@ import nstic.web.td.AssessmentStep
 import nstic.web.td.AssessmentStepArtifact
 import nstic.web.td.TdParameter
 import nstic.web.td.TrustmarkDefinition
+import org.apache.commons.io.FileUtils
 import org.apache.commons.lang.StringUtils
 import org.grails.help.ParamConversion
 import org.springframework.validation.ObjectError
@@ -42,6 +44,7 @@ import javax.xml.bind.DatatypeConverter
 import java.security.PrivateKey
 import java.security.cert.X509Certificate
 import java.text.SimpleDateFormat
+import java.time.LocalDateTime
 
 
 /**
@@ -211,6 +214,33 @@ class TrustmarkController {
         return id
     }
 
+    def getExpirationData() {
+        Integer metadataId = Integer.parseInt(params.selectedMetadataId)
+
+        TrustmarkMetadata trustmarkMetadata = TrustmarkMetadata.findById(metadataId)
+
+        if (trustmarkMetadata == null) {
+            log.error("trustmark metadata with id: ${metadataId} does not exist...")
+            throw new ServletException("No such trustmark metaadta set: ${metadataId}")
+        }
+
+        SigningCertificate signingCertificate = SigningCertificate.findById(
+                trustmarkMetadata.defaultSigningCertificateId)
+
+        def certificateExpirationDateString = signingCertificate.expirationDate.toString()
+
+        int timePeriodNoExcepionts  = trustmarkMetadata.timePeriodNoExceptions
+        int timePeriodWithExceptions  = trustmarkMetadata.timePeriodWithExceptions
+
+        int assessingOrganizationId = trustmarkMetadata.provider.id
+
+        def model = [certificateExpirationDate: certificateExpirationDateString,
+                     timePeriodNoExcepionts:    timePeriodNoExcepionts,
+                     timePeriodWithExceptions:  timePeriodWithExceptions,
+                     assessingOrganizationId:   assessingOrganizationId]
+
+        render model as JSON
+    }
 
     /**
      * Called when the user clicks "Generate" on the create trustmark page.  Actually saves the database object.
@@ -245,8 +275,13 @@ class TrustmarkController {
         }
 
         TrustmarkMetadata metadata = TrustmarkMetadata.get(params['trustmarkMetadataId'])
-        if( metadata == null )
-            throw new InvalidRequestError("Invalid trustmarkMetadataId!")
+        if( metadata == null ){
+            //throw new InvalidRequestError("Invalid trustmarkMetadataId!")
+            log.warn("No trustmark metadata has been created!")
+            flash.error = "You must generate and select at least 1 trustmark metadata set to grant a Trustmark on."
+            return redirect(controller: 'trustmarkMetadata', action: 'create')
+        }
+
 
         TrustmarkIdentifierGenerator identifierGenerator = Class.forName(metadata.generatorClass).newInstance()
         Calendar now = Calendar.getInstance()
@@ -1178,6 +1213,18 @@ ${trustmark.providerExtension ?: ""}
         X509Certificate x509Certificate = certService.convertFromPem(signingCertificate.x509CertificatePem)
         PrivateKey privateKey = certService.getPrivateKeyFromPem(signingCertificate.privateKeyPem)
 
+        // Generate XML Signature
+        signTrustmarkXML(x509Certificate, privateKey, trustmark)
+
+        // generate JSON Web Signature
+        signTrustmarkJSON(x509Certificate, privateKey, trustmark)
+
+        // save the signing certificate used
+        trustmark.signingCertificateId = signingCertificate.id
+    }
+
+    private void signTrustmarkXML(X509Certificate x509Certificate, PrivateKey privateKey, Trustmark trustmark) {
+
         // get the trustmark's XML string
         String trustmarkXml = toXml(trustmark)
 
@@ -1193,17 +1240,32 @@ ${trustmark.providerExtension ?: ""}
         log.debug("Successfully validated trustmark's signed XML")
 
         // validate the signature before saving
-        boolean validSignature = trustmarkXmlSignature.validateXmlSignature(referenceUri, signedXml)
+        boolean validXmlSignature = trustmarkXmlSignature.validateXmlSignature(referenceUri, signedXml)
 
-        if (!validSignature) {
+        if (!validXmlSignature) {
             throw new ServletException("The Trustmark's XML signature failed validation.")
         }
 
         // save the signed trustmark's XML string to the db
         trustmark.signedXml = signedXml
+    }
 
-        // save the signing certificate used
-        trustmark.signingCertificateId = signingCertificate.id
+    private void signTrustmarkJSON(X509Certificate x509Certificate, PrivateKey privateKey, Trustmark trustmark) {
+
+        TrustmarkJsonWebSignatureImpl trustmarkJsonWebSignature = new TrustmarkJsonWebSignatureImpl()
+
+        String trustmarkJson = trustmark.toJsonMap()
+
+        String signedJson = trustmarkJsonWebSignature.generateJsonWebSignature(privateKey, trustmarkJson)
+
+        // validate the signature before saving
+        boolean validJsonWebSignature = trustmarkJsonWebSignature.validateJsonWebSignature(x509Certificate, signedJson)
+
+        if (!validJsonWebSignature) {
+            throw new ServletException("The Trustmark's JSON WEB Signature failed validation.")
+        }
+
+        trustmark.signedJson = signedJson
     }
 
 }//end TrustmarkController

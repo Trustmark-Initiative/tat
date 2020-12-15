@@ -41,9 +41,20 @@
                 <div class="form-group">
                     <label for="trustmarkMetadataId" class="col-sm-1 control-label">Metadata</label>
                     <div class="col-sm-11">
-                        <g:select name="trustmarkMetadataId" id="trustmarkMetadataId" class="form-control" optionKey="id" optionValue="name" from="${metadataList}" />
-                        <span class="help-block">This metadata template will be used to generate metadata for the resulting trustmarks.</span>
+                        <g:if test="${metadataList.size() > 0}">
+                            <g:select name="trustmarkMetadataId" id="trustmarkMetadataId" class="form-control" optionKey="id" optionValue="name" from="${metadataList}" onchange="checkExpiration();"/>
+                            <span class="help-block">This metadata template will be used to generate metadata for the resulting trustmarks.</span>
+                        </g:if>
+                        <g:else>
+                            <div class="alert alert-danger">No trustmark metadata sets have been defined. Follow this
+                                <a href="${createLink(controller:'trustmarkMetadata', action:'create')}">link</a>
+                            to create a metadata set.</div>
+                        </g:else>
                     </div>
+                </div>
+
+                <div class="alert alert-info" id="expirationDateWarning">
+
                 </div>
 
                 <div class="form-group">
@@ -58,6 +69,8 @@
 
         <script type="text/javascript">
             $(document).ready( function() {
+                console.log("(document).ready( function() )");
+
                 loadTrustmarkDefinitionStatus();
             });
 
@@ -79,11 +92,92 @@
                         $('#trustmarkDefinitionStatusTableContainer').addClass('alert-danger');
                     },
                     success: function(data, textStatus, jqXHR){
-                        console.log("A successfully response was sent back.");
                         $('#trustmarkDefinitionStatusTableContainer').html(data);
+
+                        checkExpiration();
                     }
 
                 })
+            }
+
+            function checkExpiration() {
+
+                var rselect = document.getElementById('trustmarkMetadataId');
+                var selectedValue = rselect.options[rselect.selectedIndex].text;
+
+                var selectedMetadataId = $('#trustmarkMetadataId').val();
+
+                console.log("selectedMetadataId: " + selectedMetadataId);
+
+                // ajax to get selected certificate expiration and exception related time periods
+                var url = '${createLink(controller: 'trustmark', action: 'getExpirationData')}';
+                $.ajax({
+                    url: url,
+                    data: {
+                        format: 'json',
+                        timestamp: new Date().getTime(),
+                        selectedMetadataId: selectedMetadataId
+                    },
+                    beforeSend: function() {
+                    },
+                    success: function(data, statusText, jqXHR){
+                        console.log("getCertificateExpirationDate SUCCESS");
+
+                        var date = data["certificateExpirationDate"];
+
+                        var certificateExpirationDate = new Date(Date.parse(date));
+                        console.log("parsed date: " + certificateExpirationDate.toString());
+
+                        var now = new Date();
+                        var timePeriodNoExcepionts = data["timePeriodNoExcepionts"];
+                        var noExceptionExpirationDate = addMonthsToDate(now, timePeriodNoExcepionts);
+
+                        var timePeriodWithExceptions = data["timePeriodWithExceptions"];
+                        var withExceptionExpirationDate = addMonthsToDate(now, timePeriodWithExceptions);
+
+                        var assessingOrganizationId = data["assessingOrganizationId"];
+
+                        var html = "";
+                        // compare the expiration dates
+                        if (noExceptionExpirationDate > certificateExpirationDate ||
+                            withExceptionExpirationDate > certificateExpirationDate) {
+
+                            $('#expirationDateWarning').show();
+
+                            // render expiration warning
+                            html += '<div class="alert alert-danger style="margin-top: 1em;">';
+                            html += '<div>The signing certificate specified for the selected metadata set is going to expire before the expiration date for the generated trustmark(s).</div>';
+
+                            html += '<div>Please select a different metadata set or <a href="${createLink(controller: 'organization', action: 'view')}/' + assessingOrganizationId + '">generate</a> a new certificate for the origanization and select that certificate for the medatata set.</div>';
+
+                            html += '</div>\n';
+                        } else {
+                            $('#expirationDateWarning').hide();
+                        }
+
+                        $('#expirationDateWarning').html(html);
+
+                    },
+                    error: function(jqXHR, statusText, errorThrown){
+                        console.log("getExpirationData ERROR");
+                    }
+                });
+            }
+
+            function addMonthsToDate(date, numberOfMonths) {
+                var d = new Date(date);
+                var years = Math.floor(numberOfMonths / 12);
+                var months = numberOfMonths - (years * 12);
+
+                if (years) {
+                    d.setFullYear(d.getFullYear() + years);
+                }
+
+                if (months) {
+                    d.setMonth(d.getMonth() + months);
+                }
+
+                return d;
             }
 
             function updateExpirationDate(){

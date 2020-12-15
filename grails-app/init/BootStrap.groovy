@@ -9,6 +9,7 @@ import nstic.util.QuartzConfig
 import nstic.web.BinaryObject
 import nstic.web.ContactInformation
 import nstic.web.Organization
+import nstic.web.Registry
 import nstic.web.Role
 import nstic.web.ScanHostJob
 import nstic.web.SigningCertificate
@@ -329,6 +330,20 @@ ${grailsMailProps(config)}
 
                 // TODO Assign extra contacts, or users in orgs, etc.
 
+                // store the registry url, if any
+                URL url = AssessmentToolProperties.getRegistryUrl()
+                if (url != null) {
+                    Registry registry = Registry.findByRegistryUrl(url.toString())
+
+                    if (!registry) {
+                        registry = new Registry()
+                        registry.registryUrl = url.toString()
+                        registry.name = 'TPAT Registry'
+                        registry.lastUpdated = new Date()
+                        registry.save(failOnError: true)
+                    }
+                }
+
             } else {
                 log.debug("@|cyan ${userCount}|@ users exist in the database, so we don't need to create any.")
             }
@@ -412,14 +427,17 @@ ${grailsMailProps(config)}
             metadata.defaultSigningCertificateId = certificate.id
 
             String orgUri = props.getProperty("trustmark.metadata.orgUri") ?: null
-            if (orgUri == null)
+            if (orgUri == null) {
+                log.error("Could not find property: trustmark.metadata.orgUri...")
                 throw new NullPointerException("Could not find property: trustmark.metadata.orgUri")
-            Organization org = Organization.findByUri(orgUri)
-            if (org == null)  {
-                log.error("ERROR finding organization for default Trustmark Metadata...")
-            }  else {
-                metadata.provider = org
-                metadata.save(failOnError: true)
+            } else {
+                Organization org = Organization.findByUri(orgUri)
+                if (org == null) {
+                    log.error("ERROR finding organization for default Trustmark Metadata...")
+                } else {
+                    metadata.provider = org
+                    metadata.save(failOnError: true)
+                }
             }
         }catch(Throwable t){
             log.error("Unable to create default Trustmark Metadata!", t)
@@ -470,13 +488,13 @@ ${grailsMailProps(config)}
             // viewable thumbprint
             String thumbprintWithColons = x509CertificateService.getThumbPrintWithColons(certificate)
 
-            String orgUri = props.getProperty("trustmark.metadata.orgUri") ?: null
-            if (orgUri == null)
-                throw new NullPointerException("Could not find property: trustmark.metadata.orgUri")
-            Organization org = Organization.findByUri(orgUri)
-            if (org == null)  {
-                log.error("ERROR finding organization for default Trustmark Metadata...")
-            }
+//            String orgUri = props.getProperty("trustmark.metadata.orgUri") ?: null
+//            if (orgUri == null)
+//                throw new NullPointerException("Could not find property: trustmark.metadata.orgUri")
+//            Organization org = Organization.findByUri(orgUri)
+//            if (org == null)  {
+//                log.error("ERROR finding organization for default Trustmark Metadata...")
+//            }
 
             SigningCertificate signingCertificate = new SigningCertificate()
             signingCertificate.distinguishedName = distinguishedName
@@ -484,7 +502,7 @@ ${grailsMailProps(config)}
             signingCertificate.localityName = x500Name.locality
             signingCertificate.stateOrProvinceName = x500Name.state
             signingCertificate.countryName = x500Name.country
-            signingCertificate.emailAddress = org.primaryContact.email
+//            signingCertificate.emailAddress = org.primaryContact.email
             signingCertificate.organizationName = x500Name.organization
             signingCertificate.organizationalUnitName = x500Name.organizationalUnit
             signingCertificate.serialNumber = certificate.serialNumber.toString()
@@ -495,7 +513,7 @@ ${grailsMailProps(config)}
             signingCertificate.validPeriod = validPeriod
             signingCertificate.keyLength = keyLength
             signingCertificate.status = SigningCertificateStatus.ACTIVE
-            signingCertificate.organization = org
+//            signingCertificate.organization = org
 
             X509CertificateService certService = new X509CertificateService()
             X509Certificate x509Certificate = certService.convertFromPem(pemCert)
@@ -514,7 +532,21 @@ ${grailsMailProps(config)}
 
             signingCertificate.defaultCertificate = true
 
-            signingCertificate.save(failOnError: true)
+            String orgUri = props.getProperty("trustmark.metadata.orgUri") ?: null
+            if (orgUri == null) {
+                log.error("Could not find property: trustmark.metadata.orgUri...")
+                throw new NullPointerException("Could not find property: trustmark.metadata.orgUri")
+            } else {
+                Organization org = Organization.findByUri(orgUri)
+                if (org == null) {
+                    log.error("ERROR finding organization for default Trustmark Metadata...")
+                } else {
+                    signingCertificate.organization = org
+                    signingCertificate.emailAddress = org.primaryContact.email
+
+                    signingCertificate.save(failOnError: true)
+                }
+            }
             
         }catch(Throwable t){
             log.error("Unable to create default signing certificate!", t)

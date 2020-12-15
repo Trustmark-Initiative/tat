@@ -30,6 +30,7 @@ class Trustmark {
     String statusURL;
 
     String signedXml;
+    String signedJson;
 
     int signingCertificateId;
 
@@ -68,6 +69,7 @@ class Trustmark {
         relyingPartyAgreementURL(nullable: false, blank: false, maxSize: 1024)
         statusURL(nullable: false, blank: false, maxSize: 1024)
         signedXml(nullable:false, blank:false, maxSize: 65535)
+        signedJson(nullable:false, blank:false, maxSize: 65535)
         signingCertificateId(nullable: false)
         definitionExtension(nullable: true, blank: true, maxSize: 65535)
         providerExtension(nullable: true, blank: true, maxSize: 65535)
@@ -105,6 +107,7 @@ class Trustmark {
 
         generatedXml(column: 'generated_xml_ref')
         signedXml(type: 'text', column: 'signed_xml')
+        signedJson(type: 'text', column: 'signed_json')
         revokedReason(type: 'text')
         supersededBy(column: 'superseded_by_ref')
 
@@ -113,6 +116,7 @@ class Trustmark {
     }
 
     public Map toJsonMap(boolean shallow = false){
+        log.info("Trustmark to JSON Map...")
         def json = [
                 id: this.id,
                 identifier: this.identifier,
