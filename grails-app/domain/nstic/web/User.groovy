@@ -6,7 +6,6 @@ class User {
 
     transient SpringSecurityService springSecurityService
 
-    final String NOOP = "{noop}"
 	String username
 	String password
 	boolean enabled = true
@@ -29,7 +28,7 @@ class User {
 
 	static mapping = {
         table name: 'assessment_user'
-		password column: '`password`'
+		password column: '`pass_hash`'
         organization column: 'organization_ref'
         contactInformation column: 'contact_information_ref'
 	}
@@ -68,22 +67,6 @@ class User {
 
     Set<Role> getAuthorities() {
 		UserRole.findAllByUser(this).collect { it.role } as Set<Role>
-	}
-
-	def beforeInsert() {
-		encodePassword()
-	}
-
-	def beforeUpdate() {
-		if (isDirty('password')) {
-			encodePassword()
-		}
-	}
-
-	protected void encodePassword() {
-        password = springSecurityService?.passwordEncoder ?
-                springSecurityService.encodePassword(NOOP+password) :
-                NOOP+password
 	}
 
     String toString() {
