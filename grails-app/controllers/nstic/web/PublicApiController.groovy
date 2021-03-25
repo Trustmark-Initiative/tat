@@ -282,6 +282,65 @@ class PublicApiController {
     }
 
     /**
+     * Called to find all trustmarks issued to a trustmark recipient id.
+     */
+    def findByRecipient() {
+        log.info("trustmark.findByRecipients ${params.recipientId}")
+
+        String decoded = decodeURIComponent(params.recipientId)
+
+        String decodedRecipientId = new String(decoded.decodeBase64())
+
+        List<PublicTrustmark> trustmarks = new ArrayList<>()
+
+        if (StringUtils.isNotEmpty(decodedRecipientId))  {
+            Organization recipientOrganization = Organization.findByUri(decodedRecipientId)
+
+            Trustmark.findAllByRecipientOrganization(recipientOrganization).forEach {
+                t ->
+                    TrustmarkDefinition td = TrustmarkDefinition.findById(t.trustmarkDefinition.id)
+                    Organization org = Organization.findById(t.recipientOrganization.id)
+                    trustmarks.add(new PublicTrustmark(td.name, generateTrustmarkUrl(t.identifier), generateTrustmarkStatusUrl(t.identifier), org.name, org.uri, td.uri, t.status.toString(),
+                            t.signedXml, t.signedJson, t.hasExceptions, t.assessorComments))
+            }
+        }
+
+        def result = ["trustmarks" : trustmarks]
+
+        withFormat {
+            json {
+                render result as JSON
+            }
+            xml {
+                render result as XML
+            }
+        }
+    }
+
+    private String decodeURIComponent(String s)
+    {
+        if (s == null)
+        {
+            return null;
+        }
+
+        String result = null;
+
+        try
+        {
+            result = URLDecoder.decode(s, "UTF-8");
+        }
+
+        // This exception should never occur.
+        catch (UnsupportedEncodingException e)
+        {
+            result = s;
+        }
+
+        return result;
+    }
+
+    /**
      * generates the Trustmark URL from the trustmark id
      * @param trustmarkId
      * @return

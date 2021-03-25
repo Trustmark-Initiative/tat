@@ -1,51 +1,27 @@
 package nstic.web
 
-import assessment.tool.X509CertificateService
-import edu.gatech.gtri.trustmark.v1_0.FactoryLoader
-import edu.gatech.gtri.trustmark.v1_0.impl.io.json.TrustmarkJsonWebSignatureImpl
-import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.SerializerXml
-import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.XmlHelper
-import edu.gatech.gtri.trustmark.v1_0.impl.model.TrustmarkStatusReportImpl
-import edu.gatech.gtri.trustmark.v1_0.io.Serializer
-import edu.gatech.gtri.trustmark.v1_0.io.SerializerFactory
-import edu.gatech.gtri.trustmark.v1_0.io.TrustmarkDefinitionResolver
-import edu.gatech.gtri.trustmark.v1_0.model.TrustmarkStatusCode
-import edu.gatech.gtri.trustmark.v1_0.model.TrustmarkStatusReport
-import edu.gatech.gtri.trustmark.v1_0.util.TrustmarkDefinitionUtils
-import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.TrustmarkXmlSignatureImpl
-
+import assessment.tool.TrustmarkService
 import grails.converters.JSON
 import grails.converters.XML
 import grails.plugin.springsecurity.annotation.Secured
 import grails.gorm.transactions.Transactional
-import nstic.SystemVariableDefinition
 import nstic.TrustmarkIdentifierGenerator
-import nstic.util.AssessmentStepResultImpl
-import nstic.web.assessment.ArtifactData
+import nstic.util.AssessmentToolProperties
 import nstic.web.assessment.Assessment
 import nstic.web.assessment.AssessmentStatus
 import nstic.web.assessment.AssessmentStepData
-import nstic.web.assessment.AssessmentStepResult
 import nstic.web.assessment.AssessmentTrustmarkDefinitionLink
 import nstic.web.assessment.ParameterValue
 import nstic.web.assessment.Trustmark
 import nstic.web.assessment.TrustmarkStatus
-import nstic.web.td.AssessmentStep
-import nstic.web.td.AssessmentStepArtifact
 import nstic.web.td.TdParameter
 import nstic.web.td.TrustmarkDefinition
-import org.apache.commons.io.FileUtils
 import org.apache.commons.lang.StringUtils
 import org.grails.help.ParamConversion
 import org.springframework.validation.ObjectError
-
 import javax.servlet.ServletException
 import javax.xml.bind.DatatypeConverter
-import java.security.PrivateKey
-import java.security.cert.X509Certificate
 import java.text.SimpleDateFormat
-import java.time.LocalDateTime
-
 
 /**
  * Created by brad on 9/9/14.
@@ -54,7 +30,13 @@ import java.time.LocalDateTime
 @Secured("ROLE_USER")
 class TrustmarkController {
 
+    // Thread related variables
+    public static final String INFO_LIST_THREAD_VAR = TrustmarkController.class.getName()+".INFO_LIST_THREAD"
+    public static final String TRUSTMARK_GENERATION_THREAD_VAR = TrustmarkController.class.getName()+".TRUSTMARK_GENERATION_THREAD"
+
     def springSecurityService
+
+    def trustmarkService
 
     /**
      * Lists all trustmarks available in the system
@@ -80,96 +62,97 @@ class TrustmarkController {
      * An ajax method meant to return a list of Trustmark Definitions and their assessment status, based on the
      * assessment Id.  This method takes a while to churn, depending on the number of trustmarks (hence AJAX call pattern).
      */
+
+    @ParamConversion(paramName="assessmentId", toClass=Assessment.class, storeInto = "assessment")
+    def retrieveTrustmarkDefinitionsDisplayInfo() {
+        log.debug("retrieveTrustmarkDefinitionsDisplayInfo...")
+
+        // Do not start a new thread if a thread is already running
+        if (!trustmarkService.isExecuting(TrustmarkService.INFO_LIST_EXECUTING_VAR)) {
+
+            log.debug("retrieveTrustmarkDefinitionsDisplayInfo: Starting a new INFO_LIST_THREAD_VAR")
+
+            // initialize status
+            trustmarkService.setAttribute(TrustmarkService.INFO_LIST_MESSAGE_VAR, "Building display information for Trustmark Definitions")
+            trustmarkService.setAttribute(TrustmarkService.INFO_LIST_STATUS_VAR, "RUNNING")
+            trustmarkService.setAttribute(TrustmarkService.INFO_LIST_PERCENT_VAR, "0")
+
+            trustmarkService.setExecuting(TrustmarkService.INFO_LIST_EXECUTING_VAR)
+
+            log.debug("Create trustmark called...")
+            User user = springSecurityService.currentUser
+            Assessment assessment = params.assessment
+
+            final Integer assessmentId = assessment.id
+
+            Thread infoListThread = new Thread(new Runnable() {
+                @Override
+                void run() {
+                    trustmarkService.createGrantTrustmarkInfoList(assessmentId)
+                }
+            })
+            trustmarkService.setAttribute(INFO_LIST_THREAD_VAR, infoListThread)
+            infoListThread.start()
+
+            log.debug(trustmarkService.getAttributesString("retrieveTrustmarkDefinitionsDisplayInfo"))
+        }
+
+        ["Building display information for TDs"]
+    }
+
     @ParamConversion(paramName="assessmentId", toClass=Assessment.class, storeInto = "assessment")
     def getCreateInfoList() {
-        log.debug("Create trustmark called...")
+        log.debug("getCreateInfoList...")
+
         User user = springSecurityService.currentUser
         Assessment assessment = params.assessment
 
-        log.debug("Collecting TrusmtarkDefinitions for Assessment #${assessment.id}...")
-        List<TrustmarkDefinition> trustmarkDefinitions = []
-        for(AssessmentTrustmarkDefinitionLink link : assessment.getSortedTds() ){
-            if( !trustmarkDefinitions.contains(link.trustmarkDefinition) ){
-                trustmarkDefinitions.add(link.trustmarkDefinition)
-            }
-        }
+        List<GrantTrustmarkInfo> infoList = trustmarkService.getAttribute(TrustmarkService.GENERATED_TD_INFO_LIST_VAR)
 
-        // TODO Move this to an AJAX call, due to the stress it puts on the system.
-        log.debug("Building display information for TDs...")
-        List<GrantTrustmarkInfo> infoList = []
-        for( TrustmarkDefinition td : trustmarkDefinitions ){
-            log.debug("Checking satisfaction of TD[${td.uri}]...")
-            List<AssessmentStepData> steps = assessment.getStepListByTrustmarkDefinition(td)
-            GrantTrustmarkInfo info = new GrantTrustmarkInfo(assessment, td)
-            info.setSteps(steps)
-
-            List<AssessmentStep> stepsWithNoAnswer = []
-            List requiredArtifactProblems = []
-            List requiredParameterProblems = []
-            for( AssessmentStepData step : steps ){
-                if( step.result == null || step.result == AssessmentStepResult.Not_Known )
-                    stepsWithNoAnswer.add(step)
-                if( step.step.artifacts ){
-                    Map<AssessmentStepArtifact, Boolean> artifactSatisfiedMap = [:]
-                    for( AssessmentStepArtifact artifact : step.step.artifacts )
-                        artifactSatisfiedMap.put(artifact, Boolean.FALSE)
-                    if( step.artifacts != null ) {
-                        for (ArtifactData artifactData : step.artifacts)
-                            if( artifactData.requiredArtifact != null )
-                                artifactSatisfiedMap.put(artifactData.requiredArtifact, Boolean.TRUE)
-                    }
-                    // Now we see if there is any entry that has false as the value.
-                    for( AssessmentStepArtifact artifact : step.step.artifacts ){
-                        if( Boolean.FALSE.equals(artifactSatisfiedMap.get(artifact)) ){
-                            requiredArtifactProblems.add([step: step, artifact: artifact])
-                        }
-                    }
-                }
-                if (step.step.parameters) {
-                    List problemParameters = []
-                    for (parameter in step.step.parameters) {
-                        if (!parameter.required) { continue }
-                        ParameterValue paramValue = ParameterValue.findByStepDataAndParameter(step, parameter)
-                        if (!paramValue?.userValue?.length()) {
-                            problemParameters.add(parameter)
-                        }
-                    }
-                    if (!problemParameters.isEmpty()) {
-                        requiredParameterProblems.add([step: step, parameters: problemParameters])
-                    }
-                }
-
-            }
-            info.setStepsWithNoAnswer(stepsWithNoAnswer)
-            info.setRequiredArtifactProblems(requiredArtifactProblems)
-            info.setRequiredParameterProblems(requiredParameterProblems)
-
-            if( stepsWithNoAnswer.isEmpty() && requiredArtifactProblems.isEmpty()  && requiredParameterProblems.isEmpty() ){
-                log.debug("Executing issuance criteria for TD[${td.uri}], binding step values...")
-                // Now we can execute the issuance Criteria.
-                List<edu.gatech.gtri.trustmark.v1_0.model.AssessmentStepResult> results = []
-                for( AssessmentStepData step : steps ){
-                    results.add(new AssessmentStepResultImpl(step.step.identifier, step.step.stepNumber, step.result))
-                }
-                try {
-                    TrustmarkDefinitionUtils tdUtils = FactoryLoader.getInstance(TrustmarkDefinitionUtils.class)
-                    edu.gatech.gtri.trustmark.v1_0.model.TrustmarkDefinition tdFromApi =
-                            FactoryLoader.getInstance(TrustmarkDefinitionResolver.class).resolve(td.source.content.toFile(), false)
-                    log.debug("  Issuance criteria is: "+tdFromApi.getIssuanceCriteria()+", Values: "+results)
-                    boolean satisifiesIssuanceCriteria = tdUtils.checkIssuanceCriteria(tdFromApi, results)
-                    info.setIssuanceCriteriaSatisfied(satisifiesIssuanceCriteria)
-                    log.info("TD[${td.uri}] issuance criteria evaluated to "+satisifiesIssuanceCriteria)
-                }catch(Throwable icError){
-                    log.error("Encountered error in TD[${td.uri}] issuance criteria!", icError)
-                    info.issuanceCriteriaError = true
-                    info.issuanceCriteriaErrorText = icError.toString()
-                }
-            }
-
-            infoList.add(info)
-        }
+        log.debug("infoList size: " + infoList.size().toString())
 
         [infoList: infoList, assessment: assessment]
+    }
+
+    def trustmarkDefinitionsInfoListStatusUpdate() {
+        log.info("** trustmarkDefinitionsInfoListStatusUpdate().")
+
+        Map jsonResponse = [:]
+        log.debug("Calculating trustmark definitions info list status update...")
+        jsonResponse.put("status", trustmarkService.getAttribute(TrustmarkService.INFO_LIST_STATUS_VAR))
+
+        String percentString = trustmarkService.getAttribute(TrustmarkService.INFO_LIST_PERCENT_VAR)
+
+        int percentInt = 0
+        if( StringUtils.isNotEmpty(percentString) ){
+            percentInt = Integer.parseInt(percentString.trim())
+        }
+        jsonResponse.put("percent", percentInt)
+        jsonResponse.put("message", trustmarkService.getAttribute(TrustmarkService.INFO_LIST_MESSAGE_VAR))
+
+        log.info("trustmarkDefinitionsInfoListStatusUpdate::jsonResponse: " + jsonResponse.toString())
+
+        render jsonResponse as JSON
+    }
+
+    def trustmarkGenerationStatusUpdate() {
+        log.info("** trustmarkGenerationStatusUpdate().")
+
+        Map jsonResponse = [:]
+        log.debug("Calculating trustmark generation status update...")
+        jsonResponse.put("status", trustmarkService.getAttribute(TrustmarkService.TRUSTMARK_GENERATION_STATUS_VAR))
+        String percentString = trustmarkService.getAttribute(TrustmarkService.TRUSTMARK_GENERATION_PERCENT_VAR)
+
+        int percentInt = 0
+        if( StringUtils.isNotEmpty(percentString) ){
+            percentInt = Integer.parseInt(percentString.trim())
+        }
+        jsonResponse.put("percent", percentInt)
+        jsonResponse.put("message", trustmarkService.getAttribute(TrustmarkService.TRUSTMARK_GENERATION_MESSAGE_VAR))
+
+        log.info("trustmarkGenerationStatusUpdate::jsonResponse: " + jsonResponse.toString())
+
+        render jsonResponse as JSON
     }
 
     /**
@@ -189,7 +172,31 @@ class TrustmarkController {
             throw new ServletException("Cannot grant assessment ${assessment.id} a trustmark, because it is not marked success or fail.")
         }
 
-        log.debug("Collecting TrusmtarkDefinitions for Assessment #${assessment.id}...")
+        // Check if operation is active, and if so, interrupt the operation and wait for the thread to finish
+        if (trustmarkService.isExecuting(TrustmarkService.INFO_LIST_EXECUTING_VAR)) {
+            trustmarkService.stopExecuting(TrustmarkService.INFO_LIST_EXECUTING_VAR)
+
+            trustmarkService.setAttribute(TrustmarkService.INFO_LIST_STATUS_VAR, "CANCELLING")
+            trustmarkService.setAttribute(TrustmarkService.INFO_LIST_MESSAGE_VAR, "Cancelling trustmark definition info list generation...")
+
+            log.debug("Interrupting previous TD Info List thread...")
+            Thread t = trustmarkService.getAttribute(INFO_LIST_THREAD_VAR)
+            if (t &&  t.isAlive()) {
+                t.join()
+                log.debug("Interrupted previous TD Info List thread...")
+            }
+        }
+
+        // initialize status
+        trustmarkService.setAttribute(TrustmarkService.INFO_LIST_STATUS_VAR, "RUNNING")
+        trustmarkService.setAttribute(TrustmarkService.INFO_LIST_PERCENT_VAR, "0")
+        trustmarkService.setAttribute(TrustmarkService.INFO_LIST_MESSAGE_VAR, "Preparing to build display information for Trustmark Definitions")
+
+        // reset the info list
+        trustmarkService.removeAttribute(TrustmarkService.GENERATED_TD_INFO_LIST_VAR)
+
+        long startTime = System.currentTimeMillis()
+
         List<TrustmarkDefinition> trustmarkDefinitions = []
         for(AssessmentTrustmarkDefinitionLink link : assessment.getSortedTds() ){
             if( !trustmarkDefinitions.contains(link.trustmarkDefinition) ){
@@ -197,22 +204,53 @@ class TrustmarkController {
             }
         }
 
+        long stopTime = System.currentTimeMillis()
+        log.info("*** Loading TDs time: ${(stopTime - startTime)}ms.")
+
         log.debug("Listing and sorting all TrustmarkMetdata instances...")
         List<TrustmarkMetadata> metadataList = TrustmarkMetadata.findAll()
         Collections.sort(metadataList, {m1, m2 -> return m1.name.compareToIgnoreCase(m2.name); } as Comparator)
+
+        log.debug(trustmarkService.getAttributesString("create"))
 
         [assessment: assessment,
          metadataList: metadataList,
          trustmarkDefinitions: trustmarkDefinitions]
     }//end create()
 
-    private String replaceIdentifier( String pattern, String uniqueId ){
-        String safeId = URLEncoder.encode(uniqueId, "US-ASCII")
-        String id = pattern.replaceAll("@IDENTIFIER@", uniqueId)
-        id = id.replaceAll("@URLSAFE_IDENTIFIER@", uniqueId)
-        // TODO We can do better, like timestmaps, etc.
-        return id
-    }
+    @ParamConversion(paramName="assessmentId", toClass=Assessment.class, storeInto = "assessment")
+    def cancelCreateInfoList(){
+        User user = springSecurityService.currentUser
+        Assessment assessment = params.assessment
+        log.debug("Request to cancel grant Trustmarks...")
+
+        // Check if operation is active, interrupt operation and wait for the thread to finish
+        if (trustmarkService.isExecuting(TrustmarkService.INFO_LIST_EXECUTING_VAR)) {
+            trustmarkService.stopExecuting(TrustmarkService.INFO_LIST_EXECUTING_VAR)
+
+            trustmarkService.setAttribute(TrustmarkService.INFO_LIST_STATUS_VAR, "CANCELLING")
+            trustmarkService.setAttribute(TrustmarkService.INFO_LIST_MESSAGE_VAR, "Cancelling trustmark definition info list generation...")
+
+            log.debug("Interrupting previous TD Info List thread...")
+            Thread t = trustmarkService.getAttribute(INFO_LIST_THREAD_VAR)
+            if (t &&  t.isAlive()) {
+                t.join()
+                log.debug("Interrupted TD Info List thread...")
+            }
+        }
+
+        // Base url includes the TAT domain name, createLink includes the TAT domain name
+        // Get the host and port from the base url and append the result of createLink to avoid duplicate TAT domain
+        URL url = new URL(AssessmentToolProperties.getProperties().getProperty(AssessmentToolProperties.BASE_URL))
+        def baseUrl = url.protocol + "://" + url.getAuthority()
+
+        def jsonResponse = [href: baseUrl + createLink(controller: 'assessment', action: 'view', id: assessment.id)]
+
+        log.debug(trustmarkService.getAttributesString("save"))
+
+        render jsonResponse as JSON
+
+    }//end cancelCreateInfoList()
 
     def getExpirationData() {
         Integer metadataId = Integer.parseInt(params.selectedMetadataId)
@@ -242,6 +280,185 @@ class TrustmarkController {
         render model as JSON
     }
 
+    @ParamConversion(paramName="assessmentId", toClass=Assessment.class, storeInto = "assessment")
+    def generateTrustmarks() {
+        log.debug("Generate trustmark called...")
+        User user = springSecurityService.currentUser
+        Assessment assessment = params.assessment
+        if( assessment == null )
+            throw new InvalidRequestError("Could not locate any assessment from assessmentId=${params.assessmentId}")
+
+        if( !assessment.getIsComplete() || assessment.status == AssessmentStatus.ABORTED ){
+            log.warn("Cannot grant assessment ${assessment.id} a trustmark, because it is not marked success or fail.")
+            throw new ServletException("Cannot grant assessment ${assessment.id} a trustmark, because it is not marked success or fail.")
+        }
+
+        // Check if thread is running, interrupt thread and wait for it to finish
+        if (trustmarkService.isExecuting(TrustmarkService.TRUSTMARK_GENERATION_EXECUTING_VAR)) {
+            trustmarkService.stopExecuting(TrustmarkService.TRUSTMARK_GENERATION_EXECUTING_VAR)
+
+            trustmarkService.setAttribute(TrustmarkService.TRUSTMARK_GENERATION_STATUS_VAR, "CANCELLING")
+            trustmarkService.setAttribute(TrustmarkService.TRUSTMARK_GENERATION_MESSAGE_VAR, "Cancelling trustmark generation...")
+
+            log.debug("Interrupting previous TM Generation thread...")
+            Thread t = trustmarkService.getAttribute(TRUSTMARK_GENERATION_THREAD_VAR)
+            if (t &&  t.isAlive()) {
+                t.join()
+                log.debug("Interrupted previous TM Generation thread...")
+            }
+        }
+
+        // reset progress
+        trustmarkService.setAttribute(TrustmarkService.TRUSTMARK_GENERATION_MESSAGE_VAR, "About to generate trustmarks")
+        trustmarkService.setAttribute(TrustmarkService.TRUSTMARK_GENERATION_STATUS_VAR, "PREPARING")
+        trustmarkService.setAttribute(TrustmarkService.TRUSTMARK_GENERATION_PERCENT_VAR, "0")
+
+        // reset trustmark list
+        trustmarkService.removeAttribute(TrustmarkService.GENERATED_TRUSTMARK_LIST_VAR)
+
+        Map paramsMap = new HashMap()
+        params.each { key, value ->
+            paramsMap.put(key, value)
+        }
+
+        trustmarkService.setAttribute(TrustmarkService.TRUSTMARK_DEFINITIONS_PARAMS_MAP_VAR, paramsMap)
+
+        log.debug(trustmarkService.getAttributesString("generateTrustmarks"))
+
+        [assessment: assessment]
+    }
+
+    @ParamConversion(paramName="assessmentId", toClass=Assessment.class, storeInto = "assessment")
+    def generateTrustmarkList() {
+
+        log.debug("generateTrustmarkList...")
+
+        User user = springSecurityService.currentUser
+        Assessment assessment = params.assessment
+        if( assessment == null ) {
+            log.warn("Bad or missing assessment id")
+            throw new InvalidRequestError("Bad or missing assessment id.")
+        }
+
+        // Do not start a new thread if one is already running
+        if (!trustmarkService.isExecuting(TrustmarkService.TRUSTMARK_GENERATION_EXECUTING_VAR)) {
+
+            trustmarkService.setAttribute(TrustmarkService.TRUSTMARK_GENERATION_MESSAGE_VAR, "Generating the trutmarks list.")
+            trustmarkService.setAttribute(TrustmarkService.TRUSTMARK_GENERATION_STATUS_VAR, "RUNNING")
+            trustmarkService.setAttribute(TrustmarkService.TRUSTMARK_GENERATION_PERCENT_VAR, "0")
+
+            log.debug("TrustmarkController::generateTrustmarkList, Collecting TrusmtarkDefinitions to grant on for Assessment #${assessment.id}...")
+
+            long startTime = System.currentTimeMillis()
+
+            def paramsMap = (Map) trustmarkService.getAttribute(TrustmarkService.TRUSTMARK_DEFINITIONS_PARAMS_MAP_VAR)
+
+            List<TrustmarkDefinition> tdsToGrantOn = []
+
+            int currentTdIndex = 0
+            for (String paramName : paramsMap.keySet()) {
+
+                if (paramName.startsWith("trustmarkDefinition") && paramName.endsWith("Checkbox") && trustmarkService.getBooleanValue(paramsMap[paramName])) {
+                    Long id = Long.parseLong(paramName.replace("trustmarkDefinition", "").replace("Checkbox", ""))
+                    TrustmarkDefinition tdFromDatabase = TrustmarkDefinition.get(id)
+                    if (tdFromDatabase == null) {
+                        log.warn("TD ${id} does not exist!")
+                        throw new InvalidRequestError("Invalid trustmarkDefinition: ${id}")
+                    }
+                    log.info("Granting trustmark for TD[${tdFromDatabase.name}, v.${tdFromDatabase.tdVersion}]")
+                    tdsToGrantOn.add(tdFromDatabase)
+                }
+
+                int percent = (int) Math.floor(((double) currentTdIndex++ / (double) paramsMap.size()) * 100.0d)
+
+                trustmarkService.setAttribute(TrustmarkService.TRUSTMARK_GENERATION_PERCENT_VAR, "" + percent)
+
+                String percentString = trustmarkService.getAttribute(TrustmarkService.TRUSTMARK_GENERATION_PERCENT_VAR);
+                log.info("** TRUSTMARK_GENERATION_PERCENT_VAR: ${percent}%.")
+                log.info("** percentString: ${percentString}%.")
+            }
+
+            long stopTime = System.currentTimeMillis()
+            log.info("Collecting TDs time: ${(stopTime - startTime)}ms.")
+
+            if (tdsToGrantOn.isEmpty()) {
+                log.warn("The user has selected no TDs to grant Trustmarks for!")
+                flash.error = "You must select at least 1 TD to grant a Trustmark on."
+                return redirect(action: 'create', params: [assessmentId: assessment.id])
+            }
+
+            TrustmarkMetadata metadata = TrustmarkMetadata.get(paramsMap['trustmarkMetadataId'])
+            if (metadata == null) {
+                //throw new InvalidRequestError("Invalid trustmarkMetadataId!")
+                log.warn("No trustmark metadata has been created!")
+                flash.error = "You must generate and select at least 1 trustmark metadata set to grant a Trustmark on."
+                return redirect(controller: 'trustmarkMetadata', action: 'create')
+            }
+
+//            log.debug("///////////////////////////////////////////")
+//            log.debug("tdsToGrantOn size: ${tdsToGrantOn.size()}...")
+//            log.debug("tdsToGrantOn: ${tdsToGrantOn.toString()}...")
+
+            trustmarkService.setAttribute(TrustmarkService.TRUSTMARK_DEFINITIONS_TO_GRANT_ON_VAR, tdsToGrantOn)
+
+            trustmarkService.setExecuting(TrustmarkService.TRUSTMARK_GENERATION_EXECUTING_VAR)
+
+            final Integer assessmentId = assessment.id
+            final Integer userId = user.id
+            final Integer metadataSetId = metadata.id
+
+            Thread trustmarkListThread = new Thread(new Runnable() {
+                @Override
+                void run() {
+                    trustmarkService.generateTrustmarkList(userId, assessmentId, metadataSetId)
+                }
+            })
+            trustmarkService.setAttribute(TRUSTMARK_GENERATION_THREAD_VAR, trustmarkListThread)
+            trustmarkListThread.start()
+
+            log.debug(trustmarkService.getAttributesString("generateTrustmarkList"))
+
+        }
+
+        ["Generating the list of trustmarks"]
+    }
+
+    @ParamConversion(paramName="assessmentId", toClass=Assessment.class, storeInto = "assessment")
+    def cancelTrustmarkGeneration(){
+        User user = springSecurityService.currentUser
+        Assessment assessment = params.assessment
+
+        log.debug("Request to cancel trustmark generation...")
+
+
+        // Check if thread is running, interrupt thread and wait for it to finish
+        if (trustmarkService.isExecuting(TrustmarkService.TRUSTMARK_GENERATION_EXECUTING_VAR)) {
+            trustmarkService.stopExecuting(TrustmarkService.TRUSTMARK_GENERATION_EXECUTING_VAR)
+
+            trustmarkService.setAttribute(TrustmarkService.TRUSTMARK_GENERATION_STATUS_VAR, "CANCELLING")
+            trustmarkService.setAttribute(TrustmarkService.TRUSTMARK_GENERATION_MESSAGE_VAR, "Cancelling trustmark generation...")
+
+            log.debug("Interrupting previous trustmark generation thread...")
+            Thread t = trustmarkService.getAttribute(TRUSTMARK_GENERATION_THREAD_VAR)
+            if (t &&  t.isAlive()) {
+                t.join()
+                log.debug("Interrupted trustmark generation thread...")
+            }
+        }
+
+        // Base url includes the TAT domain name, createLink includes the TAT domain name
+        // Get the host and port from the base url and append the result of createLink to avoid duplicate TAT domain
+        URL url = new URL(AssessmentToolProperties.getProperties().getProperty(AssessmentToolProperties.BASE_URL))
+        def baseUrl = url.protocol + "://" + url.getAuthority()
+
+        def jsonResponse = [href: baseUrl + createLink(controller: 'assessment', action: 'view', id: assessment.id)]
+
+        log.debug(trustmarkService.getAttributesString("save"))
+
+        render jsonResponse as JSON
+
+    }//end cancelTrustmarkGeneration()
+
     /**
      * Called when the user clicks "Generate" on the create trustmark page.  Actually saves the database object.
      */
@@ -255,118 +472,19 @@ class TrustmarkController {
             throw new InvalidRequestError("Bad or missing assessment id.")
         }
 
-        List<TrustmarkDefinition> tdsToGrantOn = []
-        for( String paramName : params.keySet() ){
-            if( paramName.startsWith("trustmarkDefinition") && paramName.endsWith("Checkbox") && params.boolean(paramName) ){
-                Long id = Long.parseLong(paramName.replace("trustmarkDefinition", "").replace("Checkbox", ""))
-                TrustmarkDefinition tdFromDatabase = TrustmarkDefinition.get(id)
-                if( tdFromDatabase == null ){
-                    log.warn("TD ${id} does not exist!")
-                    throw new InvalidRequestError("Invalid trustmarkDefinition: ${id}")
-                }
-                log.info("Granting trustmark for TD[${tdFromDatabase.name}, v.${tdFromDatabase.tdVersion}]")
-                tdsToGrantOn.add(tdFromDatabase)
-            }
-        }
-        if( tdsToGrantOn.isEmpty() ){
-            log.warn("The user has selected no TDs to grant Trustmarks for!")
-            flash.error = "You must select at least 1 TD to grant a Trustmark on."
-            return redirect(action: 'create', params: [assessmentId: assessment.id])
-        }
-
-        TrustmarkMetadata metadata = TrustmarkMetadata.get(params['trustmarkMetadataId'])
-        if( metadata == null ){
-            //throw new InvalidRequestError("Invalid trustmarkMetadataId!")
-            log.warn("No trustmark metadata has been created!")
-            flash.error = "You must generate and select at least 1 trustmark metadata set to grant a Trustmark on."
-            return redirect(controller: 'trustmarkMetadata', action: 'create')
-        }
-
-
-        TrustmarkIdentifierGenerator identifierGenerator = Class.forName(metadata.generatorClass).newInstance()
-        Calendar now = Calendar.getInstance()
-
-        for( TrustmarkDefinition td : tdsToGrantOn ){
-            // Metadata
-            String id = identifierGenerator.generateNext()
-            Trustmark trustmark = new Trustmark(trustmarkDefinition: td, assessment: assessment)
-            trustmark.identifier = id
-            trustmark.identifierURL = replaceIdentifier(metadata.identifierPattern, id)
-            trustmark.statusURL = replaceIdentifier(metadata.statusUrlPattern, id)
-            trustmark.status = TrustmarkStatus.OK
-            trustmark.recipientOrganization = assessment.assessedOrganization
-            trustmark.recipientContactInformation = assessment.assessedContact
-            trustmark.issueDateTime = now.getTime()
-            trustmark.policyPublicationURL = metadata.policyUrl
-            trustmark.relyingPartyAgreementURL = metadata.relyingPartyAgreementUrl
-            trustmark.providerOrganization = metadata.provider
-            trustmark.providerContactInformation = metadata.provider.primaryContact
-            trustmark.providerExtension = "<gtri:assessment-id xmlns:gtri=\"urn:edu:gatech:gtri:trustmark:assessment\">${assessment.id}</gtri:assessment-id>"
-            trustmark.grantingUser = user
-
-            if( StringUtils.isNotBlank(params['td'+td.id+'ExtensionData']) ){
-                trustmark.definitionExtension = params['td'+td.id+'ExtensionData']
-            }
-
-            Integer expirationMonthsCount = -1
-            if( params.boolean('td'+td.id+'HasExceptions')  ){
-                trustmark.hasExceptions = true
-                trustmark.assessorComments = params['td'+td.id+'ExceptionsDesc'] ?: 'No comments given.'
-                expirationMonthsCount = metadata.timePeriodWithExceptions
-            }else{
-                trustmark.hasExceptions = false
-                expirationMonthsCount = metadata.timePeriodNoExceptions
-            }
-            Calendar expirationDate = Calendar.getInstance()
-            expirationDate.setTime(now.getTime())
-            expirationDate.add(Calendar.MONTH, expirationMonthsCount)
-            trustmark.expirationDateTime = expirationDate.getTime()
-
-            // Parameters
-            AssessmentStepData[] stepList = assessment.getStepListByTrustmarkDefinition(td)
-            TdParameter[] firstUnfilledRequiredParametersPerStep = stepList.collect { it.firstUnfilledRequiredParameter }
-            TdParameter firstUnfilledRequiredParameter = firstUnfilledRequiredParametersPerStep.find { it }
-            if (firstUnfilledRequiredParameter) {
-                String message = String.format(
-                    "Unfilled required parameter: TD[%s] >> Step[%s] >> Parameter[%s]",
-                    td.name,
-                    firstUnfilledRequiredParameter.assessmentStep.name,
-                    firstUnfilledRequiredParameter.name
-                )
-                throw new InvalidRequestError(message)
-            }
-            ParameterValue[] assessmentParameterValues = stepList.collectMany { it.parameterValues }
-            for (assessmentParameterValue in assessmentParameterValues) {
-                ParameterValue parameterValue = new ParameterValue(
-                    parameter: assessmentParameterValue.parameter,
-                    userValue: assessmentParameterValue.userValue
-                )
-                trustmark.addToParameterValues(parameterValue)
-            }
-
-            // generate and save xml signature for this trustmark
-            SigningCertificate signingCertificate = SigningCertificate.findById(metadata.defaultSigningCertificateId)
-            if (signingCertificate == null) {
-                throw new ServletException("Need at least one signing certificate to perform this operation.")
-            }
-
-            signTrustmark(signingCertificate, trustmark)
-
-            trustmark.save(failOnError: true)
-
-            assessment.logg.addEntry("Trustmark Granted", "Trustmark Granted",
-                    "User ${user.username} has granted Trustmark[${trustmark.identifier}] to Contact[${trustmark.recipientContactInformation.responder}] from Organization[${trustmark.providerOrganization.name}] for assessment[${assessment.id}]",
-                    [
-                            user: [id: user.id, usenrame: user.username],
-                            assessment: [id: assessment.id],
-                            trustmark: trustmark.toJsonMap(false)
-                    ])
-
-            log.info("Successfully granted trustmark for Assessment #${assessment.id}, TrustmarkDefinition: ${td.uri}")
-        }
-
         log.info("All trustmarks granted, forwarding to the assessment page...")
-        redirect(controller: 'assessment', action: 'view', id: assessment.id)
+
+        // Base url includes the TAT domain name, createLink includes the TAT domain name
+        // Get the host and port from the base url and append the result of createLink to avoid duplicate TAT domain
+        URL url = new URL(AssessmentToolProperties.getProperties().getProperty(AssessmentToolProperties.BASE_URL))
+        def baseUrl = url.protocol + "://" + url.getAuthority()
+
+        def jsonResponse = [href: baseUrl + createLink(controller: 'assessment', action: 'view', id: assessment.id)]
+
+        log.debug(trustmarkService.getAttributesString("save"))
+
+        render jsonResponse as JSON
+
     }//end save()
 
     /**
@@ -510,7 +628,7 @@ class TrustmarkController {
             throw new ServletException("Need at least one signing certificate to perform this operation.")
         }
 
-        signTrustmark(signingCertificate, trustmark)
+        trustmarkService.signTrustmark(signingCertificate, trustmark)
 
         trustmark.save(failOnError: true, flush: true)
 
@@ -850,8 +968,8 @@ class TrustmarkController {
                         Trustmark reissuedTrustmark = new Trustmark(trustmarkDefinition: trustmark.trustmarkDefinition,
                                 assessment: trustmark.assessment)
                         reissuedTrustmark.identifier = id
-                        reissuedTrustmark.identifierURL = replaceIdentifier(metadata.identifierPattern, id)
-                        reissuedTrustmark.statusURL = replaceIdentifier(metadata.statusUrlPattern, id)
+                        reissuedTrustmark.identifierURL = trustmarkService.replaceIdentifier(metadata.identifierPattern, id)
+                        reissuedTrustmark.statusURL = trustmarkService.replaceIdentifier(metadata.statusUrlPattern, id)
                         reissuedTrustmark.status = TrustmarkStatus.OK
                         reissuedTrustmark.recipientOrganization = trustmark.recipientOrganization
                         reissuedTrustmark.recipientContactInformation = trustmark.recipientContactInformation
@@ -891,7 +1009,7 @@ class TrustmarkController {
                         }
 
                         // generate and save xml signature for this trustmark
-                        signTrustmark(signingCertificate, reissuedTrustmark)
+                        trustmarkService.signTrustmark(signingCertificate, reissuedTrustmark)
 
                         reissuedTrustmark.save(failOnError: true, flush: true)
 
@@ -948,8 +1066,8 @@ class TrustmarkController {
                     Trustmark reissuedTrustmark = new Trustmark(trustmarkDefinition: trustmark.trustmarkDefinition,
                             assessment: trustmark.assessment)
                     reissuedTrustmark.identifier = id
-                    reissuedTrustmark.identifierURL = replaceIdentifier(metadata.identifierPattern, id)
-                    reissuedTrustmark.statusURL = replaceIdentifier(metadata.statusUrlPattern, id)
+                    reissuedTrustmark.identifierURL = trustmarkService.replaceIdentifier(metadata.identifierPattern, id)
+                    reissuedTrustmark.statusURL = trustmarkService.replaceIdentifier(metadata.statusUrlPattern, id)
                     reissuedTrustmark.status = TrustmarkStatus.OK
                     reissuedTrustmark.recipientOrganization = trustmark.recipientOrganization
                     reissuedTrustmark.recipientContactInformation = trustmark.recipientContactInformation
@@ -994,7 +1112,7 @@ class TrustmarkController {
                         throw new ServletException("Need at least one signing certificate to perform this operation.")
                     }
 
-                    signTrustmark(signingCertificate, reissuedTrustmark)
+                    trustmarkService.signTrustmark(signingCertificate, reissuedTrustmark)
 
                     reissuedTrustmark.save(failOnError: true, flush: true)
 
@@ -1104,168 +1222,6 @@ class TrustmarkController {
         exp.set(Calendar.MONTH, exp.get(Calendar.MONTH) + months)
 
         return exp
-    }
-
-    private String toXml( Trustmark trustmark ){
-        StringBuilder xmlBuilder = new StringBuilder()
-
-        Calendar issueDateTimeCal = Calendar.getInstance()
-        issueDateTimeCal.setTime(trustmark.issueDateTime)
-
-        Calendar expirationDateTimeCal = Calendar.getInstance()
-        expirationDateTimeCal.setTime(trustmark.expirationDateTime)
-
-        xmlBuilder.append("""<?xml version="1.0"?>
-
-<tf:Trustmark xmlns:tf="https://trustmarkinitiative.org/specifications/trustmark-framework/1.4/schema/"
-        tf:id="_${trustmark.identifier}">
-
-    <tf:Identifier>${trustmark.identifierURL}</tf:Identifier>
-
-    <tf:TrustmarkDefinitionReference>
-        <tf:Identifier>${trustmark.trustmarkDefinition.uri}</tf:Identifier>
-        <tf:Name>${trustmark.trustmarkDefinition.name}</tf:Name>
-        <tf:Version>${trustmark.trustmarkDefinition.tdVersion}</tf:Version>
-    </tf:TrustmarkDefinitionReference>
-
-    <tf:IssueDateTime>${DatatypeConverter.printDateTime(issueDateTimeCal)}</tf:IssueDateTime>
-    <tf:ExpirationDateTime>${DatatypeConverter.printDateTime(expirationDateTimeCal)}</tf:ExpirationDateTime>
-
-    <tf:PolicyURL>${trustmark.policyPublicationURL}</tf:PolicyURL>
-    <tf:RelyingPartyAgreementURL>${trustmark.relyingPartyAgreementURL}</tf:RelyingPartyAgreementURL>
-    <tf:StatusURL>${trustmark.statusURL}</tf:StatusURL>
-
-    <tf:Provider>
-        <tf:Identifier>${trustmark.providerOrganization.uri}</tf:Identifier>
-        <tf:Name>${trustmark.providerOrganization.name}</tf:Name>
-        <tf:Contact>
-            <tf:Kind>PRIMARY</tf:Kind>
-            <tf:Responder>${trustmark.providerContactInformation.responder ?: ""}</tf:Responder>
-            <tf:Email>${trustmark.providerContactInformation.email ?: ""}</tf:Email>
-            <tf:Telephone>${trustmark.providerContactInformation.phoneNumber ?: ""}</tf:Telephone>
-            <tf:MailingAddress>${trustmark.providerContactInformation.mailingAddress ?: ""}</tf:MailingAddress>
-            <tf:Notes>${trustmark.providerContactInformation.notes ?: ""}</tf:Notes>
-        </tf:Contact>
-    </tf:Provider>
-
-    <tf:Recipient>
-        <tf:Identifier>${trustmark.recipientOrganization.uri}</tf:Identifier>
-        <tf:Name>${trustmark.recipientOrganization.name}</tf:Name>
-        <tf:Contact>
-            <tf:Kind>PRIMARY</tf:Kind>
-            <tf:Responder>${trustmark.recipientContactInformation.responder ?: ""}</tf:Responder>
-            <tf:Email>${trustmark.recipientContactInformation.email ?: ""}</tf:Email>
-            <tf:Telephone>${trustmark.recipientContactInformation.phoneNumber ?: ""}</tf:Telephone>
-            <tf:MailingAddress>${trustmark.recipientContactInformation.mailingAddress ?: ""}</tf:MailingAddress>
-            <tf:Notes>${trustmark.recipientContactInformation.notes ?: ""}</tf:Notes>
-        </tf:Contact>
-    </tf:Recipient>
-""")
-
-        if( StringUtils.isNotEmpty(trustmark.definitionExtension) ) {
-            xmlBuilder.append("""
-    <tf:DefinitionExtension>
-${trustmark.definitionExtension ?: ""}
-    </tf:DefinitionExtension>
-""")
-        }
-
-
-        xmlBuilder.append("""
-    <tf:ProviderExtension>
-${trustmark.providerExtension ?: ""}
-        <nief:TrustmarkProviderExtension xmlns:nief="https://nief.gfipm.net/trustmarks">
-            <nief:has-exceptions>${trustmark.hasExceptions}</nief:has-exceptions>
-            """)
-
-        if( trustmark.hasExceptions || StringUtils.isNotEmpty(trustmark.assessorComments) ){
-            xmlBuilder.append("            <nief:exception-details><![CDATA[${trustmark.assessorComments}]]></nief:exception-details>\n")
-        }
-
-        xmlBuilder.append("""
-        </nief:TrustmarkProviderExtension>
-    </tf:ProviderExtension>
-""")
-        if (trustmark?.parameterValues?.size()) {
-            xmlBuilder.append("""
-    <tf:ParameterBindings>""")
-            for (parameterValue in trustmark.parameterValues) {
-                xmlBuilder.append("""
-        <tf:ParameterBinding tf:identifier="${parameterValue.parameter.identifier}" tf:kind="${parameterValue.parameter.kind}">${parameterValue.userValue}</tf:ParameterBinding>""")
-            }
-            xmlBuilder.append("""
-    </tf:ParameterBindings>
-""")
-        }
-
-        xmlBuilder.append("""
-</tf:Trustmark>
-
-""")
-
-        return xmlBuilder.toString()
-    }
-
-    private void signTrustmark(SigningCertificate signingCertificate, Trustmark trustmark) {
-
-        // get the X509 certificate and private key
-        X509CertificateService certService = new X509CertificateService()
-        X509Certificate x509Certificate = certService.convertFromPem(signingCertificate.x509CertificatePem)
-        PrivateKey privateKey = certService.getPrivateKeyFromPem(signingCertificate.privateKeyPem)
-
-        // Generate XML Signature
-        signTrustmarkXML(x509Certificate, privateKey, trustmark)
-
-        // generate JSON Web Signature
-        signTrustmarkJSON(x509Certificate, privateKey, trustmark)
-
-        // save the signing certificate used
-        trustmark.signingCertificateId = signingCertificate.id
-    }
-
-    private void signTrustmarkXML(X509Certificate x509Certificate, PrivateKey privateKey, Trustmark trustmark) {
-
-        // get the trustmark's XML string
-        String trustmarkXml = toXml(trustmark)
-
-        // get the signed trustmark's XML string
-        TrustmarkXmlSignatureImpl trustmarkXmlSignature = new TrustmarkXmlSignatureImpl()
-
-        String referenceUri = "tf:id"
-        String signedXml = trustmarkXmlSignature.generateXmlSignature(x509Certificate, privateKey,
-                referenceUri, trustmarkXml)
-
-        // Validate the trustmark's signed xml against the Trustmark Framework XML schema
-        XmlHelper.validateXml(signedXml)
-        log.debug("Successfully validated trustmark's signed XML")
-
-        // validate the signature before saving
-        boolean validXmlSignature = trustmarkXmlSignature.validateXmlSignature(referenceUri, signedXml)
-
-        if (!validXmlSignature) {
-            throw new ServletException("The Trustmark's XML signature failed validation.")
-        }
-
-        // save the signed trustmark's XML string to the db
-        trustmark.signedXml = signedXml
-    }
-
-    private void signTrustmarkJSON(X509Certificate x509Certificate, PrivateKey privateKey, Trustmark trustmark) {
-
-        TrustmarkJsonWebSignatureImpl trustmarkJsonWebSignature = new TrustmarkJsonWebSignatureImpl()
-
-        String trustmarkJson = trustmark.toJsonMap()
-
-        String signedJson = trustmarkJsonWebSignature.generateJsonWebSignature(privateKey, trustmarkJson)
-
-        // validate the signature before saving
-        boolean validJsonWebSignature = trustmarkJsonWebSignature.validateJsonWebSignature(x509Certificate, signedJson)
-
-        if (!validJsonWebSignature) {
-            throw new ServletException("The Trustmark's JSON WEB Signature failed validation.")
-        }
-
-        trustmark.signedJson = signedJson
     }
 
 }//end TrustmarkController

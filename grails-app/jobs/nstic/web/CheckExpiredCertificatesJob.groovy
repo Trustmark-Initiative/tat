@@ -128,6 +128,8 @@ class CheckExpiredCertificatesJob {
         sb.append("The following Signing Certificate is about to expire: ${cert.distinguishedName} ");
         sb.append("Link: ${getSigningCertificateUrl(cert.id)}");
 
+        log.debug("CheckExpiredCertificatesJob::expirationWarningMessage: ${sb.toString()}...")
+
         return sb.toString();
     }
 
@@ -136,13 +138,17 @@ class CheckExpiredCertificatesJob {
         sb.append("The following Signing Certificate has expired: ${cert.distinguishedName} ");
         sb.append("Link: ${getSigningCertificateUrl(cert.id)}");
 
+        log.debug("CheckExpiredCertificatesJob::expiredMessage: ${sb.toString()}...")
+
         return sb.toString();
     }
 
     private String getSigningCertificateUrl(int certId) {
+        StringBuilder sb = new StringBuilder()
         def baseAppUrl = AssessmentToolProperties.getProperties().getProperty(AssessmentToolProperties.BASE_URL)
+        sb.append(baseAppUrl)
+        sb.append("/signingCertificates/view/${certId}")
 
-        baseAppUrl + "/signingCertificates/view/${certId}"
-        return baseAppUrl() + "/signingCertificates/view/${certId}"
+        return sb.toString()
     }
 }/* End CheckExpiredCertificatesJob */

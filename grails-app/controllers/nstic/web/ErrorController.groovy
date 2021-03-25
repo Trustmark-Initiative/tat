@@ -1,6 +1,8 @@
 package nstic.web
 
+import edu.gatech.gtri.trustmark.v1_0.FactoryLoader
 import edu.gatech.gtri.trustmark.v1_0.impl.util.TrustmarkMailClientImpl
+import edu.gatech.gtri.trustmark.v1_0.util.TrustmarkMailClient
 import grails.converters.JSON
 import grails.plugin.springsecurity.annotation.Secured
 import nstic.TATPropertiesHolder
@@ -53,55 +55,6 @@ class ErrorController {
                                 "}")
             }
         }
-    }
-
-    @Secured("ROLE_ADMIN")
-    def sendMail ()  {
-        User user = springSecurityService.currentUser
-        log.debug("User @|green ${user.username}|@ called sendMail @|cyan -> ${params.emailPswd}")
-
-        def status = [
-                rc: 'success',
-                message: 'Email sent!'
-        ]
-
-        TrustmarkMailClientImpl emailClient = new TrustmarkMailClientImpl(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_USER)
-                , params.emailPswd)
-
-        emailClient.setSmtpHost(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_HOST))
-                .setSmtpPort(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_PORT))
-                .setFromAddress(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.FROM_ADDRESS))
-                .setSmtpAuthorization(Boolean.parseBoolean(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_AUTH)))
-                .setSubject(params.emailSubject)
-                .addRecipient(params.emailAddr)
-                .setText(params.emailBody)
-
-        for (String bId : binaryIds)  {
-            BinaryObject upload = BinaryObject.get(bId)
-            if( upload != null )  {
-                emailClient.addAttachment(TATPropertiesHolder.getProperties().getProperty('assessment.tool.filesdir')+"/__ASSESSMENT_FILES__"+upload.content.filePath)
-            }
-        }
-
-        emailClient.sendMail()
-        binaryIds = []   // reset
-
-        render status as JSON
-    }
-
-    @Secured("permitAll")
-    def assignFile(){
-        binaryIds.push(params.id)
-
-        BinaryObject upload = BinaryObject.get(params.id)
-        if( upload == null )
-            throw new ServletException("No such binary: "+params.id)
-
-        def status = [
-                rc: 'success',
-                message: 'file assigned!'
-        ]
-        render status as JSON
     }
 
     @Secured("permitAll")

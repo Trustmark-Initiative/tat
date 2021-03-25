@@ -158,6 +158,8 @@ class UrlMappings {
         "/public/documents/$id"(controller: 'publicApi', action: 'findDocs')
         "/public/documents/pdf/$name"(controller:'publicApi', action: 'pdfByName')
 
+        "/public/trustmarks/find-by-recipient/$recipientId"(controller: 'publicApi', action: 'findByRecipient')
+
         "/reports" (controller:'reports', action: 'index')
         "/reports/overall" (controller:'reports', action: 'overallReport')
         "/reports/organization" (controller:'reports', action: 'organizationReport')

@@ -385,26 +385,26 @@
 
                         <div class="assStepFormData">
                             <ul class="nav nav-pills">
-                                <li class="${(currentStepData.result == null || currentStepData.result == AssessmentStepResult.Not_Known) ? 'active' : ''}">
-                                    <a href="${createLink(controller: 'assessmentPerform', action: 'setStepDataStatus', id: assessment.id, params: [stepId: currentStepData.step.id, status: AssessmentStepResult.Not_Known])}">
+                                <li id="Not_Known" class="stepDataStatus ${(currentStepData.result == null || currentStepData.result == AssessmentStepResult.Not_Known) ? 'active' : ''}">
+                                    <a href="javascript:setStepDataStatus('${assessment.id}', '${currentStepData.step.id}', '${AssessmentStepResult.Not_Known}')">
                                         <assess:assessmentStepResult result="${AssessmentStepResult.Not_Known}"/>
                                         Unknown
                                     </a>
                                 </li>
-                                <li class="${currentStepData.result == AssessmentStepResult.Satisfied ? 'active' : ''}">
-                                    <a href="${createLink(controller: 'assessmentPerform', action: 'setStepDataStatus', id: assessment.id, params: [stepId: currentStepData.step.id, status: AssessmentStepResult.Satisfied])}">
+                                <li id="Satisfied" class="stepDataStatus ${currentStepData.result == AssessmentStepResult.Satisfied ? 'active' : ''}">
+                                    <a href="javascript:setStepDataStatus('${assessment.id}', '${currentStepData.step.id}', '${AssessmentStepResult.Satisfied}')">
                                         <assess:assessmentStepResult result="${AssessmentStepResult.Satisfied}"/>
                                         Satisfied
                                     </a>
                                 </li>
-                                <li class="${currentStepData.result == AssessmentStepResult.Not_Satisfied ? 'active' : ''}">
-                                    <a href="${createLink(controller: 'assessmentPerform', action: 'setStepDataStatus', id: assessment.id, params: [stepId: currentStepData.step.id, status: AssessmentStepResult.Not_Satisfied])}">
+                                <li id="Not_Satisfied" class="stepDataStatus ${currentStepData.result == AssessmentStepResult.Not_Satisfied ? 'active' : ''}">
+                                    <a href="javascript:setStepDataStatus('${assessment.id}', '${currentStepData.step.id}', '${AssessmentStepResult.Not_Satisfied}')">
                                         <assess:assessmentStepResult result="${AssessmentStepResult.Not_Satisfied}"/>
                                         Not Satisfied
                                     </a>
                                 </li>
-                                <li class="${currentStepData.result == AssessmentStepResult.Not_Applicable ? 'active' : ''}">
-                                    <a href="${createLink(controller: 'assessmentPerform', action: 'setStepDataStatus', id: assessment.id, params: [stepId: currentStepData.step.id, status: AssessmentStepResult.Not_Applicable])}">
+                                <li id="Not_Applicable" class="stepDataStatus ${currentStepData.result == AssessmentStepResult.Not_Applicable ? 'active' : ''}">
+                                    <a href="javascript:setStepDataStatus('${assessment.id}', '${currentStepData.step.id}', '${AssessmentStepResult.Not_Applicable}')">
                                         <assess:assessmentStepResult result="${AssessmentStepResult.Not_Applicable}"/>
                                         Not Applicable
                                     </a>
@@ -964,7 +964,37 @@
         }
     }
 
+    function setStepDataStatus(assessmentId, currentStepDataStepId, assessmentStepResult) {
+        console.log("setStepDataStatus! [assessmentId, currentStepDataStepId, assessmentStepResult]", assessmentId, currentStepDataStepId, assessmentStepResult);
 
+        var url = '${createLink(controller: 'assessmentPerform', action: 'setStepDataStatus')}';
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: {
+                format: 'json',
+                id: assessmentId,
+                stepId: currentStepDataStepId,
+                status: assessmentStepResult
+            },
+            success: function (data) {
+                console.log("Finished parameter value update, response: " + JSON.stringify(data, null, '   '));
+                if (data && data.status && data.status === "SUCCESS") {
+                    console.log("Successfully updated the set step data status value. [assessmentId, currentStepDataStepId, assessmentStepResult]", assessmentId, currentStepDataStepId, assessmentStepResult);
+
+                    // deactivate all status links
+                    $(".stepDataStatus").removeClass( "active" );
+
+                    // activate the selected status link
+                    $("#" + assessmentStepResult).addClass( "active" );
+                }
+            },
+            error: function () {
+                console.log("An error occurred updating the set step data status value. [assessmentId, currentStepDataStepId, assessmentStepResult]", assessmentId, currentStepDataStepId, assessmentStepResult);
+                alert("An error occurred updating the set step data status value.")
+            }
+        });
+    }
 </script>
 
 </div>

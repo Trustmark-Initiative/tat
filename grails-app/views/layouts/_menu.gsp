@@ -74,6 +74,7 @@
                         <li><a href="${createLink(controller: 'admin', action: 'importExportView')}">Import/Export</a></li>
                         <li><a href="${createLink(controller: 'error')}">Error Tests</a></li>
                         <li><a href="${createLink(controller: 'tdAndTipUpdate')}">TPAT Management</a></li>
+                        <li><a href="${createLink(controller: 'email', action: 'settings')}">Email</a></li>
                     </ul>
                 </li>
             </sec:ifAllGranted>

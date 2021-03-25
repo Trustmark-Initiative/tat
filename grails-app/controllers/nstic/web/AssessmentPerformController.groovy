@@ -1,6 +1,8 @@
 package nstic.web
 
+import edu.gatech.gtri.trustmark.v1_0.FactoryLoader
 import edu.gatech.gtri.trustmark.v1_0.impl.model.TrustmarkParameterBindingImpl
+import edu.gatech.gtri.trustmark.v1_0.io.TrustmarkDefinitionResolver
 import edu.gatech.gtri.trustmark.v1_0.model.ParameterKind
 import grails.converters.JSON
 import grails.converters.XML
@@ -29,6 +31,8 @@ import javax.servlet.ServletException
 @Transactional
 @Secured("ROLE_USER")
 class AssessmentPerformController {
+    public static final String TD_ISSUANCE_CRITERIA_YES_ALL = "yes(all)"
+    public static final String TD_ISSUANCE_CRITERIA_NO_ALL  = "no(all)"
 
     def springSecurityService
 
@@ -358,9 +362,13 @@ class AssessmentPerformController {
                  newStatus: newStatus]
             )
 
+        log.debug("Step data status updated successfully....")
 
-        redirect(action:'view', params: [id: assessment.id, stepId: params.stepId])
-    }//end setAssessmentStepStatus()
+        def resultData = [status: 'SUCCESS', message: 'Successfully step data status.']
+
+        render resultData as JSON
+
+    }//end setStepDataStatus()
 
     private AssessmentStepData findByStepId(Assessment ass, Long stepId){
         for( AssessmentStepData cur : ass.steps ){
@@ -836,15 +844,33 @@ class AssessmentPerformController {
 
         int count = 0
         for( AssessmentStepData stepData : assessment.getSortedSteps() ){
+            log.debug("================================================================================================")
             log.debug("    Setting artifact for step: ${stepData.step.name}")
 
             // set the step result appropriately
-            if (stepData.hasRequiredParameters)
-            {
-                stepData.result = AssessmentStepResult.Not_Known
-            } else {
-                stepData.result = AssessmentStepResult.Satisfied
+            edu.gatech.gtri.trustmark.v1_0.model.TrustmarkDefinition tdFromApi =
+                    FactoryLoader.getInstance(TrustmarkDefinitionResolver.class).resolve(stepData.step.trustmarkDefinition.source.content.toFile(), false)
+
+            String issuanceCriteria = tdFromApi.getIssuanceCriteria()
+
+            // default to Unknown
+            stepData.result = AssessmentStepResult.Not_Known
+
+            if (equalsIgnoreCaseAndWhitespace(issuanceCriteria, TD_ISSUANCE_CRITERIA_NO_ALL)) {
+                stepData.result = AssessmentStepResult.Not_Satisfied
+            } else if (equalsIgnoreCaseAndWhitespace(issuanceCriteria, TD_ISSUANCE_CRITERIA_YES_ALL)) {
+
+                if (stepData.hasRequiredParameters) {
+                    stepData.result = AssessmentStepResult.Not_Known
+                } else {
+                    stepData.result = AssessmentStepResult.Satisfied
+                }
             }
+
+            log.debug("* trustmarkDefinition.issuanceCriteria: ${issuanceCriteria}")
+            log.debug("*       stepData.hasRequiredParameters: ${stepData.hasRequiredParameters.toString()}")
+            log.debug("*                      stepData.result: ${stepData.result.toString()}")
+            log.debug("------------------------------------------------------------------------------------------------")
 
             stepData.lastResultUser = user
             stepData.resultLastChangeDate = Calendar.getInstance().getTime()
@@ -880,7 +906,6 @@ class AssessmentPerformController {
         }
 
     }//end saveAssessmentResults()
-
 
     /**
      * Allows for status/state change for an assessment.
@@ -1595,8 +1620,13 @@ class AssessmentPerformController {
         redirect(controller:'assessmentPerform', action: 'view', id: assessment.id, params: [stepNumber: stepData.step.stepNumber])
     }//end saveSubstep()
 
+    private boolean equalsIgnoreCaseAndWhitespace(String s1, String s2) {
+        // remove whitespace form strings
+        s1.replace(" ", "")
+        s2.replace(" ", "")
 
-
+        return s1.equalsIgnoreCase(s2)
+    }
 
 }//end AssessmentPerformController
 

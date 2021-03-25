@@ -62,6 +62,8 @@ dependencies {
     compile "org.grails.plugins:hibernate5:${gormVersion}"
     compile 'org.grails.plugins:spring-security-core:4.0.0.RC3'
 
+//    compile "shared.views:tmf-shared-views:0.1"
+
     compile 'org.grails.plugins:quartz:2.0.13' // For monitoring configuration directories periodically
     compile 'org.quartz-scheduler:quartz:2.2.1'
 

@@ -31,7 +31,7 @@ class TIPReference {
 
     static constraints = {
         owningTIP(nullable: false)
-        referenceName(nullable: false, blank: false, maxSize: 128)
+        referenceName(nullable: false, blank: false, maxSize: 512)
         trustmarkDefinition(nullable: true)
         trustInteroperabilityProfile(nullable: true)
         notes(nullable: true, blank: true, maxSize: 65535)
