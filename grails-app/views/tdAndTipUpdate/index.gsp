@@ -2,7 +2,7 @@
 <html>
     <head>
         <meta name="layout" content="main"/>
-        <title>TD & TIP Update Admin Page</title>
+        <title>TPAT Management</title>
 
 
         <script type="text/javascript">
@@ -11,7 +11,9 @@
 
             $(document).ready(function(){
                 updateScanJobDetails();
-                updateFormatCheckData();
+
+                // disabled for the moment
+                //updateFormatCheckData();
             })
 
 
@@ -73,8 +75,9 @@
                     if( data.status == "SUCCESS" ){
                         html += '<div style="margin-top: 2em;">';
                         html += '    <a href="javascript:startScanHostJob();" class="btn btn-primary">Start</a>';
-                        html += '    <a href="javascript:clearScanHostVariables();" class="btn btn-default">Clear Variables</a>';
-                        html += '<div class="text-muted">To force a re-check of each TD &amp; TIP: hit clear variables, then start.  Otherwise if the cache is up to date, nothing will occur.</div>\n';
+                        // html += '    <a href="javascript:clearScanHostVariables();" class="btn btn-default">Clear Variables</a>';
+                        // html += '<div class="text-muted">To force a re-check of each TD &amp; TIP: hit clear variables, then start.  Otherwise if the cache is up to date, nothing will occur.</div>\n';
+                        html += '<div class="text-muted">To force a re-check of each TD &amp; TIP: hit start.</div>\n';
                         html += '</div>'
                     }else{
 
@@ -314,7 +317,7 @@
     <body>
         <div class="row">
             <div class="col-md-9">
-                <h1>TD & TIP Update Admin Page</h1>
+                <h1>TPAT Management</h1>
                 <div class="text-muted">
                     This page allows you to manage some high-level administrative cache actions for the TDs & TIPs that have been
                     cached.
@@ -332,17 +335,139 @@
         </div>
 
         <div style="margin-top: 4em;">
+            <h3>TPAT or Registry URLs</h3>
+
+            <table class='table table-condensed table-striped table-bordered'>
+                <thead>
+                <tr>
+                    <g:sortableColumn property="registryName" title="Name" />
+                    <g:sortableColumn property="registryUrl" title="URL" />
+                </tr>
+                </thead>
+                <tbody id="registrUrlTableRows">
+                <%
+                    List<nstic.web.Registry> registryUrls = nstic.web.Registry.findAll()
+                %>
+                <g:if test="${registryUrls && registryUrls.size() > 0}">
+                    <g:each in="${registryUrls}" var="registry">
+                        <tr>
+                            <td style="font-size: 120%;">
+                                ${registry.name}
+                            </td>
+                            <td>
+                                ${registry.registryUrl}
+                            </td>
+                        </tr>
+                    </g:each>
+                </g:if>
+                <g:else>
+                    <tr id="noTpatRegistryUrlsMessage">
+                        <td colspan="2"><em>There are no TPAT registry URLs stored.</em></td>
+                    </tr>
+                </g:else>
+                </tbody>
+
+            </table>
+
+            <div id="addRegistryUrlButton">
+                <a href="#" class="btn btn-primary" onclick="enableUrlUI();">Add URL</a>
+            </div>
+
+            <div id="inputRegistryUrl" style="display: none">
+
+                <div class="form">
+                    <div class="title">Registry Name</div>
+                    <input id="registryNameId" type="text" class="input-text">
+                    <div class="content">Registry URL</div>
+                    <input id="registryUrlId" class="input-text"></input>
+                    <div class="a">
+                        <button type="button" class="btn btn-primary" href="javascript:void(0)" id="save">Save</button>
+                    </div>
+
+                    <div id="saveRegistryStatus">
+                    </div>
+                </div>
+            </div>
+
+            <script type="text/javascript">
+
+                $('#save').click(function() {
+
+                    if ( $('#registryNameId').val() == '' ){
+                        alert('Please enter a name.');
+                    }
+                    else if ($('#registryUrlId').val() == '') {
+                        alert('Please enter a URL.');
+                    }
+                    else {
+                        var url = '${createLink(controller: 'tdAndTipUpdate', action: 'saveRegistry')}';
+                        $.ajax({
+                            url: url,
+                            dataType: 'json',
+                            data: {
+                                registryName: $('#registryNameId').val(),
+                                registryUrl: $('#registryUrlId').val(),
+                                format: 'json'
+                            },
+                            error: function( jqXHR, textStatus, errorThrown ){
+                                console.log("An error occurred while saving the registry url!  textStatus=["+textStatus+"], errorThrown: "+JSON.stringify(errorThrown, null, '  '));
+                                $('#saveRegistryStatus').html('<div class="alert alert-danger">An error occurred while saving the registry url.  Please try again.</div>')
+                            },
+                            success: function(result, textStatus, jqXHR){
+                                console.log("Received registry result: "+JSON.stringify(result, null, 4));
+
+                                var name = result.registryName;
+                                var url = result.registryUrl;
+
+                                if( name && url  ) {
+
+                                    $('#registrUrlTableRows').append('<tr> <td style="font-size: 120%;">' + result.registryName + '</td> <td>' + result.registryUrl + '</td> </tr>');
+
+                                    showElement("inputRegistryUrl",  false);
+                                    $('#registryNameId').val('');
+                                    $('#registryUrlId').val('');
+
+                                    $('#noTpatRegistryUrlsMessage').style.display = "none";
+                                }else{
+                                    $('#saveRegistryStatus').html('<div class="alert alert-danger">An error occurred while loading the remote data.  Please refresh and try again.</div>')
+                                }
+
+                                $('#selectExistingCertificatesControl').html(html);
+                            }
+                        })
+
+                    }
+                });
+
+                function enableUrlUI() {
+                    showElement("inputRegistryUrl",  true);
+                }
+
+                function showElement(elemId, show) {
+
+                    var elem = document.getElementById(elemId);
+                    if (show) {
+                        elem.style.display = "block";
+                    } else {
+                        elem.style.display = "none";
+                    }
+                }
+            </script>
+        </div>
+
+        <div style="margin-top: 4em;">
             <h3>TD & TIP Update Scheduling</h3>
             <div class="text-muted">Here you can force the ScanHostJob to execute, and update TDs and TIPs.</div>
             <div id="scanJobDetails"></div>
         </div>
 
 
-        <div style="margin-top: 4em;">
-            <h3>TD & TIP Format Check</h3>
-            <div class="text-muted">Check each TD &amp; TIP to make sure their format matches the source format.  Useful if the JSON or XML version changes, but the TD or TIP did not.</div>
-            <div id="formatCheckFeedback"></div>
-        </div>
+%{-- Disabled for the moment--}%
+%{--        <div style="margin-top: 4em;">--}%
+%{--            <h3>TD & TIP Format Check</h3>--}%
+%{--            <div class="text-muted">Check each TD &amp; TIP to make sure their format matches the source format.  Useful if the JSON or XML version changes, but the TD or TIP did not.</div>--}%
+%{--            <div id="formatCheckFeedback"></div>--}%
+%{--        </div>--}%
 
     </body>
 

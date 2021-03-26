@@ -25,3 +25,6 @@ grails.plugin.springsecurity.basic.realmName = "GTRI Assessment Tool"
 
 // Requires 1 or more beans in resources.groovy which implement org.springframework.context.ApplicationListener
 grails.plugin.springsecurity.useSecurityEventListener = true
+
+// Enable pretty printing of XML and JSON
+grails.converters.default.pretty.print=true

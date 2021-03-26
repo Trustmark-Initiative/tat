@@ -23,7 +23,7 @@ class AssessmentStep {
     static constraints = {
         trustmarkDefinition(nullable: false)
         stepNumber(nullable: false)
-        identifier(nullable: false, blank: false, maxSize: 128)
+        identifier(nullable: false, blank: false, maxSize: 512)
         name(nullable: false, blank: false, maxSize: 512)
         description(nullable: false, blank: false, maxSize: 65535)
         substeps(nullable: true)

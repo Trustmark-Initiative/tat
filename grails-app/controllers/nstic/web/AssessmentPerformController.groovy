@@ -1,6 +1,8 @@
 package nstic.web
 
+import edu.gatech.gtri.trustmark.v1_0.FactoryLoader
 import edu.gatech.gtri.trustmark.v1_0.impl.model.TrustmarkParameterBindingImpl
+import edu.gatech.gtri.trustmark.v1_0.io.TrustmarkDefinitionResolver
 import edu.gatech.gtri.trustmark.v1_0.model.ParameterKind
 import grails.converters.JSON
 import grails.converters.XML
@@ -29,6 +31,8 @@ import javax.servlet.ServletException
 @Transactional
 @Secured("ROLE_USER")
 class AssessmentPerformController {
+    public static final String TD_ISSUANCE_CRITERIA_YES_ALL = "yes(all)"
+    public static final String TD_ISSUANCE_CRITERIA_NO_ALL  = "no(all)"
 
     def springSecurityService
 
@@ -239,15 +243,32 @@ class AssessmentPerformController {
 
         AssessmentStepData nextStep = null
         AssessmentStepData prevStep = null
+        AssessmentStepData nextUnknownStep = null
+        AssessmentStepData prevUnknownStep = null
+
         List<AssessmentStepData> sortedSteps = assessment.sortedSteps
         for( int i = 0; i < sortedSteps.size(); i++){
             AssessmentStepData aStep = sortedSteps.get(i)
             if( aStep.id == currentStep.id ){
                 if( i > 0 ){
                     prevStep = sortedSteps.get(i-1)
+
+                    for (int j = i - 1; j >= 0; j-- ) {
+                        if (sortedSteps.get(j).result == AssessmentStepResult.Not_Known) {
+                            prevUnknownStep = sortedSteps.get(j)
+                            break
+                        }
+                    }
                 }
                 if( i < (sortedSteps.size() - 1) ){
                     nextStep = sortedSteps.get(i+1)
+
+                    for (int j = i + 1; j < sortedSteps.size(); j++ ) {
+                        if (sortedSteps.get(j).result == AssessmentStepResult.Not_Known) {
+                            nextUnknownStep = sortedSteps.get(j)
+                            break
+                        }
+                    }
                 }
             }
         }
@@ -284,7 +305,9 @@ class AssessmentPerformController {
                 allStepsHaveAnswer: allStepsHaveAnswer,
                 criteria: currentStep.step.criteria,
                 nextStep: nextStep,
-                prevStep: prevStep
+                prevStep: prevStep,
+                nextUnknownStep: nextUnknownStep,
+                prevUnknownStep: prevUnknownStep
         ]
 
     }//end view()
@@ -339,9 +362,13 @@ class AssessmentPerformController {
                  newStatus: newStatus]
             )
 
+        log.debug("Step data status updated successfully....")
 
-        redirect(action:'view', params: [id: assessment.id, stepId: params.stepId])
-    }//end setAssessmentStepStatus()
+        def resultData = [status: 'SUCCESS', message: 'Successfully step data status.']
+
+        render resultData as JSON
+
+    }//end setStepDataStatus()
 
     private AssessmentStepData findByStepId(Assessment ass, Long stepId){
         for( AssessmentStepData cur : ass.steps ){
@@ -713,6 +740,172 @@ class AssessmentPerformController {
         }
 
     }//end saveArtifact()
+
+
+    /**
+     * This page will display the importAssessmentResults view.
+     * Required Parameter:
+     *   <b>id</b> - the assessment id
+     */
+
+    @ParamConversions([
+            @ParamConversion(paramName="id", toClass=Assessment.class, storeInto = "assessment"),
+    ])
+    def importAssessmentResults() {
+        User user = springSecurityService.currentUser
+        Assessment assessment = params.assessment
+
+        log.info("Showing importAssessmentResults form[user=$user, assessment=$assessment...")
+
+        if( !assessment.assignedTo ){
+            log.debug("Assigning user[${user.username}] to assessment[${assessment.id}]")
+            assessment.assignedTo = user
+            assessment.lastAssessor = user
+            assessment.save(failOnError: true, flush: true)
+
+            assessment.logg.addEntry("Assessor Change", "Assigning user[${user.username}] to assessment[${assessment.id}]",
+                    "User ${user?.contactInformation?.responder} [id: ${user?.username}] is now assigned assessment[${assessment.id}].",
+                    [user: [id: user.id, username: user.username], assessment: [id: assessment.id], oldAssignee: null])
+
+        }else if( assessment.assignedTo && assessment.assignedTo.username != user.username ){
+            log.debug("Assigning user[${user.username}] to assessment[${assessment.id}], and removing assignedTo from User[${assessment.assignedTo.username}]")
+            User oldAssignee = assessment.assignedTo
+            assessment.assignedTo = user
+            assessment.lastAssessor = user
+            assessment.save(failOnError: true, flush: true)
+
+            assessment.logg.addEntry(
+                    "Assessor Change",
+                    "User ${user?.contactInformation?.responder} is now Assessing Assessment ${assessment.id}",
+                    "User ${user?.contactInformation?.responder} [id: ${user?.username}] is now assigned " +
+                            "assessment[${assessment.id}].  Note that assessignment taken from user " +
+                            "${oldAssignee?.contactInformation?.responder} [id: ${oldAssignee?.username}].",
+                    [user       : [id: user.id, username: user.username],
+                     assessment : [id: assessment.id],
+                     oldAssignee: [id: oldAssignee.id, username: oldAssignee?.username]])
+
+        }else{
+            // It's the same user, no need to mark it as anything.
+            log.debug("User[${user.username}] is already assigned to assessment[${assessment.id}]")
+        }
+
+
+        CreateImportArtifactCommand command = new CreateImportArtifactCommand()
+        command.assessmentId = assessment.id
+
+        log.debug("Showing importAssessmentResults view...")
+
+        [
+                command: command,
+                assessment: assessment
+        ]
+
+    }//end importAssessmentResults()
+
+    /**
+     * This is the POST method for the importAssessmentResults view.
+     */
+    def saveAssessmentResults(CreateImportArtifactCommand command) {
+        log.debug("Called saveAssessmentResults, validating...")
+        User user = springSecurityService.currentUser
+
+        def assessment = Assessment.get(command.assessmentId)
+        if( !assessment ){
+            log.warn("Could not find assessment: ${command.assessmentId}")
+            throw new ServletException("No such assessment ${command.assessmentId}")
+        }
+
+        if(!command.validate()){
+            log.warn "Create Import Artifact form does not validate: "
+            command.errors.getAllErrors().each { ObjectError error ->
+                log.warn "    ${error.defaultMessage}"
+            }
+            return render(view: 'importAssessmentResults', model: [command: command, assessment: assessment])
+        }
+
+        if( !command.binaryId1 )
+            command.binaryId1 = -1
+        BinaryObject binaryObject = null
+        if( command.binaryId1 != -1 ){
+            binaryObject = BinaryObject.findById(command.binaryId1)
+            if( !binaryObject ){
+                log.error("No such binary object '${command.binaryId1}' for assessment '${assessment.id}'")
+                throw new ServletException("No such binary object '${command.binaryId1}' for assessment '${assessment.id}'")
+            }
+        }
+
+        // TODO We probably want to forward the user to a "re-assign" page instead of just throwing an error.
+        if( assessment.assignedTo?.id != user?.id ){
+            log.warn("User ${user?.username} cannot view the performance of assessment[${assessment.id}] without re-assigning it.")
+            throw new ServletException("You are not the assessor for assessment ${assessment.id}.  Please re-assign it to yourself to continue.")
+        }
+
+        log.info("Importing assessment results for assessment #${assessment.id}...")
+
+        int count = 0
+        for( AssessmentStepData stepData : assessment.getSortedSteps() ){
+            log.debug("================================================================================================")
+            log.debug("    Setting artifact for step: ${stepData.step.name}")
+
+            // set the step result appropriately
+            edu.gatech.gtri.trustmark.v1_0.model.TrustmarkDefinition tdFromApi =
+                    FactoryLoader.getInstance(TrustmarkDefinitionResolver.class).resolve(stepData.step.trustmarkDefinition.source.content.toFile(), false)
+
+            String issuanceCriteria = tdFromApi.getIssuanceCriteria()
+
+            // default to Unknown
+            stepData.result = AssessmentStepResult.Not_Known
+
+            if (equalsIgnoreCaseAndWhitespace(issuanceCriteria, TD_ISSUANCE_CRITERIA_NO_ALL)) {
+                stepData.result = AssessmentStepResult.Not_Satisfied
+            } else if (equalsIgnoreCaseAndWhitespace(issuanceCriteria, TD_ISSUANCE_CRITERIA_YES_ALL)) {
+
+                if (stepData.hasRequiredParameters) {
+                    stepData.result = AssessmentStepResult.Not_Known
+                } else {
+                    stepData.result = AssessmentStepResult.Satisfied
+                }
+            }
+
+            log.debug("* trustmarkDefinition.issuanceCriteria: ${issuanceCriteria}")
+            log.debug("*       stepData.hasRequiredParameters: ${stepData.hasRequiredParameters.toString()}")
+            log.debug("*                      stepData.result: ${stepData.result.toString()}")
+            log.debug("------------------------------------------------------------------------------------------------")
+
+            stepData.lastResultUser = user
+            stepData.resultLastChangeDate = Calendar.getInstance().getTime()
+
+            stepData.assessorComment = "Automatic assessment based on audit results."
+            stepData.assessorCommentUser = user
+            stepData.lastCommentDate = stepData.resultLastChangeDate
+
+            for( AssessmentStepArtifact artifact : stepData.step.artifacts ){
+                ArtifactData artifactData = new ArtifactData()
+                artifactData.requiredArtifact = artifact
+                artifactData.comment = command.comment
+                artifactData.displayName = command.displayName
+                artifactData.data = binaryObject
+                artifactData.modifyingUser = user
+                artifactData.uploadingUser = user
+                artifactData.save(failOnError: true)
+
+                stepData.addToArtifacts(artifactData)
+            }
+
+            stepData.save(failOnError: true)
+            count++
+        }
+
+        log.info("Successfully imported assessments results for ${count} steps!")
+
+        withFormat {
+            html {
+                redirect(controller: 'assessment', action: 'view', id: assessment.id)
+            }
+            // TODO JSON, XML?
+        }
+
+    }//end saveAssessmentResults()
 
     /**
      * Allows for status/state change for an assessment.
@@ -1427,8 +1620,13 @@ class AssessmentPerformController {
         redirect(controller:'assessmentPerform', action: 'view', id: assessment.id, params: [stepNumber: stepData.step.stepNumber])
     }//end saveSubstep()
 
+    private boolean equalsIgnoreCaseAndWhitespace(String s1, String s2) {
+        // remove whitespace form strings
+        s1.replace(" ", "")
+        s2.replace(" ", "")
 
-
+        return s1.equalsIgnoreCase(s2)
+    }
 
 }//end AssessmentPerformController
 
@@ -1547,6 +1745,36 @@ class EditArtifactCommand {
         comment(nullable: true, blank: true, maxSize: 65535, validator: {val, obj, errors ->
             if( StringUtils.isEmpty(val) && (obj.binaryId1 == null || obj.binaryId1 == -1 )) {
                 errors.rejectValue("comment", "edit.artifact.something.required", [] as String[], "Either comment or file must be present.")
+                return false
+            }
+            return true
+        })
+    }
+
+}
+
+class CreateImportArtifactCommand {
+    Integer assessmentId
+
+    String displayName
+    String artifactType = "newUpload"
+
+    /**
+     * The plupload tool will upload files and via javascript receive a binary id back.  The page will then populate this
+     * with that field information.  Note that a binary is not required, though, and this field may be null.
+     */
+    Integer binaryId1
+
+    String comment
+
+    static constraints = {
+        assessmentId(nullable: false)
+        artifactType(nullable: false)
+        displayName(nullable: false, blank: false, maxSize: 255)
+        binaryId1(nullable: true)
+        comment(nullable: true, blank: true, maxSize: 65535, validator: {val, obj, errors ->
+            if( StringUtils.isEmpty(val) && (obj.binaryId1 == null || obj.binaryId1 == -1 )) {
+                errors.rejectValue("comment", "create.artifact.something.required", [] as String[], "Either comment or file must be present.")
                 return false
             }
             return true

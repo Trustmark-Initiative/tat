@@ -33,5 +33,16 @@
         </table>
     </div>
 </div>
+<br/>
+<div>
+    Also available as
+    <a href="${request.getRequestURL()}?format=xml">
+        XML
+    </a>
+    or
+    <a href="${request.getRequestURL()}?format=json">
+        JSON
+    </a>
+</div>
 </body>
 </html>

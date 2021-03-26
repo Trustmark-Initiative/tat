@@ -155,5 +155,16 @@
 </tr>
 </table>
 </div>
+<br/>
+<div>
+    Also available as
+    <a href="${request.getRequestURL()}?format=xml">
+        XML
+    </a>
+    or
+    <a href="${request.getRequestURL()}?format=jwt">
+        JWT
+    </a>
+</div>
 </body>
 </html>

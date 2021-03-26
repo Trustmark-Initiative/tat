@@ -6,6 +6,8 @@ import grails.plugin.springsecurity.annotation.Secured
 import groovy.json.JsonSlurper
 import org.apache.commons.lang.StringUtils
 
+import javax.servlet.ServletException
+
 @Secured("ROLE_ADMIN")
 class TdAndTipUpdateController {
     //==================================================================================================================
@@ -94,6 +96,27 @@ class TdAndTipUpdateController {
 
         render json as JSON;
     }
+
+    def saveRegistry() {
+
+        if (!validateRegistryUrl(params.registryUrl)) {
+            throw new ServletException("Not a valid registry URL: ${params.registryUrl}")
+        }
+
+        Registry registry = new Registry()
+        registry.registryUrl = params.registryUrl
+        registry.name = params.registryName
+        registry.lastUpdated = new Date()
+        registry.save(failOnError: true)
+
+        def resultJSON = [
+            registryName: registry.name,
+            registryUrl: registry.registryUrl,
+        ]
+
+        render resultJSON as JSON
+    }
+
     //==================================================================================================================
     //  HELPER METHODS
     //==================================================================================================================
@@ -142,4 +165,20 @@ class TdAndTipUpdateController {
         map.put("tipCacheDates", tipCacheDates);
     }
 
+    private boolean validateRegistryUrl(String registryUrl) {
+
+        log.debug("Validating registry url: ${registryUrl}...")
+
+        URL url = null;
+        try{
+            url = new URL(registryUrl)
+
+            log.debug("Valid registry url: ${registryUrl}...")
+
+            return true
+        }catch(Throwable t){
+            log.debug("Invalid registry url: ${registryUrl}...")
+            return false;
+        }
+    }
 }
