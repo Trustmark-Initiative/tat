@@ -121,7 +121,6 @@ class TrustmarkDefinitionV1_0Importer implements Importer {
                 }
             }
 
-            td.referenceAttributeName = tdXml.selectObject("string(/tf:TrustmarkDefinition/tf:Metadata/tf:TrustmarkReferenceAttributeName)")?.trim();
             td.name = tdXml.selectObject("string(/tf:TrustmarkDefinition/tf:Metadata/tf:Name)")?.trim();
             td.tdVersion = tdXml.selectObject("string(/tf:TrustmarkDefinition/tf:Metadata/tf:Version)")?.trim();
             td.description = tdXml.selectObject("string(/tf:TrustmarkDefinition/tf:Metadata/tf:Description)")?.trim();

@@ -2,7 +2,7 @@ package assessment.tool
 
 import edu.gatech.gtri.trustmark.v1_0.FactoryLoader
 import edu.gatech.gtri.trustmark.v1_0.impl.io.json.TrustmarkJsonWebSignatureImpl
-import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.TrustmarkXmlSignatureImpl
+import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.XmlSignatureImpl
 import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.XmlHelper
 import edu.gatech.gtri.trustmark.v1_0.io.TrustmarkDefinitionResolver
 import edu.gatech.gtri.trustmark.v1_0.util.TrustmarkDefinitionUtils
@@ -84,6 +84,10 @@ class TrustmarkService {
 
     void removeAttribute(String key) {
         objectMap.remove(key)
+    }
+
+    void resetAttributes() {
+        objectMap.clear()
     }
 
     void logAttributes(String context) {
@@ -441,10 +445,10 @@ class TrustmarkService {
         String trustmarkXml = toXml(trustmark)
 
         // get the signed trustmark's XML string
-        TrustmarkXmlSignatureImpl trustmarkXmlSignature = new TrustmarkXmlSignatureImpl()
+        XmlSignatureImpl xmlSignature = new XmlSignatureImpl()
 
         String referenceUri = "tf:id"
-        String signedXml = trustmarkXmlSignature.generateXmlSignature(x509Certificate, privateKey,
+        String signedXml = xmlSignature.generateXmlSignature(x509Certificate, privateKey,
                 referenceUri, trustmarkXml)
 
         // Validate the trustmark's signed xml against the Trustmark Framework XML schema
@@ -452,7 +456,7 @@ class TrustmarkService {
         log.debug("Successfully validated trustmark's signed XML")
 
         // validate the signature before saving
-        boolean validXmlSignature = trustmarkXmlSignature.validateXmlSignature(referenceUri, signedXml)
+        boolean validXmlSignature = xmlSignature.validateXmlSignature(referenceUri, signedXml)
 
         if (!validXmlSignature) {
             throw new ServletException("The Trustmark's XML signature failed validation.")

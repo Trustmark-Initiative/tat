@@ -27,7 +27,6 @@ class TrustmarkDefinition {
      * stored here.  This is extremely useful for things like testing.
      */
     String cachedUrl;
-    String referenceAttributeName;
     String name;
     String tdVersion;
     String description // XHTML possible here
@@ -86,7 +85,6 @@ class TrustmarkDefinition {
         uri(nullable: false, blank: false, maxSize: 65535)
         cachedUrl(nullable: true, blank: true, maxSize: 65535)
         name(nullable: false, blank: false, maxSize: 256)
-        referenceAttributeName(nullable: false, blank: false, maxSize: 256)
         tdVersion(nullable: false, blank: false, maxSize: 128)
         description(nullable: false, blank: false, maxSize: Integer.MAX_VALUE)
         publicationDateTime(nullable: false)
