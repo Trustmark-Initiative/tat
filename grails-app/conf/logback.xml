@@ -2,7 +2,7 @@
 
 <configuration>
 
-    <property name="LOG_HOME" value="/opt/assessment-tool/logs" />
+    <property name="LOG_HOME" value="/opt/tat/logs" />
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <!-- encoders are  by default assigned the type ch.qos.logback.classic.encoder.PatternLayoutEncoder -->
@@ -11,8 +11,25 @@
         </encoder>
     </appender>
 
+   <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_HOME}/logFile.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+      <!-- daily rollover -->
+      <fileNamePattern>${LOG_HOME}/logFile.%d{yyyy-MM-dd}.log</fileNamePattern>
+
+      <!-- keep 30 days' worth of history capped at 3GB total size -->
+      <maxHistory>7</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+
+    <encoder>
+      <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
     <root level="ERROR">
         <appender-ref ref="STDOUT" />
+        <appender-ref ref="FILE" />
     </root>
 
 
@@ -22,9 +39,26 @@
     <!--<logger name="org.hibernate.SQL" level="TRACE" />-->
 
     <logger name="grails.app" level="DEBUG" />
+    <logger name="shared.views" level="DEBUG" />
     <logger name="nstic" level="DEBUG" />
 
-    <logger name="edu.gatech.gtri.trustmark" level="WARN" />
+    <logger name="edu.gatech.gtri.trustmark" level="INFO" />
+    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.io" level="DEBUG" />
+
+    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.util.TrustmarkMailClientImpl" level="DEBUG">
+      <appender-ref ref="STDOUT"/>
+      <appender-ref ref="FILE"/>
+    </logger>
+
+    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.util" level="DEBUG">
+      <appender-ref ref="STDOUT"/>
+      <appender-ref ref="FILE"/>
+    </logger>
+
+    <logger name="edu.gatech.gtri.trustmark.v1_0.util" level="DEBUG">
+      <appender-ref ref="STDOUT"/>
+      <appender-ref ref="FILE"/>
+    </logger>
 
     <!--<logger name="org.springframework.security" level="DEBUG" />-->
     <!--<logger name="org.springframework.security.web.FilterChainProxy" level="ERROR" />-->
@@ -33,7 +67,6 @@
 
 
     <!-- Useful for debugging errors in the TMF API -->
-    <!--<logger name="edu.gatech.gtri.trustmark.v1_0.impl.io" level="DEBUG" />-->
 
     <!-- STACKTRACE ONLY LOG EXAMPLE -->
 <!--

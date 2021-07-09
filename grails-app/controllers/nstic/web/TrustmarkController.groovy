@@ -187,6 +187,9 @@ class TrustmarkController {
             }
         }
 
+        // initialize service attribute set
+        trustmarkService.resetAttributes()
+
         // initialize status
         trustmarkService.setAttribute(TrustmarkService.INFO_LIST_STATUS_VAR, "RUNNING")
         trustmarkService.setAttribute(TrustmarkService.INFO_LIST_PERCENT_VAR, "0")
@@ -473,6 +476,10 @@ class TrustmarkController {
         }
 
         log.info("All trustmarks granted, forwarding to the assessment page...")
+
+        // initialize service attribute set to, in the case of assessments with a large number of TDs,
+        // ease the memory footprint
+        trustmarkService.resetAttributes()
 
         // Base url includes the TAT domain name, createLink includes the TAT domain name
         // Get the host and port from the base url and append the result of createLink to avoid duplicate TAT domain

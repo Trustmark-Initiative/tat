@@ -34,11 +34,12 @@ class ForgotPasswordController {
                 }
                 log.debug("Sending confirmation email to ${params.email}...")
 
-                TrustmarkMailClientImpl emailClient = new TrustmarkMailClientImpl(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_USER)
-                        , TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_PSWD))
+                TrustmarkMailClientImpl emailClient = new TrustmarkMailClientImpl();
 
                 emailClient.setSmtpHost(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_HOST))
                         .setSmtpPort(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_PORT))
+                        .setUser(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_USER))
+                        .setPswd(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_PSWD))
                         .setFromAddress(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.FROM_ADDRESS))
                         .setSmtpAuthorization(Boolean.parseBoolean(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_AUTH)))
                         .setSubject(g.message(code: 'reset.password.subject').toString())

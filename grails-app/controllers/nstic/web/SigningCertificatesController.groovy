@@ -1,7 +1,5 @@
 package nstic.web
 
-import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.TrustmarkXmlSignatureImpl
-import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.XmlHelper
 import edu.gatech.gtri.trustmark.v1_0.impl.util.TrustmarkMailClientImpl
 import nstic.TATPropertiesHolder
 import nstic.util.AssessmentToolProperties

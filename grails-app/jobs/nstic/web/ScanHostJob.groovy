@@ -459,7 +459,8 @@ class ScanHostJob {
                 databaseTd.setBaseUri(this.url)
                 databaseTd.setUri(tdDefinition.getMetadata().getIdentifier().toString())
                 databaseTd.cachedUrl = remoteTd.getFormats()?.get("json")?.toString()
-                databaseTd.setReferenceAttributeName(tdDefinition?.getMetadata()?.getTrustmarkReferenceAttributeName()?.toString())
+//              This field has been removed.
+//                databaseTd.setReferenceAttributeName(tdDefinition?.getMetadata()?.getTrustmarkReferenceAttributeName()?.toString())
                 databaseTd.setName(tdDefinition.getMetadata().getName())
                 databaseTd.setTdVersion(tdDefinition.getMetadata().getVersion())
                 databaseTd.setDescription(tdDefinition.getMetadata().getDescription())
