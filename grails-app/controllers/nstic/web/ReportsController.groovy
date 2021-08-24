@@ -7,8 +7,12 @@ import com.googlecode.charts4j.GCharts
 import com.googlecode.charts4j.PieChart
 import com.googlecode.charts4j.Plots
 import com.googlecode.charts4j.Slice
+import grails.converters.JSON
+import grails.gorm.transactions.Transactional
+import grails.gsp.PageRenderer
 import grails.plugin.springsecurity.annotation.Secured
 import grails.validation.Validateable
+import groovy.json.JsonSlurper
 import nstic.assessment.ColorPalette
 import nstic.web.assessment.Assessment
 import nstic.web.assessment.AssessmentStatus
@@ -18,17 +22,19 @@ import nstic.web.assessment.AssessmentTrustmarkDefinitionLink
 import nstic.web.assessment.Trustmark
 import nstic.web.td.TrustmarkDefinition
 import nstic.web.tip.TrustInteroperabilityProfile
-import org.hibernate.SQLQuery
-import org.hibernate.Session
-
+import org.apache.commons.lang.StringUtils
+import org.json.JSONArray
+import org.json.JSONObject
 import javax.servlet.ServletException
 
+
+@Transactional
 @Secured("ROLE_USER")
 class ReportsController {
 
-    def sessionFactory;
     def springSecurityService;
     def mailService;
+    def reportsService
 
     /**
      * Displays the listing of reports.
@@ -181,7 +187,7 @@ class ReportsController {
 
 
             log.debug("Iterating all assessments...");
-            def assessments = getAssessmentsInDateRange(command.startDate, command.endDate);
+            def assessments = reportsService.getAssessmentsInDateRange(command.startDate, command.endDate);
             for( Assessment assessment : assessments ){
                 Organization org = assessment.getAssessedOrganization();
                 if( !organizations.contains(org) )
@@ -265,16 +271,38 @@ class ReportsController {
     /**
      * Shows the user a form for picking the organizational report.
      */
+
     @Secured(["ROLE_REPORTS_ONLY", "ROLE_USER"])
-    def organizationReport(OrganizationReportCommand command) {
+    def organizationReport() {
         User user = springSecurityService.currentUser;
         log.info("User[${user}] hitting org report...")
+
+        String sessionId = session.getId()
 
         if( request.getMethod().equalsIgnoreCase("GET") ){
             log.debug("Showing organization report form...");
             return render(view: '/reports/organization/form', model: [user: user, command: new OrganizationReportCommand()]);
         }else if( request.getMethod().equalsIgnoreCase("POST") ) {
             log.debug("Processing organization report form...");
+
+            Organization organization = Organization.get(Integer.parseInt(params.id))
+
+            BigInteger startDateInMilliseconds = new BigInteger(params.startDate)
+            Date startDate = new Date(startDateInMilliseconds.longValue())
+
+            BigInteger endDateInMilliseconds = new BigInteger(params.endDate)
+            Date endDate = new Date(endDateInMilliseconds.longValue())
+
+            boolean hideCompletedAssessments = Boolean.parseBoolean(params.hideCompletedAssessments)
+            boolean hideCompletedSteps = Boolean.parseBoolean(params.hideCompletedSteps)
+
+            OrganizationReportCommand command = new OrganizationReportCommand(
+                    organization,
+                    startDate,
+                    endDate,
+                    hideCompletedAssessments,
+                    hideCompletedSteps
+            )
 
             if( user.isReportOnly() && !user.isUser() ){
                 if( command.organization != user.organization &&
@@ -290,129 +318,273 @@ class ReportsController {
                 return render(view: '/reports/organization/form', model: [command: command]);
             }
 
-            def charts = [:]
+            // Check if report thread is running, interrupt thread and wait for it to finish
+            if (reportsService.isExecuting(sessionId, ReportsService.ORGANIZATION_REPORT_EXECUTING_VAR)) {
+                reportsService.stopExecuting(sessionId, ReportsService.ORGANIZATION_REPORT_EXECUTING_VAR)
 
-            log.debug("Iterating all assessments...");
-            def assessments = getAssessmentsInDateRange(command.startDate, command.endDate);
+                log.debug("Interrupting previous TM Generation thread...")
+                Thread t = reportsService.getAttribute(sessionId, ReportsService.ORGANIZATION_REPORT_THREAD_VAR)
+                if (t &&  t.isAlive()) {
+                    reportsService.setAttribute(sessionId, ReportsService.ORGANIZATION_REPORT_STATUS_VAR, "CANCELLING")
+                    reportsService.setAttribute(sessionId, ReportsService.ORGANIZATION_REPORT_MESSAGE_VAR, "Cancelling previous report generation process...")
+
+                    t.join()
+                    log.debug("Interrupted previous TM Generation thread...")
+                }
+            }
+
+            // create params map for service
+            final Map paramsMap = [:]
+            paramsMap.put("organization", organization)
+            paramsMap.put("startDate", startDate)
+            paramsMap.put("endDate", endDate)
+            paramsMap.put("hideCompletedAssessments", hideCompletedAssessments)
+            paramsMap.put("hideCompletedSteps", hideCompletedSteps)
+            paramsMap.put("sessionId", sessionId)
+
+            def assessments = reportsService.getAssessmentsInDateRange(command.startDate, command.endDate);
             List<Assessment> thisOrgsAssessments = assessments.findAll{it.getAssessedOrganization() == command.organization}
-            Map<Long, CreateAssessmentTdsAndTips> tdsAndTipsByAssessmentId = [:]
-            Map<Long, Map<Long, TipInfoCollection>> tipInfoByTipIdByAssessmentId = [:]
-            Map<Long, Integer> fullySatisfiedTipCountByAssessmentId = [:]
-            Map<Long, Integer> fullySatisfiedTdCountByAssessmentId = [:]
+            paramsMap.put("assessments", thisOrgsAssessments)
 
-            def stepResultOrder = [
-                (AssessmentStepResult.Satisfied): 1,
-                (AssessmentStepResult.Not_Satisfied): 2,
-                (AssessmentStepResult.Not_Known): 3,
+            reportsService.setAttribute(sessionId, ReportsService.ORGANIZATION_REPORT_STATUS_VAR, "RUNNING")
+            reportsService.setAttribute(sessionId, ReportsService.ORGANIZATION_REPORT_MESSAGE_VAR, "Preprocessing report for the ${organization.name} organization...")
+
+            reportsService.setExecuting(sessionId, ReportsService.ORGANIZATION_REPORT_EXECUTING_VAR)
+
+            Thread organizationReportThread = new Thread(new Runnable() {
+                @Override
+                void run() {
+                    Organization.withTransaction {
+                        reportsService.organizationReport(paramsMap)
+                    }
+                }
+            })
+            reportsService.setAttribute(sessionId, ReportsService.ORGANIZATION_REPORT_THREAD_VAR, organizationReportThread)
+            organizationReportThread.start()
+
+            Map jsonResponse = [status: 'STARTING', message: 'Starting the organizational report process.']
+
+            render jsonResponse as JSON
+        }
+    } // end organizationReport()
+
+    def renderOrganizationReport() {
+        log.info("renderOrganizationReport...")
+
+        String sessionId = session.getId()
+
+        def jsonSlurper = new JsonSlurper()
+        def result = jsonSlurper.parseText(reportsService.getAttribute(sessionId, ReportsService.ORGANIZATION_REPORT_RENDER_MODEL_VAR))
+
+        // get organization
+        Organization organization = Organization.get(result["organizationId"])
+        log.info("Organization: ${organization.name}")
+
+        // get assessments
+        def thisOrgsAssessments = Assessment.getAll(result["assessmentIds"])
+
+        // get dates
+        BigInteger startDateInMilliseconds = new BigInteger(result["startDate"])
+        Date startDate = new Date(startDateInMilliseconds.longValue())
+
+        BigInteger endDateInMilliseconds = new BigInteger(result["endDate"])
+        Date endDate = new Date(endDateInMilliseconds.longValue())
+
+        boolean hideCompletedAssessments = result["hideCompletedAssessments"]
+        boolean hideCompletedSteps = result["hideCompletedSteps"]
+
+        OrganizationReportCommand command = new OrganizationReportCommand(
+                organization,
+                startDate,
+                endDate,
+                hideCompletedAssessments,
+                hideCompletedSteps
+        )
+
+        // fullySatisfiedTipCountByAssessmentId
+        JSONObject fullySatisfiedTipCountByAssessmentIdJson = new JSONObject(result["fullySatisfiedTipCountByAssessmentId"])
+        // TODO: move this processing to the service
+        Map<Long, Integer> fullySatisfiedTipCountByAssessmentId = [:]
+        Iterator<String> fullySatisfiedTipCountByAssessmentIdStringKeys = fullySatisfiedTipCountByAssessmentIdJson.keys()
+        while(fullySatisfiedTipCountByAssessmentIdStringKeys.hasNext()) {
+            String key = fullySatisfiedTipCountByAssessmentIdStringKeys.next();
+            Object id = fullySatisfiedTipCountByAssessmentIdJson.get(key)
+            if (id) {
+                fullySatisfiedTipCountByAssessmentId[Long.parseLong(key)] = id
+            }
+        }
+
+        // fullySatisfiedTdCountByAssessmentId
+        JSONObject fullySatisfiedTdCountByAssessmentIdJson = new JSONObject(result["fullySatisfiedTdCountByAssessmentId"])
+        // TODO: move this processing to the service
+        Map<Long, Integer> fullySatisfiedTdCountByAssessmentId = [:]
+        Iterator<String> fullySatisfiedTdCountByAssessmentIdStringKeys = fullySatisfiedTdCountByAssessmentIdJson.keys()
+        while(fullySatisfiedTdCountByAssessmentIdStringKeys.hasNext()) {
+            String key = fullySatisfiedTdCountByAssessmentIdStringKeys.next();
+            Object id = fullySatisfiedTdCountByAssessmentIdJson.get(key)
+            if (id) {
+                fullySatisfiedTdCountByAssessmentId[Long.parseLong(key)] = id
+            }
+        }
+
+        // tdsAndTipsByAssessmentId
+        Map<Long, CreateAssessmentTdsAndTips> tdsAndTipsByAssessmentId = [:]
+        JSONObject tdsAndTipsByAssessmentIdJson = new JSONObject(result["tdsAndTipsByAssessmentId"])
+        Iterator<String> tdsAndTipsByAssessmentIdKeys = tdsAndTipsByAssessmentIdJson.keys()
+
+        while(tdsAndTipsByAssessmentIdKeys.hasNext()) {
+            String key = tdsAndTipsByAssessmentIdKeys.next();
+            Object map = tdsAndTipsByAssessmentIdJson.get(key)
+            if (map) {
+                // do something with jsonObject here
+                CreateAssessmentTdsAndTips createAssessmentTdsAndTips = CreateAssessmentTdsAndTips.fromJSON(map)
+                tdsAndTipsByAssessmentId[Long.parseLong(key)] = createAssessmentTdsAndTips
+            }
+        }
+
+        // tipInfoByTipIdByAssessmentId
+        Map<Long, Map<Long, TipInfoCollection>> tipInfoByTipIdByAssessmentId = [:]
+        JSONObject tipInfoByTipIdByAssessmentIdJson = new JSONObject(result["tipInfoByTipIdByAssessmentId"])
+
+        Iterator<String> tipInfoByTipIdByAssessmentIdKeys = tipInfoByTipIdByAssessmentIdJson.keys()
+
+        while(tipInfoByTipIdByAssessmentIdKeys.hasNext()) {
+            String key = tipInfoByTipIdByAssessmentIdKeys.next();
+            Map<Long, TipInfoCollection> tipInfoCollectionMap = [:]
+            Object map = tipInfoByTipIdByAssessmentIdJson.get(key)
+            Iterator<String> tipInfoCollectionMapKeys = map.keys()
+            while(tipInfoCollectionMapKeys.hasNext()) {
+                String tipKey = tipInfoCollectionMapKeys.next();
+                TipInfoCollection tipInfoCollection = TipInfoCollection.fromJSON(map.get(tipKey))
+                tipInfoCollectionMap.put(Long.parseLong(tipKey), tipInfoCollection)
+            }
+            tipInfoByTipIdByAssessmentId.put(Long.parseLong(key), tipInfoCollectionMap)
+        }
+
+        // charts
+        def charts = [:]
+
+        def stepResultOrder = [
+                (AssessmentStepResult.Satisfied)     : 1,
+                (AssessmentStepResult.Not_Satisfied) : 2,
+                (AssessmentStepResult.Not_Known)     : 3,
                 (AssessmentStepResult.Not_Applicable): 4,
-            ]
-            for( Assessment assessment : thisOrgsAssessments ){
-                // td and tip data
-                def tdsAndTips = CreateAssessmentTdsAndTips.fromJSON(assessment.tdsAndTipsJSON)
-                tdsAndTipsByAssessmentId[assessment.id] = tdsAndTips
-                tipInfoByTipIdByAssessmentId[assessment.id] = [:]
-                int fullySatisfiedTipCount = 0
-                for (CreateAssessmentTIPData tipData : tdsAndTips.trustInteroperabilityProfiles) {
-                    def tipInfo = new TipInfoCollection()
-                    tipInfoByTipIdByAssessmentId[assessment.id][tipData.databaseId] = tipInfo
-                    tipInfo.allPotentialTds = tipData.getAllPotentialTds()
-                    tipInfo.chosenTds = tipData.useAllTds ? tipInfo.allPotentialTds : tipData.tdUris.collect{ TrustmarkDefinition.findByUri(it) }
-                    List<AssessmentStepData> chosenTdSteps = tipInfo.chosenTds.collectMany{ assessment.getStepListByTrustmarkDefinition(it) }
-                    tipInfo.chosenTdStepsByResult = chosenTdSteps.groupBy { it.result }
-                    def chosenTdStepSatisfiedCount = tipInfo.getChosenTdStepResultCount(AssessmentStepResult.Satisfied)
-                    def chosenTdStepApplicableCount = tipInfo.applicableTdStepCount
-                    if (chosenTdStepSatisfiedCount == chosenTdStepApplicableCount) { ++fullySatisfiedTipCount }
+        ]
 
-                }
-                fullySatisfiedTipCountByAssessmentId[assessment.id] = fullySatisfiedTipCount
+        for (Assessment assessment : thisOrgsAssessments) {
 
-                int fullySatisfiedTdCount = 0;
-                def tds = assessment.tdLinks.collect{ it.trustmarkDefinition }
-                for (TrustmarkDefinition td : tds) {
-                    def steps = assessment.getStepListByTrustmarkDefinition(td)
-                    def stepSatisfiedCount = steps.count{ it.result == AssessmentStepResult.Satisfied }
-                    def stepNotApplicableCount = steps.count { it.result == AssessmentStepResult.Not_Applicable }
-                    def stepApplicableCount = steps.size() - stepNotApplicableCount
-                    if (stepSatisfiedCount == stepApplicableCount) { ++fullySatisfiedTdCount }
-                }
-                fullySatisfiedTdCountByAssessmentId[assessment.id] = fullySatisfiedTdCount
+            // Generate pie chart for rule status
+            def stepsByResult = assessment.steps.groupBy { it.result }.sort { stepResultOrder[it.key] }
 
+            // Generate pie chart for rule status
+            log.info("Generate pie chart for rule status...")
 
-                // Generate pie chart for rule status
-                def stepsByResult = assessment.steps.groupBy{ it.result }.sort{ stepResultOrder[it.key] }
+            def chartPlots = stepsByResult.collect {
+                int currentCount = it.value.size();
+                double percent = 100.0d * currentCount / assessment.steps.size();
+                AssessmentStepResult res = it.key
+                Color color = ColorPalette.STEP_RESULT_UNKNOWN;
+                if (res == AssessmentStepResult.Satisfied) color = ColorPalette.STEP_RESULT_SATISFIED;
+                else if (res == AssessmentStepResult.Not_Satisfied) color = ColorPalette.STEP_RESULT_NOT_SATISFIED;
+                else if (res == AssessmentStepResult.Not_Applicable) color = ColorPalette.STEP_RESULT_NA;
 
-                // Generate pie chart for rule status
-                def chartPlots = stepsByResult.collect {
-                    int currentCount = it.value.size();
-                    double percent = 100.0d * currentCount / assessment.steps.size();
-                    AssessmentStepResult result = it.key
-                    Color color = ColorPalette.STEP_RESULT_UNKNOWN;
-                    if( result == AssessmentStepResult.Satisfied ) color = ColorPalette.STEP_RESULT_SATISFIED;
-                    else if( result == AssessmentStepResult.Not_Satisfied ) color = ColorPalette.STEP_RESULT_NOT_SATISFIED;
-                    else if( result == AssessmentStepResult.Not_Applicable ) color = ColorPalette.STEP_RESULT_NA;
-
-                    //Plots.newBarChartPlot(Data.newData(percent), color, result.toString() + " ("+currentCount+")" )
-                    Plots.newBarChartPlot(Data.newData(percent), color)
-                }
-
-                BarChart stepResultChart = GCharts.newBarChart(chartPlots);
-
-                // charts4j uses the chart.apis.google.com default endpoint which does not support HTTPS, so using Chrome,
-                // all HTTP requests will be redirected to HTTPS. Instead, use the endpoint chart.googleapis.com/chart which
-                // does support HTTPS thus preventing redirection.
-                stepResultChart.setURLEndpoint("https://chart.googleapis.com/chart");
-
-                stepResultChart.setSize(500, 50);
-                stepResultChart.setHorizontal(true);
-                stepResultChart.setDataStacked(true);
-                stepResultChart.setTitle("Assessment Step Results (of ${assessment.steps.size()} Steps)")
-                charts.put(assessment.id + "_STEP_CHART", stepResultChart)
+                //Plots.newBarChartPlot(Data.newData(percent), color, result.toString() + " ("+currentCount+")" )
+                Plots.newBarChartPlot(Data.newData(percent), color)
             }
 
-            log.debug("Generating pie chart for status...")
-            def assessmentsByStatus = thisOrgsAssessments.groupBy {it.status}
-            def slices = assessmentsByStatus.collect {
-                int currentCount = it.value.size()
-                double percent = 100.0d * currentCount / thisOrgsAssessments.size();
-                String text = "" + it.key + " (${currentCount})";
-                Slice.newSlice((int) percent, text);
-            }
-            PieChart statusChart = GCharts.newPieChart(slices);
+            BarChart stepResultChart = GCharts.newBarChart(chartPlots);
 
             // charts4j uses the chart.apis.google.com default endpoint which does not support HTTPS, so using Chrome,
             // all HTTP requests will be redirected to HTTPS. Instead, use the endpoint chart.googleapis.com/chart which
             // does support HTTPS thus preventing redirection.
-            statusChart.setURLEndpoint("https://chart.googleapis.com/chart");
+            stepResultChart.setURLEndpoint("https://chart.googleapis.com/chart");
 
-            statusChart.setSize(600, 200);
-            statusChart.setTitle("Assessment Status Distribution (of ${thisOrgsAssessments.size()})")
-            charts.put('statusChart', statusChart)
-
-            log.debug("Rendering the HTML from report model...");
-            return render(
-                    view: '/reports/organization/view',
-                    model: [
-                            command: command,
-                            startDate: command.startDate,
-                            endDate: command.endDate,
-                            assessments: thisOrgsAssessments,
-                            tdsAndTipsByAssessmentId: tdsAndTipsByAssessmentId,
-                            tipInfoByTipIdByAssessmentId: tipInfoByTipIdByAssessmentId,
-                            fullySatisfiedTipCountByAssessmentId: fullySatisfiedTipCountByAssessmentId,
-                            fullySatisfiedTdCountByAssessmentId: fullySatisfiedTdCountByAssessmentId,
-                            organization: command.organization,
-                            charts: charts
-                    ]
-            );
+            stepResultChart.setSize(500, 50);
+            stepResultChart.setHorizontal(true);
+            stepResultChart.setDataStacked(true);
+            stepResultChart.setTitle("Assessment Step Results (of ${assessment.steps.size()} Steps)")
+            charts.put(assessment.id + "_STEP_CHART", stepResultChart)
         }
 
+        log.debug("Generating pie chart for status...")
 
-    }//end showOrganizationReprotForm()
+        def assessmentsByStatus = thisOrgsAssessments.groupBy { it.status }
+        def slices = assessmentsByStatus.collect {
+            int currentCount = it.value.size()
+            double percent = 100.0d * currentCount / thisOrgsAssessments.size();
+            String text = "" + it.key + " (${currentCount})";
+            Slice.newSlice((int) percent, text);
+        }
 
+        log.info("statusChart slices: ${slices.size()}")
 
-    //------------------------------------------------------------------------------------------------------------------
-    //  Trustmark Definition Report
-    //------------------------------------------------------------------------------------------------------------------
+        PieChart statusChart = GCharts.newPieChart(slices);
+
+        // charts4j uses the chart.apis.google.com default endpoint which does not support HTTPS, so using Chrome,
+        // all HTTP requests will be redirected to HTTPS. Instead, use the endpoint chart.googleapis.com/chart which
+        // does support HTTPS thus preventing redirection.
+        statusChart.setURLEndpoint("https://chart.googleapis.com/chart");
+
+        statusChart.setSize(600, 200);
+        statusChart.setTitle("Assessment Status Distribution (of ${thisOrgsAssessments.size()})")
+        charts.put('statusChart', statusChart)
+
+        log.info("charts size: ${charts.size()}")
+
+        // render
+        render(
+            view: '/reports/organization/view',
+            model: [
+                    command                             : command,
+                    startDate                           : command.startDate,
+                    endDate                             : command.endDate,
+                    assessments                         : thisOrgsAssessments,
+                    tdsAndTipsByAssessmentId            : tdsAndTipsByAssessmentId,
+                    tipInfoByTipIdByAssessmentId        : tipInfoByTipIdByAssessmentId,
+                    fullySatisfiedTipCountByAssessmentId: fullySatisfiedTipCountByAssessmentId,
+                    fullySatisfiedTdCountByAssessmentId : fullySatisfiedTdCountByAssessmentId,
+                    organization                        : command.organization,
+                    charts                              : charts
+            ]);
+
+    }
+
+    def initOrganizationReportState() {
+        log.info("initOrganizationReportState...")
+        User user = springSecurityService.currentUser
+
+        String sessionId = session.getId()
+
+        reportsService.setAttribute(sessionId, ReportsService.ORGANIZATION_REPORT_MESSAGE_VAR, "About to start the organizational report process...")
+        reportsService.setAttribute(sessionId, ReportsService.ORGANIZATION_REPORT_STATUS_VAR, "RUNNING")
+        reportsService.setAttribute(sessionId, ReportsService.ORGANIZATION_REPORT_PERCENT_VAR, "0")
+
+        reportsService.setExecuting(sessionId, ReportsService.ORGANIZATION_REPORT_EXECUTING_VAR)
+
+        Map jsonResponse = [status: 'SUCCESS', message: 'Successfully initialized the organizational report process.']
+
+        render jsonResponse as JSON
+    }
+
+    def organizationReportStatusUpdate() {
+        log.info("** organizationReportStatusUpdate().")
+
+        String sessionId = session.getId()
+
+        Map jsonResponse = [:]
+        jsonResponse.put("status", reportsService.getAttribute(sessionId, ReportsService.ORGANIZATION_REPORT_STATUS_VAR))
+        String percentString = reportsService.getAttribute(sessionId, ReportsService.ORGANIZATION_REPORT_PERCENT_VAR)
+
+        int percentInt = 0
+        if( StringUtils.isNotEmpty(percentString) ){
+            percentInt = Integer.parseInt(percentString.trim())
+        }
+        jsonResponse.put("percent", percentInt)
+        jsonResponse.put("message", reportsService.getAttribute(sessionId, ReportsService.ORGANIZATION_REPORT_MESSAGE_VAR))
+
+        render jsonResponse as JSON
+    }
+
     /**
      * Shows the user a form for picking the organizational report.
      */
@@ -439,7 +611,7 @@ class ReportsController {
 
             def charts = [:]
 
-            def assessments = getAssessmentsInDateRange(command.startDate, command.endDate);
+            def assessments = reportsService.getAssessmentsInDateRange(command.startDate, command.endDate);
             log.debug("Iterating @|green ${assessments.size()}|@ assessments to match against TD[@|green ${command.trustmarkDefinition.uniqueDisplayName}|@]...");
             def tdAssessments = []
             for( Assessment assessment : assessments ){
@@ -550,7 +722,7 @@ class ReportsController {
             }
 
 
-            def assessments = getAssessmentsInDateRange(command.startDate, command.endDate);
+            def assessments = reportsService.getAssessmentsInDateRange(command.startDate, command.endDate);
 
 
 
@@ -574,39 +746,6 @@ class ReportsController {
         map.put(key, list);
     }
 
-    private List<Assessment> getAssessmentsInDateRange(Date startDate, Date endDate){
-
-        log.debug("Executing native SQL query to find all assessments valid to the date range ${startDate.toString()} to ${endDate.toString()}...");
-        final Session session = sessionFactory.currentSession
-        String queryString = """
-select distinct assId from (
-  SELECT a.id as assId, entry.id as entryId
-  FROM assessment a, assessment_log log, assessment_log_entry entry
-  WHERE
-    a.assessment_log_ref = log.id
-      and
-    entry.assessment_log_ref = log.id
-      and
-    entry.date_created >= :startDate and entry.date_created <= :endDate
-  ORDER BY entry.date_created asc
-) as tempTable
-"""
-        final SQLQuery sqlQuery = session.createSQLQuery(queryString)
-        sqlQuery.setDate("startDate", startDate);
-        sqlQuery.setDate("endDate", endDate);
-        def assessmentIds = []
-        sqlQuery.list().each{ result ->
-            if( result instanceof BigInteger ){
-                assessmentIds.add( ((BigInteger) result).longValue() );
-            }else {
-                log.debug("Assessment Id[type=${result?.class.name}]: $result")
-                assessmentIds.add(result);
-            }
-        }
-
-        return Assessment.executeQuery("from Assessment a where a.id in :idList", [idList: assessmentIds]);
-    }
-
 }//end ReportsController
 
 class OrganizationReportCommand implements Validateable {
@@ -620,6 +759,19 @@ class OrganizationReportCommand implements Validateable {
         int dom = endDefault.get(Calendar.DAY_OF_MONTH);
         endDefault.set(Calendar.DAY_OF_MONTH, dom + 1); // Make it in the future, at least.
         this.endDate = endDefault.getTime();
+    }
+
+    public OrganizationReportCommand(
+            Organization organization,
+            Date startDate,
+            Date endDate,
+            boolean hideCompletedAssessments,
+            boolean hideCompletedSteps) {
+        this.organization = organization
+        this.startDate = startDate
+        this.endDate = endDate
+        this. hideCompletedAssessments = hideCompletedAssessments
+        this.hideCompletedSteps = hideCompletedSteps
     }
 
     Organization organization;
@@ -710,10 +862,11 @@ class OverallReportCommand {
 
 }
 
-class TipInfoCollection {
+class TipInfoCollection implements Serializable {
     List<TrustmarkDefinition> allPotentialTds
     List<TrustmarkDefinition> chosenTds
     Map<AssessmentStepResult, List<AssessmentStepData>> chosenTdStepsByResult
+
     List<AssessmentStepData> getChosenTdSteps() { this.chosenTdStepsByResult.entrySet().collectMany{ it.value }}
     int getChosenTdStepResultCount(AssessmentStepResult result) { this.chosenTdStepsByResult[result]?.size() ?: 0 }
     int getApplicableTdStepCount() {
@@ -723,5 +876,100 @@ class TipInfoCollection {
     }
     double getPercentSatisfied() {
         100 * this.getChosenTdStepResultCount(AssessmentStepResult.Satisfied) / this.applicableTdStepCount
+    }
+
+    JSONObject toJSON() {
+        JSONObject obj = new JSONObject();
+
+        JSONArray allPotentialTds = new JSONArray();
+        if( this.allPotentialTds != null && this.allPotentialTds.size() > 0 ){
+            for( TrustmarkDefinition td : this.allPotentialTds ){
+                // serialize the id, use the id to load the td from the db when deserializing
+                allPotentialTds.put(td.id);
+            }
+        }
+        obj.put("allPotentialTds", allPotentialTds);
+
+        JSONArray chosenTds = new JSONArray();
+        if( this.chosenTds != null && this.chosenTds.size() > 0 ){
+            for( TrustmarkDefinition td : this.chosenTds ){
+                chosenTds.put(td.id);
+            }
+        }
+        obj.put("chosenTds", chosenTds);
+
+
+//        Map<AssessmentStepResult, List<AssessmentStepData>> chosenTdStepsByResult
+        JSONObject chosenTdStepsByResult = new JSONObject();
+
+        if( this.chosenTdStepsByResult != null && this.chosenTdStepsByResult.size() > 0 ){
+            this.chosenTdStepsByResult.each { key, value ->
+                JSONArray jsonObjects = new JSONArray()
+                List<AssessmentStepData> assessmentStepDataList = value
+                if( assessmentStepDataList != null && assessmentStepDataList.size() > 0 ){
+                    for( AssessmentStepData asd : assessmentStepDataList ){
+                        jsonObjects.put(asd.id);
+                    }
+                }
+                chosenTdStepsByResult.put(key.toString(), jsonObjects);
+            }
+        }
+        obj.put("chosenTdStepsByResult", chosenTdStepsByResult);
+
+        return obj
+    }
+
+    public static TipInfoCollection fromJSON(String json){
+        JSONObject jsonObject = new JSONObject(json)
+        return fromJSON(jsonObject)
+    }
+    public static TipInfoCollection fromJSON(JSONObject json){
+        TipInfoCollection tipInfoCollection = new TipInfoCollection()
+
+        tipInfoCollection.allPotentialTds = []
+
+        JSONArray tdObjs = json.optJSONArray("allPotentialTds")
+        if( tdObjs != null && tdObjs.length() > 0 ){
+            for( int i = 0; i < tdObjs.length(); i++ ){
+                int tdId = tdObjs.get(i)
+                tipInfoCollection.allPotentialTds.add( TrustmarkDefinition.get(tdId) )
+            }
+        }
+
+        tipInfoCollection.chosenTds = []
+
+        tdObjs = json.optJSONArray("chosenTds")
+        if( tdObjs != null && tdObjs.length() > 0 ){
+            for( int i = 0; i < tdObjs.length(); i++ ){
+                int tdId = tdObjs.get(i)
+                tipInfoCollection.chosenTds.add( TrustmarkDefinition.get(tdId) )
+            }
+        }
+
+
+        tipInfoCollection.chosenTdStepsByResult = [:]
+
+        JSONObject obj = json.get("chosenTdStepsByResult")
+        Iterator<?> keys = obj.keys();
+
+        while( keys.hasNext() ) {
+            String key = (String)keys.next()
+            AssessmentStepResult asr = AssessmentStepResult.fromString((String)key)
+
+            JSONArray assessmentStepDataJson = obj.get(key);
+//            JSONArray assessmentStepDataJson = new JSONArray(value)
+
+            // populate list
+            def assessmentStepData = []
+
+            for (int i = 0; i < assessmentStepDataJson.length(); i++) {
+                int id = assessmentStepDataJson.get(i)
+                assessmentStepData.add(AssessmentStepData.get(id))
+            }
+
+            tipInfoCollection.chosenTdStepsByResult.put(asr, assessmentStepData)
+        }
+
+        return tipInfoCollection
     }
 }

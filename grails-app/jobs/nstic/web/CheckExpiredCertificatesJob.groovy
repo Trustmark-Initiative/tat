@@ -60,21 +60,9 @@ class CheckExpiredCertificatesJob {
 
                 Calendar expirationWarning = Calendar.getInstance()
                 expirationWarning.setTime(notAfter)
-                expirationWarning.add(Calendar.DATE, expirationWarningPeriodInDays)
+                expirationWarning.add(Calendar.DATE, -expirationWarningPeriodInDays)
 
-                if(cert.status == SigningCertificateStatus.ACTIVE && expirationWarning.getTimeInMillis() > now.getTimeInMillis()) {
-                    log.warn("Certificate about to expire...")
-
-                    String message = expirationWarningMessage(cert)
-
-                    // email certificate subscriber
-                    emailCertificateSubscriber(cert.emailAddress, cert, message)
-
-                    // email organization's contact if email different from certificate's
-                    if (cert.emailAddress != org.primaryContact.email) {
-                        emailCertificateSubscriber(org.primaryContact.email, cert, message)
-                    }
-                } else if(cert.status == SigningCertificateStatus.ACTIVE && expiration.getTimeInMillis() > now.getTimeInMillis()) {
+                if(cert.status == SigningCertificateStatus.ACTIVE && expiration.getTimeInMillis() < now.getTimeInMillis()) {
                     log.warn("Detected an expired certificate.  Updating status...")
 
                     cert.status = SigningCertificateStatus.EXPIRED
@@ -89,12 +77,28 @@ class CheckExpiredCertificatesJob {
 
                     String message = expiredMessage(cert)
 
+                    String subject = "The following signing X509 certificate has expired: ${cert.distinguishedName}."
+
                     // email certificate subscriber
-                    emailCertificateSubscriber(cert.emailAddress, cert, message)
+                    emailCertificateSubscriber(cert.emailAddress, cert, subject, message)
 
                     // email organization's contact if email different from certificate's
                     if (cert.emailAddress != org.primaryContact.email) {
-                        emailCertificateSubscriber(org.primaryContact.email, cert, message)
+                        emailCertificateSubscriber(org.primaryContact.email, cert, subject, message)
+                    }
+                } else if(cert.status == SigningCertificateStatus.ACTIVE && expirationWarning.getTimeInMillis() < now.getTimeInMillis()) {
+                    log.warn("Certificate about to expire...")
+
+                    String message = expirationWarningMessage(cert)
+
+                    String subject = "The following signing X509 certificate is about to expire: ${cert.distinguishedName}."
+
+                    // email certificate subscriber
+                    emailCertificateSubscriber(cert.emailAddress, cert, subject, message)
+
+                    // email organization's contact if email different from certificate's
+                    if (cert.emailAddress != org.primaryContact.email) {
+                        emailCertificateSubscriber(org.primaryContact.email, cert, subject, message)
                     }
                 }
             }
@@ -103,21 +107,23 @@ class CheckExpiredCertificatesJob {
     }//end execute()
 
     // email certificate holder/ organization's contact
-    void emailCertificateSubscriber(String email, SigningCertificate cert, String message) {
+    void emailCertificateSubscriber(String email, SigningCertificate cert, String subject, String message) {
 
         if( StringUtils.isEmpty(email) )  {
             log.warn("email is empty.")
         } else {
             log.debug("Sending certificate expiration email to ${email}...")
 
-            TrustmarkMailClientImpl emailClient = new TrustmarkMailClientImpl(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_USER),
-                    TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_PSWD))
+            TrustmarkMailClientImpl emailClient = new TrustmarkMailClientImpl()
 
-            emailClient.setSmtpHost(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_HOST))
+            emailClient
+                    .setUser(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_USER))
+                    .setPswd(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_PSWD))
+                    .setSmtpHost(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_HOST))
                     .setSmtpPort(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_PORT))
                     .setFromAddress(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.FROM_ADDRESS))
                     .setSmtpAuthorization(Boolean.parseBoolean(TATPropertiesHolder.getProperties().getProperty(TrustmarkMailClientImpl.SMTP_AUTH)))
-                    .setSubject("The following signing X509 certificate has expired: ${cert.distinguishedName}.")
+                    .setSubject(subject)
                     .addRecipient(email)
                     .setText(message)
         }

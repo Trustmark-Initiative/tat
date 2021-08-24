@@ -139,10 +139,6 @@ class PublicApiController {
             }
         }
 
-        if(documents.isEmpty())  {
-             render (status:404, text: "No such document found")
-            return
-        }
         withFormat {
             json {
                 render documents as JSON
@@ -313,6 +309,23 @@ class PublicApiController {
             }
             xml {
                 render result as XML
+            }
+        }
+    }
+
+    /**
+     * TAT Status.
+     */
+    def serverStatus() {
+        log.info("TAT status...")
+
+        def tatStatus = [
+                status: "OK"
+        ]
+
+        withFormat {
+            json {
+                render tatStatus as JSON
             }
         }
     }

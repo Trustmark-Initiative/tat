@@ -84,14 +84,14 @@ dependencies {
 
     compile 'com.googlecode.charts4j:charts4j:1.3'
 
-    compile 'commons-io:commons-io:2.6'
+    compile 'commons-io:commons-io:2.7'
 
     compile('org.slf4j:log4j-over-slf4j')
     compile 'org.freemarker:freemarker:2.3.31'
 
 
-    compile "edu.gatech.gtri.trustmark:tf-api:1.4.5"
-    compile "edu.gatech.gtri.trustmark:tf-api-impl:1.4.11"
+    compile "edu.gatech.gtri.trustmark:tf-api:1.4.7"
+    compile "edu.gatech.gtri.trustmark:tf-api-impl:1.4.13"
 
     profile "org.grails.profiles:web"
 

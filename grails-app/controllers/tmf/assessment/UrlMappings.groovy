@@ -150,6 +150,8 @@ class UrlMappings {
         "/signingcertificates/$id/reissue-trustmarks-from-metadata/$selectedMetadataId"(controller: "signingCertificates",
                 action: "reissueTrustmarksFromMetadataSet")
 
+        "/public/status"(controller:'publicApi', action: 'serverStatus')
+
         "/publiccertificates/$filename"(controller:'publicCertificates', action: 'download', id: '$filename')
 
         "/public/trustmarks/$id"(controller: 'publicApi', action: 'view')
