@@ -90,8 +90,8 @@ dependencies {
     compile 'org.freemarker:freemarker:2.3.31'
 
 
-    compile "edu.gatech.gtri.trustmark:tf-api:1.4.7"
-    compile "edu.gatech.gtri.trustmark:tf-api-impl:1.4.13"
+    compile "edu.gatech.gtri.trustmark:tf-api:1.4.9"
+    compile "edu.gatech.gtri.trustmark:tf-api-impl:1.4.15"
 
     profile "org.grails.profiles:web"
 
