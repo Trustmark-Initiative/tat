@@ -7,7 +7,7 @@ hibernate:
         region.factory_class: 'org.hibernate.cache.ehcache.EhCacheRegionFactory'
     search:
         default:
-            indexBase: '/opt/tat/lucene'
+            indexBase: '/opt/assessment-tool/lucene'
             indexmanager: near-real-time
             directory_provider: filesystem
 
@@ -17,10 +17,12 @@ dataSource:
     jmxExport: true
     driverClassName: com.mysql.cj.jdbc.Driver
     dialect: org.hibernate.dialect.MySQL5InnoDBDialect
-    dbCreate: update
+
+    #DB Settings
     url: jdbc:mysql://tatDatabase:3306/tat_db?verifyServerCertificate=false&useSSL=false&allowPublicKeyRetrieval=true
     username: tat_user
     password: tat_pw_11
+
 
 environments:
     development:
@@ -28,8 +30,17 @@ environments:
             properties:
                 testOnBorrow: true
                 testWhileIdle: true
+#           Dev DB Settings
+#           A dbCreate value of 'none' allows the database migration plugin to always recreate the database from changelog.groovy
+            dbCreate: none
+
+#           During development need to specify the database host as 'localhost' since the database migration command scripts
+#           need access to the database server.
+#            url: jdbc:mysql://localhost:3366/assessments?verifyServerCertificate=false&useSSL=false&allowPublicKeyRetrieval=true
     production:
         dataSource:
+            dbCreate: none
+#            url: jdbc:mysql://tat_database:3306/assessments?verifyServerCertificate=false&useSSL=false&allowPublicKeyRetrieval=true
             properties:
                 jmxEnabled: true
                 initialSize: 5
@@ -55,6 +66,12 @@ grails:
     profile: web
     codegen:
         defaultPackage: tmf.assessment
+#   This enables the database migration plugin to, when the webserver starts, recreate the database from the content
+#   in the changelog.groovy file.
+    plugin:
+        databasemigration:
+            updateOnStart: true
+            updateOnStartFileName: changelog.groovy
 info:
     app:
         name: '@info.app.name@'
@@ -93,6 +110,9 @@ grails:
             json:
               - application/json
               - text/json
+            jwt:
+              - application/jwt
+              - text/jwt
             multipartForm: multipart/form-data
             pdf: application/pdf
             rss: application/rss+xml
