@@ -96,14 +96,14 @@ dependencies {
 
     compile 'commons-io:commons-io:2.7'
 
-    compile 'log4j:log4j:1.2.17'
+    //compile 'log4j:log4j:1.2.17'
     compile 'org.freemarker:freemarker:2.3.31'
 
     compile 'org.grails.plugins:database-migration:3.1.0'
     compile 'org.liquibase:liquibase-core:3.10.3'
 
-    compile "edu.gatech.gtri.trustmark:tf-api:1.4.19"
-    compile "edu.gatech.gtri.trustmark:tf-api-impl:1.4.28"
+    compile "edu.gatech.gtri.trustmark:tf-api:1.4.21"
+    compile "edu.gatech.gtri.trustmark:tf-api-impl:1.4.30"
 
     profile "org.grails.profiles:web"
 
