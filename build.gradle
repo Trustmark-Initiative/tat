@@ -13,10 +13,11 @@ buildscript {
         classpath "com.bertramlabs.plugins:asset-pipeline-gradle:3.0.10"
         classpath "org.grails.plugins:hibernate5:${gormVersion}"
         classpath "org.grails.plugins:quartz:2.0.13"
+        classpath "org.grails.plugins:database-migration:3.1.0"
     }
 }
 
-version "1.2-SNAPSHOT"
+version "1.3-SNAPSHOT"
 group "tmf.assessment"
 
 apply plugin:"idea"
@@ -42,6 +43,15 @@ dependencyManagement {
         mavenBom "org.grails:grails-bom:$grailsVersion"
     }
     applyMavenExclusions false
+}
+
+// This creates the folder 'migrations' where all database schema changes are stored
+sourceSets {
+    main {
+        resources {
+            srcDir "grails-app/migrations"
+        }
+    }
 }
 
 dependencies {
@@ -86,17 +96,20 @@ dependencies {
 
     compile 'commons-io:commons-io:2.7'
 
-    compile('org.slf4j:log4j-over-slf4j')
+    //compile 'log4j:log4j:1.2.17'
     compile 'org.freemarker:freemarker:2.3.31'
 
+    compile 'org.grails.plugins:database-migration:3.1.0'
+    compile 'org.liquibase:liquibase-core:3.10.3'
 
-    compile "edu.gatech.gtri.trustmark:tf-api:1.4.9"
-    compile "edu.gatech.gtri.trustmark:tf-api-impl:1.4.15"
+    compile "edu.gatech.gtri.trustmark:tf-api:1.4.21"
+    compile "edu.gatech.gtri.trustmark:tf-api-impl:1.4.30"
 
     profile "org.grails.profiles:web"
 
+    runtime 'mysql:mysql-connector-java:8.0.24'
+
     runtimeOnly 'jaxen:jaxen:1.1.6'
-    runtimeOnly 'mysql:mysql-connector-java:8.0.20'
     runtimeOnly "com.bertramlabs.plugins:asset-pipeline-grails:3.0.10"
 
     testCompile "org.grails.plugins:geb"

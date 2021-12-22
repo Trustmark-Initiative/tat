@@ -43,19 +43,19 @@
     <logger name="nstic" level="DEBUG" />
 
     <logger name="edu.gatech.gtri.trustmark" level="INFO" />
-    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.io" level="DEBUG" />
+    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.io" level="INFO" />
 
-    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.util.TrustmarkMailClientImpl" level="DEBUG">
+    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.util.TrustmarkMailClientImpl" level="INFO">
       <appender-ref ref="STDOUT"/>
       <appender-ref ref="FILE"/>
     </logger>
 
-    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.util" level="DEBUG">
+    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.util" level="INFO">
       <appender-ref ref="STDOUT"/>
       <appender-ref ref="FILE"/>
     </logger>
 
-    <logger name="edu.gatech.gtri.trustmark.v1_0.util" level="DEBUG">
+    <logger name="edu.gatech.gtri.trustmark.v1_0.util" level="INFO">
       <appender-ref ref="STDOUT"/>
       <appender-ref ref="FILE"/>
     </logger>
