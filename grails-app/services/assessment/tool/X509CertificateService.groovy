@@ -11,6 +11,8 @@ import java.util.regex.Matcher
 import java.util.regex.Pattern
 import javax.crypto.spec.*
 import javax.crypto.*
+import java.nio.file.*
+import java.nio.charset.*
 
 class X509CertificateService {
 
@@ -170,25 +172,29 @@ class X509CertificateService {
     }
 
     void pemEncodeCertToFile(String certFilePath, String pemCert) throws Exception{
-        String cert_begin = "-----BEGIN CERTIFICATE-----\n"
-        String end_cert = "\n-----END CERTIFICATE-----"
-
-        String cert = cert_begin + pemCert + end_cert
-
         FileWriter fw = new FileWriter(certFilePath)
-        fw.write(cert)
+
+        fw.write(pemCert)
         fw.close()
     }
 
     void pemEncodePrivateKeyToFile(String privateKeyFilePath, String pemKey) throws Exception{
-        String key_begin = "-----BEGIN ENCRYPTED PRIVATE KEY-----\n"
-        String key_end = "\n-----END ENCRYPTED PRIVATE KEY-----"
+        FileWriter fw = new FileWriter(privateKeyFilePath)
 
-        String pemFileKey = key_begin + pemKey + key_end
-
-        FileWriter fw = new FileWriter(pemFileKey)
-        fw.write(pemCert)
+        fw.write(pemKey)
         fw.close()
+    }
+
+    String pemEncodeCertFromFile(String certFilePath) throws Exception{
+        String content = new String(Files.readAllBytes(Paths.get(certFilePath)), StandardCharsets.UTF_8)
+
+        return content
+    }
+
+    String pemEncodePrivateKeyFromFile(String privateKeyFilePath) throws Exception{
+        String content = new String(Files.readAllBytes(Paths.get(privateKeyFilePath)), StandardCharsets.UTF_8)
+
+        return content
     }
 
     public String insert(String text, String insert, int period) {

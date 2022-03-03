@@ -36,7 +36,7 @@
             </div>
 
             <div>
-                <a href="#" class="btn btn-danger">&laquo; Cancel</a>
+                <a href="${createLink(controller: 'home', action: 'index')}" class="btn btn-danger">&laquo; Cancel</a>
                 <input type="submit" value="Done &raquo;" class="btn btn-primary" />
                 <span>You currently have <span id="tdsCheckedValue">?</span> trustmark definitions selected.</span>
             </div>
@@ -79,7 +79,7 @@
             }
 
             function resetCheckboxCount(){
-                TDS_CHECKED_COUNT = $('.tdCheckbox').length;
+                TDS_CHECKED_COUNT = $('.tdCheckbox:checked').length;
                 setCheckboxCount();
             }
 

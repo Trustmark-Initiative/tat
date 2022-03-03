@@ -209,6 +209,8 @@ class PublicApiController {
     def findMany() {
         log.info("trustmark.findMany ${params.td} ${params.recipient} ${params.fromDate} ${params.toDate}")
 
+        Map results = [:]
+
         List<PublicTrustmark> trustmarks = new ArrayList<>()
 
             if (StringUtils.isNotEmpty(params.td))  {
@@ -254,6 +256,16 @@ class PublicApiController {
             } else if (StringUtils.isNotEmpty(params.fromDate) && StringUtils.isNotEmpty(params.toDate))  {
                 Date fromDate = new SimpleDateFormat("MM/dd/yyyy").parse(params.fromDate)
                 Date toDate = new SimpleDateFormat("MM/dd/yyyy").parse(params.toDate)
+
+                // To allow searches with the from and to dates being the same, add a close to
+                // 24 hour offset to the to date.
+                Calendar cal = Calendar.getInstance()
+                cal.setTime(toDate)
+
+                cal.add(Calendar.HOUR_OF_DAY, 23)
+                cal.add(Calendar.MINUTE, 59)
+                toDate = cal.getTime()
+
                 Trustmark.findAllByIssueDateTimeBetween(fromDate, toDate).forEach {
                     t ->
                         TrustmarkDefinition td = TrustmarkDefinition.findById(t.trustmarkDefinition.id)
@@ -263,16 +275,17 @@ class PublicApiController {
             }
 
         if(trustmarks.isEmpty())  {
-            render (status:404, text: "No Trustmarks found")
-            return
+            results.put("message", "Search did not match any trustmarks!")
         }
+
+        results.put("trustmarks", trustmarks)
 
         withFormat {
             json {
-                render trustmarks as JSON
+                render results as JSON
             }
             xml {
-                render trustmarks as XML
+                render results as XML
             }
         }
     }

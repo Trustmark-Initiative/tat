@@ -38,7 +38,6 @@
                             <li><a href="${createLink(controller: 'contactInformation', action: 'list')}" title="Manage Contacts">Contacts</a></li>
                             <li><a href="${createLink(controller: 'organization', action: 'list')}" title="Manage Organizations">Organizations</a></li>
                             <li><a href="${createLink(controller: 'documents', action: 'list')}" title="Manage Documents">Documents</a></li>
-                            <li><a href="${createLink(controller: 'substepResolution', action: 'index')}" title="Resolve undefined substeps">Substep Resolution</a></li>
                             <li><a href="${createLink(controller:'tip', action:'list')}">Trust Interoperability Profiles</a></li>
                             <li><a href="${createLink(controller:'trustmark', action:'list')}">Trustmarks</a></li>
                             <li><a href="${createLink(controller:'trustmarkDefinition', action:'list')}">Trustmark Definitions</a></li>

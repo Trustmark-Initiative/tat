@@ -37,7 +37,7 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label for="identifier" class="col-sm-2 control-label">Identifier</label>
+                        <label for="identifier" class="col-sm-2 control-label">Abbreviation</label>
                         <div class="col-sm-10">
                             <g:textField name="identifier" id="identifier" class="form-control" placeholder="ABBR" value="${orgCommand?.identifier}" />
                         </div>

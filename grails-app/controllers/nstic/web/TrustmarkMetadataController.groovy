@@ -16,6 +16,7 @@ import org.springframework.validation.ObjectError
 
 import javax.servlet.ServletContext
 import javax.servlet.ServletException
+import nstic.util.DefaultMetadataUtils
 
 /**
  * Created by brad on 5/5/16.
@@ -88,8 +89,8 @@ class TrustmarkMetadataController {
         Properties props = AssessmentToolProperties.getProperties()
 
         metadata.generatorClass = nstic.UUIDTrustmarkIdentifierGenerator.class.name
-        metadata.identifierPattern = buildIdentifierPattern(props)
-        metadata.statusUrlPattern = buildStatusUrlPattern(props)
+        metadata.identifierPattern = DefaultMetadataUtils.buildIdentifierPattern(props)
+        metadata.statusUrlPattern = DefaultMetadataUtils.buildStatusUrlPattern(props)
 
         metadata.save(failOnError: true);
         flash.message = "Successfully created TrustmarkMetadata '${metadata.name}'"
@@ -139,8 +140,8 @@ class TrustmarkMetadataController {
         Properties props = AssessmentToolProperties.getProperties()
 
         metadata.generatorClass = nstic.UUIDTrustmarkIdentifierGenerator.class.name
-        metadata.identifierPattern = buildIdentifierPattern(props)
-        metadata.statusUrlPattern = buildStatusUrlPattern(props)
+        metadata.identifierPattern = DefaultMetadataUtils.buildIdentifierPattern(props)
+        metadata.statusUrlPattern = DefaultMetadataUtils.buildStatusUrlPattern(props)
 
         metadata.save(failOnError: true, flush: true);
         flash.message = "Successfully edited Trustmark Metadata '${metadata.name}'"
@@ -295,30 +296,6 @@ class TrustmarkMetadataController {
         }
 
         return metadata;
-    }
-
-    private String buildIdentifierPattern(Properties props) {
-        StringBuilder url = new StringBuilder()
-        String baseUrl = props.getProperty(AssessmentToolProperties.BASE_URL)
-        url.append(baseUrl)
-        String publicApi = props.getProperty(AssessmentToolProperties.PUBLIC_TRUSTMARK_API)
-        url.append(publicApi)
-        url.append("/@URLSAFE_IDENTIFIER@")
-
-
-        return url.toString()
-    }
-
-    private String buildStatusUrlPattern(Properties props) {
-        StringBuilder url = new StringBuilder()
-
-        String baseUrl = props.getProperty(AssessmentToolProperties.BASE_URL)
-        url.append(baseUrl)
-        String publicApi = props.getProperty(AssessmentToolProperties.PUBLIC_TRUSTMARK_API)
-        url.append(publicApi)
-        url.append("/status/@URLSAFE_IDENTIFIER@")
-
-        return url.toString()
     }
 
 }/* end TrustmarkMetadataController */

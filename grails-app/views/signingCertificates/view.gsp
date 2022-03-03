@@ -333,6 +333,19 @@
                         <td>Pressing this button will allow you to generate, sign, and publish a new trustmark for each previously published trustmark that is still active and was signed with the expired or revoked certificate, using a trustmark signing metadata set of your choice.</td>
                     </tr>
 
+%{--                    Revoke all trustmarks signed with this certificate--}%
+                    <tr>
+                        <th>
+                            <a href="javascript:revokeAllTrustmarks();"
+                               title="Pressing this button will revoke all trustmarks that have been signed with this certificate."
+                               class="btn btn-primary btn-block customWidth">Revoke All Trustmarks</a>
+                            <div id="revokeAllTrustmarksStatusMessage">
+
+                            </div>
+                        </th>
+                        <td>Pressing this button will revoke all trustmarks that have been signed with this certificate.</td>
+                    </tr>
+
                 </table>
             </g:if>
 
@@ -580,6 +593,41 @@
             }
         });
     }
+
+    // Revoke all trustmarks that have been signed with this certificate
+    function revokeAllTrustmarks(){
+
+        if( !confirm("Are you sure you want to revoke all trustmarks? This operation cannot be reversed.") ){
+            return;
+        }
+
+        var reason = prompt("What is the reason you are revoking all trustmarks?");
+        if( !reason) {
+            alert("A reason is required.");
+        } else {
+            $.ajax({
+                url: '${createLink(controller: 'trustmark', action: 'revokeAllTrustmarksSignedWithCertificate', id: cert.id)}',
+                type: 'POST',
+                data: {
+                    format: 'json',
+                    reason: reason
+                },
+                beforeSend: function () {
+                    $('#revokeAllTrustmarksStatusMessage').html('<asset:image src="spinner.gif" /> Status: Revoking all trustmarks...');
+                },
+                success: function (data, statusText, jqXHR) {
+
+                    $('#revokeAllTrustmarksStatusMessage').html("Status: Revoked all trustmarks!");
+                },
+                error: function (jqXHR, statusText, errorThrown) {
+                    console.log("Error: " + errorThrown);
+
+                    $('#revokeAllTrustmarksStatusMessage').html(errorThrown);
+                }
+            });
+        }
+    }
+
 
     function updateActiveCertificatesDropDown(cert) {
         if (cert) {

@@ -16,6 +16,7 @@ import edu.gatech.gtri.trustmark.v1_0.service.TrustmarkFrameworkService
 import edu.gatech.gtri.trustmark.v1_0.service.TrustmarkFrameworkServiceFactory
 import grails.gorm.transactions.Transactional
 import nstic.util.AssessmentToolProperties
+import nstic.util.HtmlUtils
 import nstic.web.td.AssessmentStep
 import nstic.web.td.AssessmentStepArtifact
 import nstic.web.td.Citation
@@ -489,7 +490,10 @@ class ScanHostJob {
                     ConformanceCriterion databaseCrit = new ConformanceCriterion(trustmarkDefinition: databaseTd)
                     databaseCrit.setCritNumber(criterionDef.getNumber())
                     databaseCrit.setName(criterionDef.getName())
-                    databaseCrit.setDescription(criterionDef.getDescription())
+
+                    String citerionDescription = HtmlUtils.inserTargetAttribToAnchorTag(criterionDef.getDescription())
+                    databaseCrit.setDescription(citerionDescription)
+
                     databaseCrit.save(failOnError: true)
                     databaseTd.addToCriteria(databaseCrit)
                     databaseTd.save(failOnError: true)
@@ -508,7 +512,10 @@ class ScanHostJob {
                     databaseStep.setIdentifier(stepDef.getId())
                     databaseStep.setStepNumber(stepDef.getNumber())
                     databaseStep.setName(stepDef.getName())
-                    databaseStep.setDescription(stepDef.getDescription())
+
+                    String assessmentStepDescription = HtmlUtils.inserTargetAttribToAnchorTag(stepDef.getDescription())
+                    databaseStep.setDescription(assessmentStepDescription)
+
                     databaseStep.save(failOnError: true)
                     databaseTd.addToAssessmentSteps(databaseStep)
                     databaseTd.save(failOnError: true)
@@ -522,7 +529,10 @@ class ScanHostJob {
                     for( edu.gatech.gtri.trustmark.v1_0.model.Artifact artifactDef : stepDef.getArtifacts() ){
                         AssessmentStepArtifact artifact = new AssessmentStepArtifact(assessmentStep: databaseStep)
                         artifact.setName(artifactDef.getName())
-                        artifact.setDescription(artifactDef.getDescription())
+
+                        String assessmentStepArtifactDescription = HtmlUtils.inserTargetAttribToAnchorTag(artifactDef.getDescription())
+                        artifact.setDescription(assessmentStepArtifactDescription)
+
                         artifact.save(failOnError: true)
                         databaseStep.addToArtifacts(artifact)
                         databaseStep.save(failOnError: true)
