@@ -7,7 +7,9 @@ import grails.converters.JSON
 import grails.converters.XML
 import grails.plugin.springsecurity.annotation.Secured
 import grails.gorm.transactions.Transactional
+import grails.web.mapping.LinkGenerator
 import nstic.assessment.ColorPalette
+import nstic.util.DifferentialAssessmentProcessor
 import nstic.util.TipTreeNode
 import nstic.web.assessment.*
 import nstic.web.td.AssessmentStep
@@ -40,7 +42,9 @@ class AssessmentController {
     def springSecurityService
     def fileService
     def sessionFactory
+    def trustmarkService
     def messageSource
+    LinkGenerator grailsLinkGenerator
 
     def index() {
         redirect(action:'list')
@@ -143,12 +147,20 @@ LIMIT 10
         log.debug("User is assessing ${tdsAndTips.trustmarkDefinitions.size()} TDs and ${tdsAndTips.trustInteroperabilityProfiles.size()} TIPs...")
         if( tdsAndTips.containsTipWhichNeedsTdResolution() ){
             log.debug("The user has to resolve a TIP, redirecting them to the resolveTdsFromTip controller...")
-            return redirect(action: 'resolveTdsFromTip', params: [TIP_TO_RESOLVE: tdsAndTips.getNextTipResolutionId()])
+
+            boolean isDifferentiallAssessment = false
+            String saveDifferential = params["SaveDifferential"]
+            if (StringUtils.isNotEmpty(saveDifferential)) {
+                isDifferentiallAssessment = true
+            }
+
+            return redirect(action: 'resolveTdsFromTip',
+                    params: [TIP_TO_RESOLVE: tdsAndTips.getNextTipResolutionId(), isDifferentiallAssessment: isDifferentiallAssessment])
         }else{
             return forward(action: 'actuallyCreateAssessment')
         }
     }//end save()
-
+    
     /**
      * This action is called when we need to present a form to the user to have them specify which TDs should be
      * selected from a TIP for inclusion into the assessment.
@@ -157,6 +169,8 @@ LIMIT 10
         log.debug("Request to resolveTdsFromTip...")
         if( !params.containsKey("TIP_TO_RESOLVE") )
             throw new ServletException("Could not find param containing the TIP to resolve for!")
+        if( !params.containsKey("isDifferentiallAssessment") )
+            throw new ServletException("Could not find param containing the differential assessment flag!")
 
         CreateAssessmentCommand createAssessmentCommand = null
         CreateAssessmentTdsAndTips tdsAndTips = null
@@ -179,6 +193,22 @@ LIMIT 10
 
         log.info("Displaying TD resolution page for TIP[${databaseTip.uri}]...")
         TipTreeNode treeData = TipTreeNode.getTreeNonRecursively(databaseTip)
+
+        // Pprocess differential assessments
+        boolean isDifferentialAssessment = Boolean.parseBoolean(params["isDifferentiallAssessment"])
+
+        if (isDifferentialAssessment) {
+            long overallStartTime = System.currentTimeMillis()
+
+            Organization recipientOrganization = Organization.findByUri(createAssessmentCommand.organizationUri)
+
+            List<Trustmark> issuedTrustmarks = Trustmark.findAllByRecipientOrganization(recipientOrganization)
+
+            DifferentialAssessmentProcessor.process(treeData, issuedTrustmarks)
+
+            long overallStopTime = System.currentTimeMillis()
+            log.info("Successfully Executed DIFFERENTIAL in ${(overallStopTime - overallStartTime)}ms.")
+        }
 
         synchronized (session){
             session.setAttribute(LAST_TIP_TREE_SESSION_VARIABLE, treeData)
@@ -748,6 +778,76 @@ LIMIT 10
             throw new ServletException("Unsupported operation: ${request.method}.  Expecting GET or POST|PUT")
         }
     }//end copy()
+
+    /**
+     * Revoke all trustmarks that were issued for the specified assessment.
+     */
+    def revokeAllTrustmarksIssuedforAssessment() {
+        User user = springSecurityService.currentUser
+        if( StringUtils.isEmpty(params.id) ) {
+            throw new ServletException("Missing required parameter 'id'.")
+        }
+        if( StringUtils.isEmpty(params.reason) ) {
+            throw new ServletException("Missing required parameter 'reason'.")
+        }
+
+        Assessment assessment = Assessment.findById(params.id)
+        if( assessment == null ) {
+            throw new ServletException("Assessment not found.")
+        }
+
+        List<Trustmark> trustmarks = Trustmark.findAllByAssessment(assessment)
+
+        trustmarkService.revokeAll(trustmarks, user, params.reason)
+
+        String type = "All Trustmarks Revoked"
+        String title = "All Trustmarks Revoked"
+        String message = "User ${user.username} has revoked all trustmarks with reason [${params.reason}] from Organization[${assessment.assessedOrganization.name}] for assessment[${assessment.id}]"
+        Map dataMap =  [
+                user      : [id: user.id, username: user.username],
+                assessment: [id: assessment.id]
+        ]
+        assessment.logg.addEntry(type, title, message, dataMap)
+
+
+        Map results = [:]
+        results.put("results", "SUCCESS")
+        render results as JSON
+    }
+
+    def listTrustmarks()  {
+        if( StringUtils.isEmpty(params.id) ) {
+            throw new ServletException("Missing required parameter 'id'.")
+        }
+
+        Assessment assessment = Assessment.findById(params.id)
+        if( assessment == null ) {
+            throw new ServletException("Assessment not found.")
+        }
+
+        log.debug("Loading trustmarks for assessment ${assessment?.id}...")
+
+        def trustmarks = Trustmark.findAllByAssessment(assessment)
+        if( !trustmarks ) {
+            trustmarks = []
+        }
+        Collections.sort(trustmarks, {Trustmark tm1, Trustmark tm2 ->
+            return tm1.issueDateTime.compareTo(tm2.issueDateTime)
+        } as Comparator)
+
+        def trustmarksJson = []
+        trustmarks.forEach({ tm -> trustmarksJson.add(tm.toJsonMap())})
+
+        Map results = [:]
+
+        def trustmarkViewBaseUrl = grailsLinkGenerator.link(controller: 'trustmark', action: 'view', absolute: true)
+
+        log.info("trustmarkViewBaseUrl: ${trustmarkViewBaseUrl.toString()}")
+
+        results.put("trustmarkViewBaseUrl", trustmarkViewBaseUrl)
+        results.put("records", trustmarksJson)
+        render results as JSON
+    }
 
     //==================================================================================================================
     //  Private Helper Methods

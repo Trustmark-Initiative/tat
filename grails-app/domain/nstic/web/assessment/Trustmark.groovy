@@ -169,8 +169,7 @@ class Trustmark {
                                 email: this.assessment.assessedContact.email
                         ]
                 ],
-                definitionExtension: this.definitionExtension ?: "",
-                providerExtension: this.providerExtension ?: ""
+                definitionExtension: this.definitionExtension ?: ""
         ]
 
         if( this.parameterValues != null && !this.parameterValues.isEmpty() ) {

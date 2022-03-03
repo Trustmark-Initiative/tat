@@ -422,6 +422,24 @@ class TrustmarkService {
         setAttribute(TrustmarkService.TRUSTMARK_GENERATION_STATUS_VAR, "SUCCESS")
     }
 
+    @Transactional
+    def revokeAll(List<Trustmark> trustmarks, User user, String reason) {
+        Trustmark.withTransaction {
+            if (trustmarks && !trustmarks.isEmpty()) {
+                trustmarks.each { trustmark ->
+                    // only revoke active trustmarks
+                    if (trustmark.status == TrustmarkStatus.ACTIVE || trustmark.status == TrustmarkStatus.OK) {
+                        trustmark.status = TrustmarkStatus.REVOKED
+                        trustmark.revokedReason = reason
+                        trustmark.revokingUser = user
+                        trustmark.revokedTimestamp = Calendar.getInstance().getTime()
+                        trustmark.save(failOnError: true, flush: true)
+                    }
+                }
+            }
+        }
+    }
+
     void signTrustmark(SigningCertificate signingCertificate, Trustmark trustmark) {
 
         // get the X509 certificate and private key
@@ -470,7 +488,8 @@ class TrustmarkService {
 
         TrustmarkJsonWebSignatureImpl trustmarkJsonWebSignature = new TrustmarkJsonWebSignatureImpl()
 
-        String trustmarkJson = trustmark.toJsonMap()
+        // convert the json map to valid json
+        String trustmarkJson = groovy.json.JsonOutput.toJson(trustmark.toJsonMap())
 
         String signedJson = trustmarkJsonWebSignature.generateJsonWebSignature(privateKey, trustmarkJson)
 

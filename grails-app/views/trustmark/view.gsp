@@ -147,7 +147,11 @@
                                     <td title="${enumValues ? ('Enum values were: \n - ' + enumValues) : ''}">
                                         ${parameterValue.parameter.kind}
                                     </td>
-                                    <td>${parameterValue.userValue}</td>
+                                    <td>
+                                        <script type="text/javascript">
+                                            document.write(multiParamsToUnorderedList("${parameterValue.userValue}"));
+                                        </script>
+                                    </td>
                                 </tr>
                             </g:each>
                             </tbody>

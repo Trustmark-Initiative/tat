@@ -17,6 +17,7 @@
 //= require typeahead.20140402.js
 //= require handlebars-v1.3.0.js
 //= require highlight/highlight.pack.js
+//= require tat.js
 
 
 

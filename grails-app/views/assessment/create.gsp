@@ -36,6 +36,11 @@
             .typeaheadDataContainer {
                 width: auto;
             }
+
+            .btnSameWidth {
+                width: 18em;
+                margin-right: 1em;
+            }
         </style>
 	</head>
 	<body>
@@ -209,7 +214,12 @@
 
                 <div class="form-group" style="margin-top: 2em;">
                     <div class="col-sm-offset-2 col-sm-10">
-                        <button type="submit" class="btn btn-default">Create</button>
+                        <g:submitButton name="Save" value="Create Fresh Assessment" class="btn btn-primary btnSameWidth"
+                                        data-toggle="tooltip" data-placement="top"
+                                        title="Create new assessment that includes all trustmarks required to satisfy the selected TIPs."/>
+                        <g:submitButton name="SaveDifferential" id="createDiffAssessment" class="btn btn-primary btnSameWidth"
+                                        data-toggle="tooltip" data-placement="top" value="Create Differential Assessment"
+                                        title="Create new assessment that excludes any active trustmarks that are applicable to the selected TIPs and were already earned by the recipient in previous assessments." />
                     </div>
                 </div>
 
@@ -298,9 +308,6 @@
                     '    <div class="col-md-9 trustmarkTypeaheadContainer tipTypeaheadContainer">\n'+
                     '        <div>\n'+
                     '            <input id="tipTypeahead__POS__" name="tipTypeahead__POS__" class="form-control" type="text" placeholder="Begin Typing..." autocomplete="off" value="" />\n'+
-                    '        </div><div>\n'+
-                    '            <input type="checkbox" id="trustInteroperabilityProfile__POS__INCLUDEALLTDS" name="trustInteroperabilityProfile__POS__INCLUDEALLTDS" /> ' +
-                    '            <label for="trustInteroperabilityProfile__POS__INCLUDEALLTDS" style="font-weight: normal;" title="When selected, this means to skip TD selection and automatically include all Trustmark Definitions found under this TIP and all of its sub-TIPs.">Include ALL Trustmark Definitions from this TIP</label>\n'+
                     '        </div>\n'+
                     '    </div>\n'+
                     '    <div class="col-md-1">\n'+
@@ -323,6 +330,8 @@
                 // TODO Other cleanup actions....
                 if( $('#tdAndTipRefContainer').children().size() == 0 ){
                     $('#tdAndTipRefContainer').html(DEFAULT_ASSESS_MSG_HTML);
+
+                    document.getElementById("createDiffAssessment").disabled = true;
                 }
             }
 
@@ -379,6 +388,7 @@
                 });
                 $("#tipTypeahead"+TIP_TYPEAHEAD_COUNT).focus();
 
+                document.getElementById("createDiffAssessment").disabled = false;
             }//end addTipToAssess()
 
 
@@ -391,6 +401,8 @@
             }
 
             $(document).ready(function(){
+                document.getElementById("createDiffAssessment").disabled = true;
+
                 $('#tdAndTipRefContainer').html(DEFAULT_ASSESS_MSG_HTML);
 
 
@@ -498,14 +510,25 @@
                 var html = "";
 
                 html += "<div class=\"typeaheadItem\">";
-                html += "    <div class=\"typeaheadItemName\">"+item.name+"</div>";
+
+                html += "    <div class=\"typeaheadItemName\">"+item.name+ " (version: "+ item.tdVersion +")" + "</div>";
                 html += "    <div class=\"typeaheadItemDesc\">"+item.description+"</div>";
                 html += "</div>";
 
                 return html;
             }//end trustmarkDefinitionTypeaheadHighlighter()
 
+            function trustInteroperabilityProfileTypeaheadHighlighter(item){
+                var html = "";
 
+                html += "<div class=\"typeaheadItem\">";
+
+                html += "    <div class=\"typeaheadItemName\">"+item.name+ " (version: "+ item.tipVersion +")" + "</div>";
+                html += "    <div class=\"typeaheadItemDesc\">"+item.description+"</div>";
+                html += "</div>";
+
+                return html;
+            }//end trustInteroperabilityProfileTypeaheadHighlighter()
 
 
             function tipTypeaheadDoQuery( query , process ){
@@ -527,8 +550,9 @@
             }
 
             function tipTypeaheadHighlighter(item){
-                return trustmarkDefinitionTypeaheadHighlighter(item);
-            }//end trustmarkDefinitionTypeaheadHighlighter()
+                // return trustmarkDefinitionTypeaheadHighlighter(item);
+                return trustInteroperabilityProfileTypeaheadHighlighter(item);
+            }//end tipTypeaheadHighlighter()
 
 
 

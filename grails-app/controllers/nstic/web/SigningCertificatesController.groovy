@@ -14,21 +14,29 @@ import nstic.web.assessment.Trustmark
 import nstic.web.assessment.TrustmarkStatus
 import nstic.web.td.TrustmarkDefinition
 import org.apache.commons.lang.StringUtils
+import org.dom4j.DocumentException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.ldap.support.LdapNameBuilder
 import org.springframework.validation.ObjectError
 import sun.security.x509.X500Name
 
+import javax.naming.Name
 import javax.servlet.ServletException
 import org.grails.web.util.WebUtils
 
 import javax.xml.bind.DatatypeConverter
+import java.nio.charset.StandardCharsets
 import java.security.KeyPair
 import java.security.KeyPairGenerator
+import java.security.KeyStore
 import java.security.PrivateKey
 import java.security.cert.Certificate
 import java.security.cert.X509Certificate
 import java.security.cert.CertificateFactory
+import java.security.interfaces.RSAPublicKey
+import java.time.Period
+import java.time.ZoneId
 
 @Transactional
 @Secured("ROLE_USER")
@@ -375,6 +383,190 @@ class SigningCertificatesController {
                 params: [originalCertId: existingCertificateId, metadataSetId: selectedMetadataId])
     }
 
+    def importPkcs12() {
+
+        // params organization id to get certificates, pass organization
+        Organization org = new Organization()
+        if( params.orgId ) {
+            log.debug("Finding organization with id[${params.orgId}]...")
+            org = Organization.get(params.orgId)
+            if (!org) {
+                log.warn("User[$user] has requested to generate a signing certificate for org[${params.orgId}] which cannot be found!")
+                throw new ServletException("Unable to find any Organization with id=${params.orgId}")
+            }
+        }
+
+        [
+            organization: org
+        ]
+    }
+
+    def importPkcs12File() {
+        User user = springSecurityService.currentUser;
+
+        log.info("importPkcs12File")
+
+        if( org.apache.commons.lang.StringUtils.isBlank(params.organizationId) ){
+            log.warn "Missing required param organizationId!"
+            throw new ServletException("Missing required organizationId parameter.")
+        }
+
+        Organization org = Organization.get(params.organizationId)
+
+        if( params.filename == null) {
+            log.warn "Missing required param filename!"
+            throw new ServletException("Missing required filename parameter.")
+        }
+
+        Map results = [:]
+
+        // status message
+        Map messageMap = [:]
+
+        SigningCertificate signingCertificate = null;
+
+        try {
+            if (params.filename != null) {
+
+                log.info("Filename: ${params.filename.originalFilename}")
+
+                String password = params.password[0]
+
+                Boolean defaultCertificate = Boolean.parseBoolean(params.defaultCertificate[1])
+
+                FileInputStream stream = params.filename.getInputStream()
+
+                // create keystore
+                KeyStore keystore = KeyStore.getInstance("PKCS12");
+                keystore.load(null, null);
+                keystore.load(stream, password.toCharArray())
+
+                // process aliases
+                Enumeration<String> aliases = keystore.aliases()
+                Integer numberOfAliases = Collections.list(aliases).size()
+
+                if (numberOfAliases > 1) {
+                    log.info("The PKCS12 file contains more than one signing certificate when only one was expected.")
+                    messageMap["WARNING"] = "The PKCS12 file ${params.filename.originalFilename}, contains more than one signing certificate when only one is allowed."
+                } else {
+                    // reset the enumaration back to the beginning
+                    aliases = keystore.aliases()
+
+                    while(aliases.hasMoreElements()) {
+                        String alias = aliases.nextElement()
+
+                        // get private key and public certificate
+                        X509Certificate cert = (X509Certificate) keystore.getCertificate(alias);
+                        PrivateKey privateKeyFromPkcs12 = (PrivateKey) keystore.getKey(alias, password.toCharArray());
+
+                        X509CertificateService x509CertificateService = new X509CertificateService()
+
+                        signingCertificate = createSigningCertificate(cert, privateKeyFromPkcs12, org, defaultCertificate)
+
+                        SigningCertificate.withTransaction {
+                            signingCertificate.save(failOnError: true, flush: true)
+                        }
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            log.info("Error parsing ${params.filename.originalFilename}, error: ${e.message}")
+            messageMap["ERROR"] = "Error opening ${params.filename.originalFilename}, error: ${e.message}"
+        }
+
+        if (signingCertificate) {
+            flash.message = "Successfully imported signing certificate " +
+                    "'${signingCertificate.distinguishedName}' for organization ${org.name}"
+            messageMap["SUCCESS"] = "SUCCESS"
+        }
+
+        results.put("messageMap", messageMap)
+
+        withFormat  {
+            json {
+                render results as JSON
+            }
+        }
+    }
+
+    private SigningCertificate createSigningCertificate(X509Certificate certificate, PrivateKey privateKey,
+                                      Organization org, boolean defaultCertificate) {
+        X509CertificateService x509CertificateService = new X509CertificateService()
+
+        SigningCertificate signingCertificate = new SigningCertificate()
+        signingCertificate.distinguishedName = certificate.subjectDN.name
+
+        X500Name x500Name = new X500Name(certificate.getSubjectX500Principal().getName());
+        signingCertificate.commonName = x500Name.getCommonName();
+        signingCertificate.localityName = x500Name.locality
+        signingCertificate.stateOrProvinceName = x500Name.state
+        signingCertificate.countryName = x500Name.country
+        signingCertificate.emailAddress = org.primaryContact.email
+        signingCertificate.organizationName = x500Name.organization
+        signingCertificate.organizationalUnitName = x500Name.organizationalUnit
+        signingCertificate.serialNumber = certificate.serialNumber.toString()
+        signingCertificate.thumbPrint = x509CertificateService.getThumbPrint(certificate)
+        signingCertificate.thumbPrintWithColons = x509CertificateService.getThumbPrintWithColons(certificate)
+        signingCertificate.privateKeyPem = x509CertificateService.convertToPemPrivateKey(privateKey)
+        signingCertificate.x509CertificatePem = x509CertificateService.convertToPem(certificate)
+        signingCertificate.status = SigningCertificateStatus.ACTIVE
+
+        signingCertificate.validPeriod = diffInYears(certificate.notBefore, certificate.notAfter);
+
+        RSAPublicKey rsaPk = (RSAPublicKey) certificate.getPublicKey();
+        signingCertificate.keyLength = rsaPk.getModulus().bitLength()
+
+        X509CertificateService certService = new X509CertificateService()
+        X509Certificate x509Certificate = certService.convertFromPem(signingCertificate.x509CertificatePem)
+        signingCertificate.expirationDate = x509Certificate.notAfter
+
+        signingCertificate.organization = org
+
+        // URL: create a unique filename to create the downloadable file
+        // filename: commonName-thumbprint.pem
+        String filename = signingCertificate.commonName + "-" + signingCertificate.thumbPrint + ".pem"
+        signingCertificate.filename = filename
+
+        // get the base url from the http request and append the controller
+        String baseUrl = getBaseAppUrl() + "/PublicCertificates/download/?id="
+
+        signingCertificate.certificatePublicUrl = baseUrl + filename
+
+        // override the default certificate flag and set it to true if
+        // this is the first certificate for the organization
+        if (SigningCertificate.findAllByOrganization(org).size() == 0) {
+            signingCertificate.defaultCertificate = true
+        } else {
+            signingCertificate.defaultCertificate = defaultCertificate // add flag to UI for this
+        }
+
+        // TODO: Only change the certificates for the organization!!!
+
+        // reset default certificate flag in db
+        if (defaultCertificate) {
+            org.certificates.toList().each { cert ->
+                if (cert.defaultCertificate) {
+                    cert.defaultCertificate = false
+                    cert.save(failOnError: true, flush: true)
+                }
+            }
+        }
+
+        return signingCertificate;
+    }
+
+    private Integer diffInYears(Date from, Date to) {
+
+        Period period = Period.between(from.toInstant().atZone(ZoneId.systemDefault()).toLocalDate(),
+                to.toInstant().atZone(ZoneId.systemDefault()).toLocalDate());
+
+        Integer monthsToYear = period.getMonths() > 5 ? 1 : 0;
+        Integer years = period.getYears() + monthsToYear;
+
+        return years
+    }
+
     private int numberOfTrustmarksAssociatedWithCertificate(int certificateId) {
         Integer numberOfTrustmarksAffected = 0
         Trustmark.findAllBySigningCertificateId(certificateId).forEach { trustmark ->
@@ -411,6 +603,12 @@ class SigningCertificatesController {
     }
 
     private SigningCertificate createNewSigningCertificate(GenerateSigningCertificateCommand cmd) {
+        Organization org = Organization.findById(cmd.orgId)
+
+        if( !org ) {
+            log.info("There is no organization with ordId: ${cmd.orgId}}")
+            throw new ServletException("There is no organization with ordId: ${cmd.orgId}")
+        }
 
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA")
 
@@ -418,8 +616,15 @@ class SigningCertificatesController {
         KeyPair keyPair = keyPairGenerator.generateKeyPair()
 
         // distinguished name
-        X500Name x500Name = new X500Name(cmd.commonName, cmd.organizationalUnitName, cmd.organizationName,
-                cmd.localityName, cmd.stateOrProvinceName, cmd.countryName)
+        X500Name x500Name = null
+        if (StringUtils.isNotEmpty(cmd.distinguishedName)) {
+            x500Name = new X500Name(cmd.distinguishedName)
+        } else {
+            // Create a distinguished name from the command
+            String distinguishedName = signingCertificateCommandToDistinguishedName(cmd)
+
+            x500Name = new X500Name(distinguishedName)
+        }
 
         String distinguishedName = x500Name.getName()
 
@@ -428,81 +633,37 @@ class SigningCertificatesController {
         Certificate certificate = x509CertificateService.generateCertificate(distinguishedName,
                 keyPair, cmd.validPeriod * 365, "SHA256withRSA")
 
-        // public cert string
-        String pemCert = x509CertificateService.convertToPem(certificate)
-
-        // private key
-        String pemKey = x509CertificateService.convertToPemPrivateKey(keyPair.getPrivate())
-
-        // raw thumbprint
-        String thumbprint = x509CertificateService.getThumbPrint(certificate)
-
-        // viewable thumbprint
-        String thumbprintWithColons = x509CertificateService.getThumbPrintWithColons(certificate)
-
-        SigningCertificate signingCertificate = new SigningCertificate()
-        signingCertificate.distinguishedName = certificate.subjectDN.name
-        signingCertificate.commonName = cmd.commonName
-        signingCertificate.localityName = cmd.localityName
-        signingCertificate.stateOrProvinceName = cmd.stateOrProvinceName
-        signingCertificate.countryName = cmd.countryName
-        signingCertificate.emailAddress = cmd.emailAddress
-        signingCertificate.organizationName = cmd.organizationName
-        signingCertificate.organizationalUnitName = cmd.organizationalUnitName
-        signingCertificate.serialNumber = certificate.serialNumber.toString()
-        signingCertificate.thumbPrint = thumbprint
-        signingCertificate.thumbPrintWithColons = thumbprintWithColons
-        signingCertificate.privateKeyPem = pemKey
-        signingCertificate.x509CertificatePem = pemCert
-        signingCertificate.status = SigningCertificateStatus.ACTIVE
-
-        signingCertificate.validPeriod = cmd.validPeriod
-        signingCertificate.keyLength = cmd.keyLength
-
-        X509CertificateService certService = new X509CertificateService()
-        X509Certificate x509Certificate = certService.convertFromPem(signingCertificate.x509CertificatePem)
-        signingCertificate.expirationDate = x509Certificate.notAfter
-
-        Organization org = Organization.findById(cmd.orgId)
-
-        if( !org ) {
-            log.info("There is no organization with ordId: ${cmd.orgId}}")
-            throw new ServletException("There is no organization with ordId: ${cmd.orgId}")
-        }
-
-        signingCertificate.organization = org
-
-        // URL: create a unique filename to create the downloadable file
-        // filename: commonName-thumbprint.pem
-        String filename = cmd.commonName + "-" + thumbprint + ".pem"
-        signingCertificate.filename = filename
-
-        // get the base url from the http request and append the controller
-        String baseUrl = getBaseAppUrl() + "/PublicCertificates/download/?id="
-
-        signingCertificate.certificatePublicUrl = baseUrl + filename
-
-        // override the default certificate flag and set it to true if
-        // this is the first certificate for the organization
-        if (SigningCertificate.findAllByOrganization(org).size() == 0) {
-            signingCertificate.defaultCertificate = true
-        } else {
-            signingCertificate.defaultCertificate = cmd.defaultCertificate
-        }
-
-        // TODO: Only change the certificates for the organization!!!
-
-        // reset default certificate flag in db
-        if (cmd.defaultCertificate) {
-            org.certificates.toList().each { cert ->
-                if (cert.defaultCertificate) {
-                    cert.defaultCertificate = false
-                    cert.save(failOnError: true, flush: true)
-                }
-            }
-        }
+        SigningCertificate signingCertificate = createSigningCertificate(certificate, keyPair.private, org, cmd.defaultCertificate)
 
         return signingCertificate
+    }
+
+    // Combine the non-empty relative distinguished names (RDNs) into a distinguished name, excluding email
+    private String signingCertificateCommandToDistinguishedName(GenerateSigningCertificateCommand cmd) {
+        LdapNameBuilder builder = LdapNameBuilder.newInstance()
+
+        if (StringUtils.isNotEmpty(cmd.organizationalUnitName)) {
+            builder.add("OU", cmd.organizationalUnitName)
+        }
+        if (StringUtils.isNotEmpty(cmd.organizationName)) {
+            builder.add("O", cmd.organizationName)
+        }
+        if (StringUtils.isNotEmpty(cmd.localityName)) {
+            builder.add("L", cmd.localityName)
+        }
+        if (StringUtils.isNotEmpty(cmd.stateOrProvinceName)) {
+            builder.add("S", cmd.stateOrProvinceName)
+        }
+        if (StringUtils.isNotEmpty(cmd.countryName)) {
+            builder.add("C", cmd.countryName)
+        }
+        if (StringUtils.isNotEmpty(cmd.commonName)) {
+            builder.add("CN", cmd.commonName)
+        }
+
+        Name dn = builder.build()
+
+        return dn.toString()
     }
 
     private void updtateTrustmarkMetadataSets(int existingCertificateId, int newCertificateId) {
@@ -552,6 +713,7 @@ class GenerateSigningCertificateCommand {
 
     public void setData(SigningCertificate cert) {
 
+        this.distinguishedName = cert.distinguishedName
         this.commonName = cert.commonName
         this.localityName = cert.localityName
         this.stateOrProvinceName = cert.stateOrProvinceName
@@ -566,6 +728,7 @@ class GenerateSigningCertificateCommand {
         this.orgId = cert.organization.id
     }
 
+    String distinguishedName
     String commonName
     String localityName
     String stateOrProvinceName
@@ -580,12 +743,13 @@ class GenerateSigningCertificateCommand {
     Integer orgId
 
     static constraints = {
+        distinguishedName(nullable: true, blank: true, maxSize: 255)
         commonName(nullable: false, blank: false, maxSize: 255)
         localityName(nullable: true, blank: true, maxSize: 255)
-        stateOrProvinceName(nullable: false, blank: false, maxSize: 255)
-        countryName(nullable: false, blank: false, maxSize: 255)
+        stateOrProvinceName(nullable: true, blank: false, maxSize: 255)
+        countryName(nullable: true, blank: false, maxSize: 255)
         emailAddress(nullable: false, blank: false, maxSize: 255)
-        organizationName(nullable: false, blank: false, maxSize: 255)
+        organizationName(nullable: true, blank: false, maxSize: 255)
         organizationalUnitName(nullable: true, blank: true, maxSize: 255)
         defaultCertificate(null: false)
         orgId(nullable: true, validator: {val, obj, errors ->

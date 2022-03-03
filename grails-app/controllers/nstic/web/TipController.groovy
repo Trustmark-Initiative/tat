@@ -123,6 +123,7 @@ class TipController {
             or {
                 like("name", '%'+params.q+'%')
                 like("description", '%'+params.q+'%')
+                like("tipVersion", '%'+params.q+'%')
             }
             maxResults(25)
             order("name", "asc")
@@ -139,7 +140,10 @@ class TipController {
                 def resultsJSON = []
                 results.each{ result ->
                     resultsJSON.add([
-                        id: result.id, name: result.name, description: result.description
+                        id: result.id,
+                        name: result.name,
+                        description: result.description,
+                        tipVersion: result.tipVersion
                     ])
                 }
                 render resultsJSON as JSON

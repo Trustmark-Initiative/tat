@@ -38,9 +38,13 @@
                 dataType: 'json',
                 format: 'json',
                 success: function(data){
-                    trustmarks = data;
-                    setResultsDiv(trustmarks.length, queryString);
-                    renderTrustmarks(0);
+                    if (!isEmpty(data.message)) {
+                        $('#resultsContainer').html('<div class="alert alert-warning">' + data.message + '</div>');
+                    } else {
+                        trustmarks = data.trustmarks;
+                        setResultsDiv(trustmarks.length, queryString);
+                        renderTrustmarks(0);
+                    }
                 },
                 error: function(){
                     $('#resultsContainer').html('<div class="alert alert-danger">An unexpected error occurred communicating with the server.</div>');
@@ -78,6 +82,15 @@
 
         function setResultsDiv(count, qstr)  {
             $('.pageSubsection').html('Total of '+ count +' results for the query <em>'+ qstr +'</em>.');
+        }
+
+        function isEmpty( val ){
+            if( val ){
+                val = val.trim();
+                return val === '';
+            }else{
+                return true;
+            }
         }
     </script>
 </head>

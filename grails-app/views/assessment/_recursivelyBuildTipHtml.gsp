@@ -55,7 +55,10 @@
         <td>
             <div class="td-block">
                 <span class="glyphicon glyphicon-tag" title="Trustmark Definition"></span>
-                <input type="checkbox" checked="checked" id="tdCheckbox${td.databaseId}-${td.ownerTipId}" name="tdCheckbox${td.databaseId}-${td.ownerTipId}" class="tdCheckbox" onchange="updateCheckboxCount(this);" />
+                <% String checkedAttribute = ""; if (td.excludeFromAssessment == false) checkedAttribute = 'checked="checked"';%>
+                <input type="checkbox" ${checkedAttribute} id="tdCheckbox${td.databaseId}-${td.ownerTipId}"
+                       name="tdCheckbox${td.databaseId}-${td.ownerTipId}" class="tdCheckbox"
+                       onchange="updateCheckboxCount(this);" />
             </div>
             <div style="display: inline-block;">${td.name}<br><span class="tm-link">[${td.localId}]</span></div>
         </td>

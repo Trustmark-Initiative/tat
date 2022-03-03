@@ -40,7 +40,28 @@
             .requiredArtifactDesc {
                 margin-left: 1em;
             }
+
+            #tdSearch {
+                background-position: 10px 12px; /* Position the search icon */
+                background-repeat: no-repeat;   /* Do not repeat the icon image */
+                width: 100%;                    /* Full-width */
+                font-size: 16px;                /* Increase font-size */
+                padding: 12px 20px 12px 40px;   /* Add some padding */
+                border: 1px solid #ddd;         /* Add a grey border */
+                margin-bottom: 12px;            /* Add some space below the input */
+            }
+
+            .form-control {
+                padding-right: 30px;
+            }
+
+            .form-control + .glyphicon {
+                position: absolute;
+                left: 0;
+                padding: 8px 27px;
+            }
         </style>
+
 	</head>
 	<body>
         <div class="row">
@@ -101,38 +122,6 @@
                 <div class="statusContainer" style="text-align: right;" id="assessmentStatusSummaryContainer">
                     <asset:image src="spinner.gif"/> Loading status summary...
                 </div>
-                <script type="text/javascript">
-                    $(document).ready(function(){
-                        var url = '${createLink(controller:'assessment', action: 'getAssessmentStatusSummary', id: assessment.id)}';
-                        console.log('Getting contents of: '+url);
-                        $.get(url, function(data){
-                            $('#assessmentStatusSummaryContainer').html(data);
-                        });
-
-                        $("#dialog").dialog({
-                            autoOpen: false,
-                            modal: true
-                        });
-                    });
-
-                    $(".confirmLink").click(function(e) {
-                        e.preventDefault();
-                        var targetUrl = $(this).attr("href");
-
-                        $("#dialog").dialog({
-                            buttons : {
-                                "Confirm" : function() {
-                                    window.location.href = targetUrl;
-                                },
-                                "Cancel" : function() {
-                                    $(this).dialog("close");
-                                }
-                            }
-                        });
-
-                        $("#dialog").dialog("open");
-                    });
-                </script>
             </div>
         </div>
 
@@ -261,62 +250,31 @@
             </div>
 
 
-
             <a name="trustmarks"></a>
             <h3 style="margin-top: 2em;">Trustmarks (${trustmarks ? trustmarks.size() : 0})</h3>
             <div class="row">
                 <div class="col-md-12">
-                    <div style="max-height: 20em; overflow-y: scroll;">
-                        <table class="table-condensed table-striped table-bordered" style="width: 100%;">
-                            <tr>
-                                <th>Id</th>
-                                <th>Status</th>
-                                <th>Issue Date</th>
-                                <th>Expiration Date</th>
-                                <th>Identifier</th>
-                            </tr>
-                            <g:if test="${trustmarks && !trustmarks.isEmpty()}">
-                                <g:each in="${trustmarks}" var="tm">
-                                    <tr>
-                                        <td>
-                                            <g:link controller="trustmark" action="view" id="${tm.id}">
-                                                ${tm.id}
-                                            </g:link>
-                                        </td>
-                                        <td>
-                                            ${tm.status}
-                                        </td>
-                                        <td>
-                                            <g:formatDate format="yyyy-MM-dd" date="${tm.issueDateTime}" />
-                                        </td>
-                                        <td>
-                                            <g:formatDate format="yyyy-MM-dd" date="${tm.expirationDateTime}" />
-                                        </td>
-                                        <td>
-                                            ${tm.identifier}
-                                        </td>
-                                    </tr>
-                                </g:each>
-                            </g:if><g:else>
-                                <tr>
-                                    <td colspan="5">
-                                        <em>No trustmarks have been created yet.</em>
-                                    </td>
-                                </tr>
-                            </g:else>
-                        </table>
+                    <g:if test="${trustmarks && !trustmarks.isEmpty()}">
+                        <div>
+                            <input class="form-control" autocomplete="off" type="search" id="tdSearch" onkeyup="searchForTD()" placeholder="Search for Trustmark Definition...">
+                            <span class="glyphicon glyphicon-search"></span>
+                        </div>
+                    </g:if>
+                    <div id="assessment-trustmarks"style="max-height: 20em; overflow-y: scroll;">
                     </div>
                     <div style="margin-top: 0.5em;">
                         <a href="${createLink(controller: 'trustmark', action: 'create', params:[assessmentId: assessment.id])}" class="btn btn-primary">Grant</a>
                         <g:if test="${assessment.isComplete}">
                             <g:if test="${trustmarks && !trustmarks.isEmpty()}">
-                                <a href="#" class="btn btn-default" title="Bulk Revoke capability is not yet implemented.">Revoke</a>
+                            %{--                                <a href="#" class="btn btn-default" title="Revoke all trustmarks issued in this assessment.">Revoke All</a>--}%
+                                <a href="javascript:revokeAllTrustmarks();" class="btn btn-default" title="Revoke all trustmarks issued in this assessment.">Revoke All</a>
+                                <span id="revokeAllTrustmarksStatusMessage" />
                             </g:if>
                         </g:if>
                     </div>
+                    <span id="trustmarksStatusMessage" />
                 </div>
             </div>
-
 
             <!-- Log -->
             <a name="assessmentLog"></a>
@@ -474,6 +432,179 @@
 
         </div>
 
+    <script>
 
+        $(document).ready(function()  {
+            var url = '${createLink(controller:'assessment', action: 'getAssessmentStatusSummary', id: assessment.id)}';
+            console.log('Getting contents of: '+url);
+            $.get(url, function(data){
+                $('#assessmentStatusSummaryContainer').html(data);
+            });
+
+            $("#dialog").dialog({
+                autoOpen: false,
+                modal: true
+            });
+
+            getTrustmarks(${assessment.id});
+        });
+
+        $(".confirmLink").click(function(e) {
+            e.preventDefault();
+            var targetUrl = $(this).attr("href");
+
+            $("#dialog").dialog({
+                buttons : {
+                    "Confirm" : function() {
+                        window.location.href = targetUrl;
+                    },
+                    "Cancel" : function() {
+                        $(this).dialog("close");
+                    }
+                }
+            });
+
+            $("#dialog").dialog("open");
+        });
+
+        let getTrustmarks = function(assessmentid) {
+            $('#trustmarksStatusMessage').html('<asset:image src="spinner.gif" /> Status: Loading trustmarks...');
+            list("${createLink(controller:'assessment', action: 'listTrustmarks')}"
+                , trustmarkResults
+                , { id: assessmentid }
+            );
+        }
+
+        let trustmarkResults = function(results)  {
+            renderTrustmarks('assessment-trustmarks', results);
+            $('#trustmarksStatusMessage').html("");
+        }
+
+        let renderTrustmarks = function(target, data)  {
+
+            let html = "<table id='trustmarks-table' class='table table-striped table-bordered table-condensed'>";
+
+            // table header
+            html += "<thead><tr style='white-space: nowrap;'><th>Id</th><th>Status</th><th>Issue Date</th><th>Expiration Date</th><th>Trustmark Definition</th></tr></thead>";
+
+            if (data.records.length === 0)  {
+                html += '<tr><td colspan="5"><em>There are no trustmarks.</em></td></tr>';
+            }  else {
+
+                html += "<tbody>";
+
+                data.records.forEach(tm => {
+                    html += drawTrustmark(tm, data.trustmarkViewBaseUrl);
+                });
+
+                html += "</tbody>";
+            }
+            html += "</table>";
+            document.getElementById(target).innerHTML = html;
+        }
+
+        let drawTrustmark = function(entry, trustmarkViewBaseUrl)  {
+
+            let html = "<tr>";
+
+            html += "<td><a href='" + trustmarkViewBaseUrl + "/" + entry.id + "'>" + entry.id + "</a></td>";
+            html += "<td>" + entry.status + "</td>";
+            html += "<td style='white-space: nowrap;'>" + formatDate(new Date(entry.issueDateTime)) + "</td>";
+            html += "<td style='white-space: nowrap;'>" + formatDate(new Date(entry.expirationDateTime)) + "</td>";
+            html += "<td>" + entry.trustmarkDefinition.name + "</td>";
+
+            html += "</tr>";
+
+            return html;
+        }
+
+        let get = function(url, doSuccess, args)  {
+            $.ajax({
+                url: url,
+                method: 'GET',
+                data: args,
+                dataType: 'json'
+            }).done(function (data){
+                doSuccess(data);
+            }).fail(function (jqxhr, err){
+                console.log('An unexpected error occurred '+err);
+            });
+        }
+
+        let list = get;
+
+        // Revoke all trustmarks that have been signed with this certificate
+        function revokeAllTrustmarks(){
+
+            if( !confirm("Are you sure you want to revoke all trustmarks? This operation cannot be reversed.") ){
+                return;
+            }
+
+            var reason = prompt("What is the reason you are revoking all trustmarks?");
+            if( !reason) {
+                alert("A reason is required.");
+            } else {
+                $.ajax({
+                    url: '${createLink(controller: 'assessment', action: 'revokeAllTrustmarksIssuedforAssessment', id: assessment.id)}',
+                    type: 'POST',
+                    data: {
+                        format: 'json',
+                        reason: reason
+                    },
+                    beforeSend: function () {
+                        $('#revokeAllTrustmarksStatusMessage').html('<asset:image src="spinner.gif" /> Status: Revoking all trustmarks...');
+                    },
+                    success: function (data, statusText, jqXHR) {
+
+                        // window.location.reload();
+                        getTrustmarks(${assessment.id});
+
+                        $('#revokeAllTrustmarksStatusMessage').html("Status: Revoked all trustmarks!");
+                    },
+                    error: function (jqXHR, statusText, errorThrown) {
+                        console.log("Error: " + errorThrown);
+
+                        $('#revokeAllTrustmarksStatusMessage').html(errorThrown);
+                    }
+                });
+            }
+        }
+
+        function searchForTD() {
+            // Declare variables
+            var input, filter, table, tr, td, i, txtValue;
+            input = document.getElementById("tdSearch");
+            filter = input.value.toUpperCase();
+            table = document.getElementById("trustmarks-table");
+            tr = table.getElementsByTagName("tr");
+
+            // Loop through all table rows, and hide those who don't match the search query
+            for (i = 0; i < tr.length; i++) {
+                // get the td at the trustmark definition's index
+                td = tr[i].getElementsByTagName("td")[4];
+                if (td) {
+                    txtValue = td.textContent || td.innerText;
+
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        let formatDate = function(aDate) {
+            var aDate = new Date(aDate);
+            var year = aDate.getFullYear();
+            var month = aDate.getMonth() + 1;
+            if (month < 10) {
+                month = "0" + month;
+            }
+            var day = aDate.getDate();
+
+            return  year + "-" + month + "-" + day;
+        }
+    </script>
 	</body>
 </html>

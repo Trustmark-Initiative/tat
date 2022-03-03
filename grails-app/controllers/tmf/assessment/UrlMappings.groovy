@@ -42,8 +42,6 @@ class UrlMappings {
         "/assessments/$id/log"(controller:'assessmentLog', action: 'viewLog')
         "/assessments/$id/log/entries/$entryId"(controller:'assessmentLog', action: 'viewLogEntry')
 
-        "/substeps/resolve"(controller:'substepResolution', action: 'index')
-        "/substeps/my-list"(controller:'substepResolution', action: 'mylist')
         "/assessments/$assessmentId/steps/$stepNumber/substeps/$substepId/assessor-comment"(controller:'substepResolution', action: 'updateAssessorComment')
         "/assessments/$assessmentId/steps/$stepNumber/substeps/$substepId/result"(controller:'substepResolution', action: 'updateSubstepResult')
 

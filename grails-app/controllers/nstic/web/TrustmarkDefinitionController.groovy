@@ -25,7 +25,7 @@ import javax.servlet.ServletException
 class TrustmarkDefinitionController {
 
     def springSecurityService;
-    def tdImporterService;
+//    def tdImporterService;
     def fileService;
 
     def list() {
@@ -256,6 +256,7 @@ class TrustmarkDefinitionController {
             or {
                 like("name", '%'+params.q+'%')
                 like("description", '%'+params.q+'%')
+                like("tdVersion", '%'+params.q+'%')
             }
             maxResults(25)
             order("name", "asc")
@@ -272,7 +273,10 @@ class TrustmarkDefinitionController {
                 def resultsJSON = []
                 results.each{ result ->
                     resultsJSON.add([
-                        id: result.id, name: result.name, description: result.description
+                        id: result.id,
+                        name: result.name,
+                        description: result.description,
+                        tdVersion: result.tdVersion
                     ])
                 }
                 render resultsJSON as JSON

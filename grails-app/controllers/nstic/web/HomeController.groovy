@@ -1,6 +1,7 @@
 package nstic.web
 
 import nstic.util.AssessmentToolProperties
+import nstic.util.DefaultMetadataUtils
 import nstic.util.QuartzConfig
 import nstic.web.assessment.Assessment
 import nstic.web.td.TrustmarkDefinition
@@ -126,10 +127,12 @@ class HomeController {
             metadata.name = props.getProperty("trustmark.metadata.name") ?: "System Default"
             metadata.description = props.getProperty("trustmark.metadata.description") ?: "Generated automatically by scanning the assessment tool configuration properties."
             metadata.generatorClass = props.getProperty("trustmark.metadata.identifier.generator") ?: nstic.UUIDTrustmarkIdentifierGenerator.class.name
-            metadata.identifierPattern = props.getProperty("trustmark.metadata.identifier.pattern") ?: "<not-set or not-found>"
+
+            metadata.identifierPattern = DefaultMetadataUtils.buildIdentifierPattern(props)
+            metadata.statusUrlPattern = DefaultMetadataUtils.buildStatusUrlPattern(props)
+
             metadata.policyUrl = props.getProperty("trustmark.metadata.policy.url") ?: "<not-set or not-found>"
             metadata.relyingPartyAgreementUrl = props.getProperty("trustmark.metadata.relying.party.agreement.url") ?: "<not-set or not-found>"
-            metadata.statusUrlPattern = props.getProperty("trustmark.metadata.status.url.pattern") ?: "<not-set or not-found>"
             metadata.timePeriodNoExceptions = Integer.parseInt(props.getProperty("trustmark.metadata.valid.timeperiod.no.exceptions") ?: '-1')
             if (metadata.timePeriodNoExceptions == -1)
                 metadata.timePeriodNoExceptions = 36

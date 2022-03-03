@@ -29,5 +29,7 @@ class TipTreeTrustmarkDefinition {
     String description;
     String version;
 
-
+    // If true, the trustmark definition is deselected from
+    // the assessment intermediate page
+    public boolean excludeFromAssessment = false;
 }

@@ -63,7 +63,7 @@
                     <h4>Organization Information</h4>
                     <table class="infoTable table table-striped table-bordered table-condensed">
                         <tr>
-                            <th>Identifier</th><td>${organization.identifier}</td>
+                            <th>Abbreviation</th><td>${organization.identifier}</td>
                         </tr><tr>
                             <th>URI</th><td>${organization.uri}</td>
                         </tr><tr>
@@ -101,7 +101,7 @@
                     <div style="margin-top: 2em;">
                         <h4>Signing Certificates</h4>
                         <div class="sectionDescription  text-muted">
-                            These are the cryptographic keys and X.509 certificates that are used to used for digital signature and verification of Trustmarks that this Trustmark Provider issues.
+                            These are the cryptographic keys and X.509 certificates that are used for digital signature and verification of Trustmarks that this Trustmark Provider issues.
                         </div>
                         <table class="table table-bordered table-striped table-condensed">
                             <thead>
@@ -179,6 +179,11 @@
                             <g:link controller="signingCertificates" action="add" params="[orgId: organization.id]" class="btn btn-default">
                                 Generate New Certificate
                             </g:link>
+
+                            <g:link controller="signingCertificates" action="importPkcs12" params="[orgId: organization.id]" class="btn btn-default">
+                                Import Signing Certificate
+                            </g:link>
+
                         </div>
                     </div>
                 </sec:ifAllGranted>
@@ -462,15 +467,6 @@
 
             </div>
 
-            <script type="text/javascript">
-                function assertDeleteComment(){
-                    return confirm('Really delete this comment?');
-                }
-                function assertDeleteContact(){
-                    return confirm('Really delete this contact?');
-                }
-            </script>
-
 
             <!-- Contacts List -->
             <div style="margin-top: 2em;">
@@ -530,53 +526,6 @@
                             New Contact
                         </a>
                     </form>
-                    <script type="text/javascript">
-
-                        var UNAFFILIATED_CONTACTS = null;
-
-                        $(document).ready(function(){
-                            loadUnaffiliatedContacts();
-                        })
-
-                        function loadUnaffiliatedContacts(){
-                            $('#unaffiliatedDropdownContainer').html('<asset:image src="spinner.gif" /> Loading...');
-                            var url = '${createLink(controller:'organization',action: 'listUnaffiliatedContacts', id: organization.id)}';
-                            $.ajax({
-                                url: url,
-                                dataType: 'json',
-                                data: {
-                                    now : new Date().getMilliseconds(),
-                                    format : 'json'
-                                },
-                                failure: function(jqXHR, statusText, errorThrown){
-                                    console.log("Error: "+statusText+", "+errorThrown);
-                                    $('#unaffiliatedDropdownContainer').html('<span class="text-danger">Error loading contacts</div>');
-                                },
-                                success: function(data, statusText, jqXHR){
-                                    console.log("Successfully got data: "+JSON.stringify(data, null, 4));
-                                    UNAFFILIATED_CONTACTS = data;
-                                    updateUnaffiliatedContactsView();
-                                }
-                            })
-                        }
-
-                        function updateUnaffiliatedContactsView() {
-                            var html = '';
-                            if( UNAFFILIATED_CONTACTS && UNAFFILIATED_CONTACTS.length > 0 ){
-                                html += '<select id="contactToAdd" name="contactToAdd" class="form-control">\n';
-                                for( var i = 0; i < UNAFFILIATED_CONTACTS.length; i++ ){
-                                    var contact = UNAFFILIATED_CONTACTS[i];
-                                    html += '    <option value="'+contact.id+'">'+contact.responder+' &lt;'+contact.email+'&gt;</option>\n';
-                                }
-                                html += '</select>\n';
-                            }else{
-                                html += '<span class="text-warning">There are no contacts.</span>'
-                            }
-
-                            $('#unaffiliatedDropdownContainer').html(html);
-                        }
-
-                    </script>
                 </div>
             </div>
 
@@ -620,6 +569,99 @@
 
         </div>
 
+        <script type="text/javascript">
+            var organizationId = null;
 
+            var UNAFFILIATED_CONTACTS = null;
+
+            $(document).ready(function(){
+                loadUnaffiliatedContacts();
+            })
+
+            function loadUnaffiliatedContacts(){
+                $('#unaffiliatedDropdownContainer').html('<asset:image src="spinner.gif" /> Loading...');
+                var url = '${createLink(controller:'organization',action: 'listUnaffiliatedContacts', id: organization.id)}';
+                $.ajax({
+                    url: url,
+                    dataType: 'json',
+                    data: {
+                        now : new Date().getMilliseconds(),
+                        format : 'json'
+                    },
+                    failure: function(jqXHR, statusText, errorThrown){
+                        console.log("Error: "+statusText+", "+errorThrown);
+                        $('#unaffiliatedDropdownContainer').html('<span class="text-danger">Error loading contacts</div>');
+                    },
+                    success: function(data, statusText, jqXHR){
+                        console.log("Successfully got data: "+JSON.stringify(data, null, 4));
+                        UNAFFILIATED_CONTACTS = data;
+                        updateUnaffiliatedContactsView();
+                    }
+                })
+            }
+
+            function updateUnaffiliatedContactsView() {
+                var html = '';
+                if( UNAFFILIATED_CONTACTS && UNAFFILIATED_CONTACTS.length > 0 ){
+                    html += '<select id="contactToAdd" name="contactToAdd" class="form-control">\n';
+                    for( var i = 0; i < UNAFFILIATED_CONTACTS.length; i++ ){
+                        var contact = UNAFFILIATED_CONTACTS[i];
+                        html += '    <option value="'+contact.id+'">'+contact.responder+' &lt;'+contact.email+'&gt;</option>\n';
+                    }
+                    html += '</select>\n';
+                }else{
+                    html += '<span class="text-warning">There are no contacts.</span>'
+                }
+
+                $('#unaffiliatedDropdownContainer').html(html);
+            }
+
+            function assertDeleteComment(){
+                return confirm('Really delete this comment?');
+            }
+            function assertDeleteContact(){
+                return confirm('Really delete this contact?');
+            }
+
+            $("#importSigningCertificate").click(function() {
+                var input = $(document.createElement("input"));
+                input.attr("type", "file");
+                input.on('change', function() {
+                    var filename = input[0].files[0];
+                    if (filename != undefined) {
+                        importSigningCertificate(filename.name);
+                    }
+                });
+
+                input.trigger("click"); // opening dialog
+                return false; // avoiding navigation
+            });
+
+            // Import a PKCS12 based private key and X509 certificate
+            function importSigningCertificate(filename){
+
+                $.ajax({
+                    url: '${createLink(controller: 'signingCertificates', action: 'importPkcs12File', id: 1)}',
+                    type: 'POST',
+                    data: {
+                        format: 'json',
+                        filename: filename
+                    },
+                    beforeSend: function () {
+                        $('#importSigningCertificateStatus').html('<asset:image src="spinner.gif" /> Status: Importing PKCS12 file...');
+                    },
+                    success: function (data, statusText, jqXHR) {
+
+                        $('#importSigningCertificateStatus').html("Status: Imported PKCS12 file!");
+                    },
+                    error: function (jqXHR, statusText, errorThrown) {
+                        console.log("Error: " + errorThrown);
+
+                        $('#importSigningCertificateStatus').html(errorThrown);
+                    }
+                });
+
+            }
+        </script>
 	</body>
 </html>

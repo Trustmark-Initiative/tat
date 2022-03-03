@@ -1168,6 +1168,40 @@ class TrustmarkController {
         }
     }
 
+    /**
+     * Revokes all trustmarks that were signed with a particular signing certificate.
+     */
+    def revokeAllTrustmarksSignedWithCertificate() {
+        User user = springSecurityService.currentUser
+        if( StringUtils.isEmpty(params.id) ) {
+            throw new ServletException("Missing required parameter 'id'.")
+        }
+        if( StringUtils.isEmpty(params.reason) ) {
+            throw new ServletException("Missing required parameter 'reason'.")
+        }
+
+        SigningCertificate signingCertificate = SigningCertificate.findById(params.id)
+        if( signingCertificate == null ) {
+            throw new ServletException("Missing signing certificate")
+        }
+
+        List<Trustmark> trustmarks = Trustmark.findAllBySigningCertificateId(signingCertificate.id)
+
+        if( trustmarks && !trustmarks.isEmpty() ){
+
+            trustmarks.each { trustmark ->
+                // only revoke active trustmarks
+                if (trustmark.status == TrustmarkStatus.ACTIVE || trustmark.status == TrustmarkStatus.OK) {
+                    trustmark.status = TrustmarkStatus.REVOKED
+                    trustmark.revokedReason = params.reason
+                    trustmark.revokingUser = user
+                    trustmark.revokedTimestamp = Calendar.getInstance().getTime()
+                    trustmark.save(failOnError: true, flush: true)
+                }
+            }
+        }
+    }
+
     def getTrustmarkStats() {
 
         Integer numberOfActiveTrustmarks = 0
