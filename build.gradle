@@ -107,6 +107,7 @@ dependencies {
     runtimeOnly ('org.grails.plugins:database-migration:4.0.0') {
         // It seems that this module conflicts with the Tomcat boot process
         exclude group: 'org.springframework.boot', module: 'spring-boot-cli'
+        exclude group: 'com.vaadin.external.google', module:'android-json'
     }
 
     implementation 'org.liquibase:liquibase-core:4.7.1'
