@@ -405,7 +405,7 @@
                                 <g:if test="${assStepData.artifacts && assStepData.artifacts.size() > 0}">
                                     <div class="artifactsContainer">
                                         <div>Artifacts (${assStepData.artifacts?.size() ?: 0})</div>
-                                        <g:each in="${assStepData.artifacts.sort{it.requiredArtifact.name}}" var="artifact">
+                                        <g:each in="${assStepData.artifacts.sort{it.requiredArtifact?.name}}" var="artifact">
                                             <div class="artifactContainer">
                                                 <assess:renderArtifactSummary artifact="${artifact}" />
                                             </div>
