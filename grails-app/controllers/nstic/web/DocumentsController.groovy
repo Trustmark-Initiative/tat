@@ -53,7 +53,7 @@ class DocumentsController {
 
         if (user.isUser()) {
             documents = Documents.findAllByPublicDocument(true)
-            documents.addAll(Documents.findAllByDocumentCategoryAndOrganization("TM_RECIPIENT_AGREEMENT", user.organization))
+            documents.addAll(Documents.findAllByDocumentCategoryAndOrganization(DocumentsController.TM_RECIPIENT_AGREEMENT, user.organization))
             documentsCount = documents.size()
         } else {
             documents = Documents.list(params)
@@ -334,7 +334,7 @@ class AddDocumentCommand {
                         log.debug("Document category: ${obj.documentCategory}");
 
                         // test trustmark provider
-                        if (!org.isTrustmarkProvider && !obj.documentCategory.equals("TM_RECIPIENT_AGREEMENT")) {
+                        if (!org.isTrustmarkProvider && !obj.documentCategory.equals(DocumentsController.TM_RECIPIENT_AGREEMENT)) {
                             errors.rejectValue("organizationName", "org.trustmark.provider.public-documents", [obj.organizationName] as String[],
                                     "Only trustmark provider organizations can upload public documents.")
                             return false;

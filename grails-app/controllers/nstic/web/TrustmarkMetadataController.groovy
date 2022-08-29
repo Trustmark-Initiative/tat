@@ -207,7 +207,7 @@ class TrustmarkMetadataController {
             throw new InvalidRequestError("${orgId} does not identify a valid Organization instance.")
         }
 
-        List<Documents> policyDocs = Documents.findAllByOrganizationAndDocumentCategory(org, "TM_POLICY")
+        List<Documents> policyDocs = Documents.findAllByOrganizationAndDocumentCategory(org, DocumentsController.TM_POLICY)
 
         log.debug("Rendering list...")
         withFormat {
@@ -248,7 +248,7 @@ class TrustmarkMetadataController {
         }
 
         List<Documents> relyingPartyAgreements = Documents.findAllByOrganizationAndDocumentCategory(org,
-                "TM_RELYING_PARTY_AGREEMENT")
+                DocumentsController.TM_RELYING_PARTY_AGREEMENT)
 
         log.debug("Rendering list...")
         withFormat {
