@@ -10,7 +10,7 @@ import javax.servlet.ServletException
 /**
  * Created by brad on 9/7/14.
  */
-@Secured("ROLE_USER")
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 class AssessmentLogController {
 
     def springSecurityService
@@ -40,13 +40,13 @@ class AssessmentLogController {
 
         def criteria = AssessmentLogEntry.createCriteria()
         def logEntries = criteria.list {
-            eq("log", assessment.logg)
+            eq("logg", assessment.logg)
 //            not { 'in'('type', ["VIEW"]) } // TODO Add other log entry types we don't want to show.
             maxResults(Integer.parseInt(params.max))
             firstResult(Integer.parseInt(params.offset))
             order("dateCreated", "desc")
         }
-        def logEntryCount = AssessmentLogEntry.countByLog(assessment.logg);
+        def logEntryCount = AssessmentLogEntry.countByLogg(assessment.logg);
 
         withFormat {
             html {

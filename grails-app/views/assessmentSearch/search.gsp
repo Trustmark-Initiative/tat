@@ -5,7 +5,6 @@
     <title>Home</title>
 
     <script type="text/javascript">
-        let MAX_DISPLAY = 10;
         let assessments = {};
 
         $(document).ready(function(){

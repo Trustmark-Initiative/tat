@@ -8,7 +8,7 @@
             $('#fromDt').datepicker();
             $('#endDt').datepicker();
         });
-        let MAX_DISPLAY = 10;
+
         let trustmarks = {};
 
         function performSearch(queryString, recip, from, to, maxResults)  {

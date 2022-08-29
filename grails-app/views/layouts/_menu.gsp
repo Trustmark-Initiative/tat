@@ -27,7 +27,7 @@
                         Home
                     </a>
                 </li>
-                <sec:ifAllGranted roles="ROLE_USER">
+                <sec:ifNotGranted roles="ROLE_REPORTS_ONLY">
                     <li class="dropdown">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                             <span class="glyphicon glyphicon-list"></span>
@@ -35,33 +35,39 @@
                         </a>
                         <ul class="dropdown-menu" role="menu">
                             <li><a href="${createLink(controller:'assessment', action:'list')}">Assessments</a></li>
-                            <li><a href="${createLink(controller: 'contactInformation', action: 'list')}" title="Manage Contacts">Contacts</a></li>
-                            <li><a href="${createLink(controller: 'organization', action: 'list')}" title="Manage Organizations">Organizations</a></li>
+                            <sec:ifAllGranted roles="ROLE_ADMIN">
+                                <li><a href="${createLink(controller: 'contactInformation', action: 'list')}" title="Manage Contacts">Contacts</a></li>
+                                <li><a href="${createLink(controller: 'organization', action: 'trustmarkProvider')}" title="Manage Trustmark Provider">Trustmark Provider</a></li>
+                                <li><a href="${createLink(controller: 'organization', action: 'list')}" title="Manage Trustmark Recipients">Trustmark Recipients</a></li>
+                            </sec:ifAllGranted>
+                            <sec:ifAllGranted roles="ROLE_USER">
+                                <li><a href="${createLink(controller: 'organization', action: 'viewUserOrganization')}" title="Manage User's Organization">Organization</a></li>
+                            </sec:ifAllGranted>
                             <li><a href="${createLink(controller: 'documents', action: 'list')}" title="Manage Documents">Documents</a></li>
                             <li><a href="${createLink(controller:'tip', action:'list')}">Trust Interoperability Profiles</a></li>
                             <li><a href="${createLink(controller:'trustmark', action:'list')}">Trustmarks</a></li>
                             <li><a href="${createLink(controller:'trustmarkDefinition', action:'list')}">Trustmark Definitions</a></li>
-                            <li><a href="${createLink(controller:'trustmarkMetadata', action:'list')}">Trustmark Metadata</a></li>
                             <sec:ifAllGranted roles="ROLE_ADMIN">
+                                <li><a href="${createLink(controller:'trustmarkMetadata', action:'list')}">Trustmark Metadata</a></li>
                                 <li><a href="${createLink(controller: 'user', action: 'list')}" title="Manage User Accounts">Users</a></li>
                             </sec:ifAllGranted>
                         </ul>
                     </li>
-                </sec:ifAllGranted>
+                </sec:ifNotGranted>
                 <li>
                     <a href="${createLink(controller:'profile', id: sec.username())}" title="Manage Your User Profile">
                         <span class="glyphicon glyphicon-user"></span>
                         Profile
                     </a>
                 </li>
-                <sec:ifAllGranted roles="ROLE_USER">
+                <sec:ifAnyGranted roles="ROLE_ADMIN, ROLE_USER">
                     <li>
                         <a href="${createLink(controller:'reports', action: 'organizationReport')}" title="Generate Organizational Reports">
                             <span class="glyphicon glyphicon-stats"></span>
                             Organizational Reports
                         </a>
                     </li>
-                </sec:ifAllGranted>
+                </sec:ifAnyGranted>
             </sec:ifLoggedIn>
             <sec:ifAllGranted roles="ROLE_ADMIN">
                 <li class="dropdown">

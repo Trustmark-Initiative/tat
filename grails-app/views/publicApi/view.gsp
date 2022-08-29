@@ -91,7 +91,11 @@
     </td>
     </tr><tr>
     <td>Recipient Organization</td><td>${trustmark.recipientOrganization.name}</td>
-    </tr><tr>
+    </tr>
+    <tr>
+        <td>Trustmark Recipient Identifier</td><td>${trustmark.trustmarkRecipientIdentifier.uri}</td>
+    </tr>
+    <tr>
     <td>Recipient Contact</td><td>${trustmark.recipientContactInformation.responder} - ${trustmark.recipientContactInformation.email}</td>
     </tr><tr>
     <td>Provider Organization</td><td>${trustmark.providerOrganization.name}</td>

@@ -1,6 +1,7 @@
 package assessment.tool
 
 import edu.gatech.gtri.trustmark.v1_0.FactoryLoader
+import edu.gatech.gtri.trustmark.v1_0.assessment.TrustmarkDefinitionIssuanceCriteria
 import edu.gatech.gtri.trustmark.v1_0.impl.io.json.TrustmarkJsonWebSignatureImpl
 import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.XmlSignatureImpl
 import edu.gatech.gtri.trustmark.v1_0.impl.io.xml.XmlHelper
@@ -14,6 +15,7 @@ import nstic.web.GrantTrustmarkInfo
 import nstic.web.InvalidRequestError
 import nstic.web.SigningCertificate
 import nstic.web.TrustmarkMetadata
+import nstic.web.TrustmarkRecipientIdentifier
 import nstic.web.User
 import nstic.web.assessment.ArtifactData
 import nstic.web.assessment.Assessment
@@ -229,7 +231,12 @@ class TrustmarkService {
                     edu.gatech.gtri.trustmark.v1_0.model.TrustmarkDefinition tdFromApi =
                             FactoryLoader.getInstance(TrustmarkDefinitionResolver.class).resolve(td.source.content.toFile(), false)
                     log.debug("  Issuance criteria is: " + tdFromApi.getIssuanceCriteria() + ", Values: " + results)
-                    boolean satisifiesIssuanceCriteria = tdUtils.checkIssuanceCriteria(tdFromApi, results)
+
+                    TrustmarkDefinitionIssuanceCriteria tdIssuanceCriteria = tdUtils;
+                    boolean satisifiesIssuanceCriteria = tdIssuanceCriteria.checkTrustmarkDefinitionIssuanceCriteria(
+                            tdFromApi, results)
+                    log.debug("  satisifiesIssuanceCriteria: " + satisifiesIssuanceCriteria.toString())
+
                     info.setIssuanceCriteriaSatisfied(satisifiesIssuanceCriteria)
                     log.info("TD[${td.uri}] issuance criteria evaluated to " + satisifiesIssuanceCriteria)
                 } catch (Throwable icError) {
@@ -257,11 +264,16 @@ class TrustmarkService {
     } //end createGrantTrustmarkInfoList()
 
     @Transactional
-    void generateTrustmarkList(Integer userId, Integer assessmentId, Integer metadataSetId) {
+    void generateTrustmarkList(Integer userId, Integer assessmentId,
+                               Integer metadataSetId, Integer trustmarkRecipientIdentifierId) {
 
         User user = User.findById(userId)
         Assessment assessment = Assessment.findById(assessmentId)
         TrustmarkMetadata metadata = TrustmarkMetadata.findById(metadataSetId)
+
+        TrustmarkRecipientIdentifier trustmarkRecipientIdentifier =
+                TrustmarkRecipientIdentifier.findById(trustmarkRecipientIdentifierId)
+
 
         def paramsMap = (Map) getAttribute(TrustmarkService.TRUSTMARK_DEFINITIONS_PARAMS_MAP_VAR)
 
@@ -297,6 +309,7 @@ class TrustmarkService {
             trustmark.statusURL = replaceIdentifier(metadata.statusUrlPattern, id)
             trustmark.status = TrustmarkStatus.OK
             trustmark.recipientOrganization = assessment.assessedOrganization
+            trustmark.trustmarkRecipientIdentifier = trustmarkRecipientIdentifier
             trustmark.recipientContactInformation = assessment.assessedContact
             trustmark.issueDateTime = now.getTime()
             trustmark.policyPublicationURL = metadata.policyUrl
@@ -386,14 +399,6 @@ class TrustmarkService {
 
                 if (isExecuting(TRUSTMARK_GENERATION_EXECUTING_VAR)) {
                     trustmark.save(failOnError: true)
-
-                    assessment.logg.addEntry("Trustmark Granted", "Trustmark Granted",
-                            "User ${user.username} has granted Trustmark[${trustmark.identifier}] to Contact[${trustmark.recipientContactInformation.responder}] from Organization[${trustmark.providerOrganization.name}] for assessment[${assessment.id}]",
-                            [
-                                    user      : [id: user.id, usenrame: user.username],
-                                    assessment: [id: assessment.id],
-                                    trustmark : trustmark.toJsonMap(false)
-                            ])
                 }
                 else { // the trustmark generation has been cancelled
 
@@ -415,6 +420,14 @@ class TrustmarkService {
 
             }
         }
+
+        // Add one log entry for all trustmarks granted
+        assessment.logg.addEntry("Trustmarks Granted", "Trustmarks Granted",
+            "User ${user.username} has granted ${trustmarkList.size()} trustmarks for assessment[${assessment.id}]",
+            [
+                    user      : [id: user.id, username: user.username],
+                    assessment: [id: assessment.id]
+            ])
 
         // done
         setAttribute(TrustmarkService.TRUSTMARK_GENERATION_PERCENT_VAR, "100")
@@ -546,7 +559,7 @@ class TrustmarkService {
     </tf:Provider>
 
     <tf:Recipient>
-        <tf:Identifier>${trustmark.recipientOrganization.uri}</tf:Identifier>
+        <tf:Identifier>${trustmark.trustmarkRecipientIdentifier.uri}</tf:Identifier>
         <tf:Name>${trustmark.recipientOrganization.name}</tf:Name>
         <tf:Contact>
             <tf:Kind>PRIMARY</tf:Kind>

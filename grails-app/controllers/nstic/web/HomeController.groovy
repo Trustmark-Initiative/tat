@@ -18,7 +18,8 @@ class HomeController {
 
 
     def index() {
-        log.info "Loading home page for user: @|cyan ${springSecurityService.currentUser ?: 'anonymous'}|@"
+        User user = springSecurityService.currentUser
+        log.info "Loading home page for user: @|cyan ${user ?: 'anonymous'}|@"
 
         //def connectionUrl = sessionFactory.getCurrentSession().connection().getMetaData().getURL()
         //log.info "Connection URL: $connectionUrl"
@@ -30,11 +31,23 @@ class HomeController {
         // We also include the missing of the registry url as a trigger to the first time login page
         firstTimeLogin = firstTimeLogin || noTpatRegistryUrl
 
+        int assessmentCount = 0
+
+        if (user) {
+            if (user.isAdmin()) {
+                assessmentCount = Assessment.count()
+            } else {
+                def assessments = Assessment.findAllByAssessedOrganization(
+                        user.organization)
+                assessmentCount = assessments.size()
+            }
+        }
+
         [
                 firstTimeLogin: firstTimeLogin,
                 trustmarkDefinitionCount: TrustmarkDefinition.count(),
                 trustmarkDefinitions: TrustmarkDefinition.list([max:10]), // TODO Improve this to most relevant 10
-                assessmentCount: Assessment.count(),
+                assessmentCount: assessmentCount,
                 user : springSecurityService.currentUser
         ]
 
@@ -63,11 +76,8 @@ class HomeController {
                         params.organizationName, params.organizationId, params.organizationUri)
 
                 if (!databaseOrg) {
-                    databaseOrg = new Organization()
-                    databaseOrg.name = params.organizationName
-                    databaseOrg.identifier = params.organizationId
-                    databaseOrg.uri = params.organizationUri
-                    databaseOrg.primaryContact = contactInformation
+                    databaseOrg = Organization.newOrganization(params.organizationUri, params.organizationId,
+                            params.organizationName, true)
                     databaseOrg.save(failOnError: true)
                 }
 

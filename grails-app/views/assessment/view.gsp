@@ -264,13 +264,10 @@
                     </div>
                     <div style="margin-top: 0.5em;">
                         <a href="${createLink(controller: 'trustmark', action: 'create', params:[assessmentId: assessment.id])}" class="btn btn-primary">Grant</a>
-                        <g:if test="${assessment.isComplete}">
                             <g:if test="${trustmarks && !trustmarks.isEmpty()}">
-                            %{--                                <a href="#" class="btn btn-default" title="Revoke all trustmarks issued in this assessment.">Revoke All</a>--}%
                                 <a href="javascript:revokeAllTrustmarks();" class="btn btn-default" title="Revoke all trustmarks issued in this assessment.">Revoke All</a>
                                 <span id="revokeAllTrustmarksStatusMessage" />
                             </g:if>
-                        </g:if>
                     </div>
                     <span id="trustmarksStatusMessage" />
                 </div>
@@ -281,42 +278,14 @@
             <h3 style="margin-top: 2em;">Assessment Log <small>Who's doing what?</small></h3>
             <div class="row">
                 <div class="col-md-12">
-                    <div style="margin-left: 1em; color: #555;">
-                        Displaying ${logEntries.size()} of ${logEntryCount} entries.
-                    </div>
 
-                    <table class="table table-striped table-bordered table-condensed">
-                        <thead>
-                            <th>ID</th>
-                            <th>Type</th>
-                            <th>Created</th>
-                            <th>Title</th>
-                        </thead>
-                        <tbody>
-                            <g:each in="${logEntries}" var="entry">
-                                <tr>
-                                    <td>
-                                        <a target="_blank" href="${createLink(controller:'assessmentLog', action: 'viewLogEntry', id: assessment.id, params: [entryId: entry.id])}">
-                                            #${entry.id}
-                                        </a>
-                                    </td>
-                                    <td>
-                                        ${entry.type}
-                                    </td>
-                                    <td>
-                                        <g:formatDate date="${entry.dateCreated}" format="yyyy-MM-dd HH:mm" />
-                                    </td>
-                                    <td>
-                                        ${entry.title}
-                                    </td>
-                                </tr>
-                            </g:each>
-                        </tbody>
-                    </table>
+                    <div id="assessment-log-entries" style="max-height: 20em; overflow-y: scroll;"></div>
 
                     <div style="margin-top: 0.5em;">
                         <a href="${createLink(controller:'assessmentLog', action: 'viewLog', id: assessment.id)}" class="btn btn-default">View All</a>
                     </div>
+
+                    <span id="assessment-log-entries-status-message" />
 
                 </div>
             </div>
@@ -447,6 +416,8 @@
             });
 
             getTrustmarks(${assessment.id});
+
+            getAssessmentLogEntries(${assessment.id});
         });
 
         $(".confirmLink").click(function(e) {
@@ -518,20 +489,58 @@
             return html;
         }
 
-        let get = function(url, doSuccess, args)  {
-            $.ajax({
-                url: url,
-                method: 'GET',
-                data: args,
-                dataType: 'json'
-            }).done(function (data){
-                doSuccess(data);
-            }).fail(function (jqxhr, err){
-                console.log('An unexpected error occurred '+err);
-            });
+        // assessment lof entries
+        let getAssessmentLogEntries = function(assessmentid) {
+            $('#assessment-log-entries-status-message').html('<asset:image src="spinner.gif" /> Status: Loading assessment log entries...');
+            list("${createLink(controller:'assessment', action: 'listAssessmentLogEntries')}"
+                , assessmentLogEntriesResults
+                , { id: assessmentid }
+            );
         }
 
-        let list = get;
+        let assessmentLogEntriesResults = function(results)  {
+            renderAssessmentLogEntries('assessment-log-entries', results);
+            $('#assessment-log-entries-status-message').html("");
+        }
+
+        let renderAssessmentLogEntries = function(target, data)  {
+
+            let html = "<div style='margin-left: 1em; color: #555;'>Displaying " + data.records.length + " of " + data.logEntryCount + " entries.</div>";
+
+            html += "<table  class='table table-striped table-bordered table-condensed'>";
+
+            // table header
+            html += "<thead><tr style='white-space: nowrap;'><th>ID</th><th>Type</th><th>Created</th><th>Title</th></tr></thead>";
+
+            if (data.records.length === 0)  {
+                html += '<tr><td colspan="4"><em>There are no assessment log entries.</em></td></tr>';
+            }  else {
+
+                html += "<tbody>";
+
+                data.records.forEach(logEntry => {
+                    html += drawAssessmentLogEntry(logEntry, data.assessmentLogEntryViewBaseUrl);
+                });
+
+                html += "</tbody>";
+            }
+            html += "</table>";
+            document.getElementById(target).innerHTML = html;
+        }
+
+        let drawAssessmentLogEntry = function(entry, assessmentLogEntryViewBaseUrl)  {
+
+            let html = "<tr>";
+
+            html += "<td><a target='_blank' href='" + assessmentLogEntryViewBaseUrl + "/?entryId=" + entry.id + "'>" + entry.id + "</a></td>";
+            html += "<td>" + entry.type + "</td>";
+            html += "<td style='white-space: nowrap;'>" + formatDate(new Date(entry.dateCreated)) + "</td>";
+            html += "<td style='white-space: nowrap;'>" + entry.title + "</td>";
+
+            html += "</tr>";
+
+            return html;
+        }
 
         // Revoke all trustmarks that have been signed with this certificate
         function revokeAllTrustmarks(){
@@ -558,6 +567,8 @@
 
                         // window.location.reload();
                         getTrustmarks(${assessment.id});
+
+                        getAssessmentLogEntries(${assessment.id});
 
                         $('#revokeAllTrustmarksStatusMessage').html("Status: Revoked all trustmarks!");
                     },

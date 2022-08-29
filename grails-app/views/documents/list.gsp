@@ -53,13 +53,15 @@
                                     <g:link controller="binary" action="view" id="${doc.binaryObjectId}" title="Download ${doc.filename}">
                                         <span class="glyphicon glyphicon-download"></span>
                                     </g:link>
-                                    <g:link controller="documents" action="edit" id="${doc.id}" title="Edit document ${doc.filename}">
-                                        <span class="glyphicon glyphicon-edit"></span>
-                                    </g:link>
-                                    <g:link controller="documents" action="deleteDocument" params="[documentId: doc.id, orgId: doc.organization.id]"
-                                            id="${doc.id}" title="Delete document ${doc.filename}" onclick="return confirm('Really delete?');">
-                                        <span class="glyphicon glyphicon-remove"></span>
-                                    </g:link>
+                                    <sec:ifAllGranted roles="ROLE_ADMIN">
+                                        <g:link controller="documents" action="edit" id="${doc.id}" title="Edit document ${doc.filename}">
+                                            <span class="glyphicon glyphicon-edit"></span>
+                                        </g:link>
+                                        <g:link controller="documents" action="deleteDocument" params="[documentId: doc.id, orgId: doc.organization.id]"
+                                                id="${doc.id}" title="Delete document ${doc.filename}" onclick="return confirm('Really delete?');">
+                                            <span class="glyphicon glyphicon-remove"></span>
+                                        </g:link>
+                                    </sec:ifAllGranted>
                                 </td>
                                 <td>
                                     <g:link controller="binary" action="view" id="${doc.binaryObjectId}">
@@ -101,9 +103,12 @@
                 </tbody>
             </table>
             <div class="row" style="margin-bottom: 2em;">
-                <div class="col-md-6">
-                    <a href="${createLink(controller:'documents', action:'add')}" class="btn btn-primary">Add Document</a>
-                </div><div class="col-md-6" style="text-align: right">
+                <sec:ifAllGranted roles="ROLE_ADMIN">
+                    <div class="col-md-6">
+                        <a href="${createLink(controller:'documents', action:'add')}" class="btn btn-primary">Add Document</a>
+                    </div>
+                </sec:ifAllGranted>
+                <div class="col-md-6" style="text-align: right">
                     <g:paginate total="${documentsCountTotal}" />
                 </div>
             </div>

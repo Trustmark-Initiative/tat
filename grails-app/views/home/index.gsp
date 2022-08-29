@@ -234,7 +234,7 @@
 
         <sec:ifLoggedIn>
             <sec:ifAnyGranted roles="ROLE_USER,ROLE_ADMIN">
-                <h3>Assessments <small>(Total ${assessmentCount})</small></h3>
+                <h3>Recent Assessments <small>(Total ${assessmentCount})</small></h3>
                 <div class="searchFormContainer">
                     <form class="form-inline" action="${createLink(controller:'assessmentSearch', action: 'search')}">
                         <div class="form-group">
@@ -260,55 +260,12 @@
                 </script>
                 <div>
                     <a href="${createLink(controller:'assessment', action: 'create')}" class="btn btn-default">Create</a>
-                    <a href="${createLink(controller:'assessment', action: 'list')}" class="btn btn-primary">Manage &raquo;</a>
-                </div>
-
-
-                <h3 style="margin-top: 2em;">Trustmark Definitions <small>(${trustmarkDefinitions.size()} of ${trustmarkDefinitionCount})</small></h3>
-                <div class="searchFormContainer">
-                    <form class="form-inline">
-                        <div class="form-group">
-                            <input type="text" class="form-control" placeholder="Search Phrase" />
-                        </div>
-                        <button type="submit" class="btn btn-default">Search</button>
-                    </form>
-                </div>
-
-                <div>
-                    <table class="table table-condensed table-striped table-bordered">
-                        <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Trustmarks</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <g:if test="${trustmarkDefinitionCount > 0}">
-                            <g:each in="${trustmarkDefinitions}" var="td">
-                                <tr>
-                                    <td>
-                                        <g:link controller="trustmarkDefinition" action="view" id="${td.id}">
-                                            ${td.name}
-                                        </g:link>
-                                    </td>
-                                    <td>?</td>
-                                </tr>
-                            </g:each>
-                        </g:if><g:else>
-                            <tr>
-                                <td colspan="2"><em>There are no Trustmark Definitions.</em></td>
-                            </tr>
-                        </g:else>
-                        </tbody>
-                    </table>
-                </div>
-                <div>
-                    <a href="${createLink(controller:'trustmarkDefinition', action: 'list')}" class="btn btn-primary">Manage &raquo;</a>
+                    <a href="${createLink(controller:'assessment', action: 'list')}" class="btn btn-primary">View All &raquo;</a>
                 </div>
 
             </sec:ifAnyGranted>
             <sec:ifNotGranted roles="ROLE_USER,ROLE_ADMIN">
-                <h3 style="margin-top: 2em;">Report Only Account</h3>
+                <h3 style="margin-top: 2em;">Report Viewer Account</h3>
                 <div class="text-muted">
                     On this page, you can view the organization report for ${user?.organization?.name},
                     or share it with another user.

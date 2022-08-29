@@ -60,7 +60,7 @@
             <!-- Org Info -->
             <div class="row" style="margin-top: 2em;">
                 <div class="col-sm-6">
-                    <h4>Organization Information</h4>
+                    <h4>${organization.isTrustmarkProvider ? "Trustmark Provider " : "Trustmark Recipient "}Organization Information</h4>
                     <table class="infoTable table table-striped table-bordered table-condensed">
                         <tr>
                             <th>Abbreviation</th><td>${organization.identifier}</td>
@@ -95,8 +95,54 @@
                 </div>
             </div>
 
-            <!-- Signing Certificates -->
             <sec:ifLoggedIn>
+                <sec:ifAllGranted roles="ROLE_ADMIN">
+                    <div style="margin-top: 2em;">
+                        <h4>Trustmark Recipient Identifiers</h4>
+                        <div class="sectionDescription  text-muted">
+                            These Trustmark Recipient Identifiers are uniform resource identifiers (URIs) that are used for granting of trustmarks to this organization.
+                        </div>
+                        <table class="table table-bordered table-striped table-condensed">
+                            <thead>
+                            <tr>
+                                <th>URI</th>
+                                <th>Default</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <g:if test="${organization.trustmarkRecipientIdentifiers && !organization.trustmarkRecipientIdentifiers.isEmpty()}">
+                                <g:each in="${organization.sortedTrustmarkRecipientIdentifiers}" var="trid">
+                                    <td>
+                                        <span>${trid.uri}</span>
+                                    </td>
+                                    <td class="certificateDefaultCol">
+                                        <g:if test="${trid.defaultTrustmarkRecipientIdentifier}">
+                                            <span>Yes</span>
+                                        </g:if>
+                                        <g:else>
+                                            <span>No</span>
+                                        </g:else>
+                                    </td>
+                                    </tr>
+                                </g:each>
+
+                            </g:if>
+                            <g:else>
+                                <tr>
+                                    <td colspan="2">
+                                        <em>There are no trustmark recipient identifierss tied to this organization.</em>
+                                    </td>
+                                </tr>
+                            </g:else>
+                            </tbody>
+                        </table>
+                    </div>
+                </sec:ifAllGranted>
+            </sec:ifLoggedIn>
+
+            <!-- Signing Certificates -->
+            <g:if test="${organization.isTrustmarkProvider}">
+                <sec:ifLoggedIn>
                 <sec:ifAllGranted roles="ROLE_ADMIN">
                     <div style="margin-top: 2em;">
                         <h4>Signing Certificates</h4>
@@ -188,6 +234,7 @@
                     </div>
                 </sec:ifAllGranted>
             </sec:ifLoggedIn>
+            </g:if>
 
             <!-- Trustmarks -->
 %{--            <div class="row" style="margin-top: 2em;">--}%
@@ -259,15 +306,16 @@
                     </tr>
                 </table>
 
-                <g:if test="${numberOfActiveTrustmarks > 0}">
-                    <div style="margin-top: 2em; margin-bottom: 3em;">
-                        <a href="javascript:revokeAllTrustmarks()" class="btn btn-danger">Revoke All Active Trustmarks</a>
-                        <div id="revokeAllTrustmarksStatusMessage">
+                <sec:ifAllGranted roles="ROLE_ADMIN">
+                    <g:if test="${numberOfActiveTrustmarks > 0}">
+                        <div style="margin-top: 2em; margin-bottom: 3em;">
+                            <a href="javascript:revokeAllTrustmarks()" class="btn btn-danger">Revoke All Active Trustmarks</a>
+                            <div id="revokeAllTrustmarksStatusMessage">
 
+                            </div>
                         </div>
-                    </div>
-                </g:if>
-
+                    </g:if>
+                </sec:ifAllGranted>
                 <script type="text/javascript">
                     function revokeAllTrustmarks() {
 
@@ -336,7 +384,9 @@
                 <table class="table table-bordered table-striped table-condensed">
                     <thead>
                         <tr>
-                            <th class="artifactActionCol artifactActionColHeader">&nbsp;</th>
+                            <g:if test="${organization.artifacts && !organization.artifacts.isEmpty()}">
+                                <th class="artifactActionCol artifactActionColHeader">&nbsp;</th>
+                            </g:if>
                             <th class="artifactActiveCol artifactActiveColHeader">Active</th>
                             <th class="artifactSizeCol artifactSizeColHeader">Size</th>
                             <th class="artifactNameCol artifactNameColHeader">Artifact Name</th>
@@ -390,7 +440,7 @@
                         </g:if>
                         <g:else>
                             <tr>
-                                <td colspan="5">
+                                <td colspan="4">
                                     <em>There are no artifacts tied to this organization.</em>
                                 </td>
                             </tr>
@@ -416,7 +466,10 @@
                 <table class="table table-striped table-bordered table-condensed">
                     <thead>
                     <tr>
-                        <td style="width: 50px;">&nbsp;</td>
+                        <g:if test="${organization.comments && !organization.comments.isEmpty()}">
+                            <td style="width: 50px;">&nbsp;</td>
+                        </g:if>
+
                         <td style="width: 100px;">Date</td>
                         <td style="width: 150px;">User</td>
                         <td style="width: auto;">Comment</td>
@@ -451,7 +504,7 @@
                         </g:each>
                     </g:if><g:else>
                         <tr>
-                            <td colspan="4">
+                            <td colspan="3">
                                 <em>There are no comments.</em>
                             </td>
                         </tr>
@@ -478,7 +531,10 @@
                 <table class="table table-striped table-bordered table-condensed">
                     <thead>
                         <tr>
-                            <th style="width: 30px;">&nbsp;</th>
+                            <g:if test="${organization.contacts && !organization.contacts.isEmpty()}">
+                                <th style="width: 30px;">&nbsp;</th>
+                            </g:if>
+
                             <th style="width: 150px;">Name</th>
                             <th style="width: 300px;">E-Mail</th>
                             <th style="width: 120px;">Phone Number</th>
@@ -505,7 +561,7 @@
                         </g:if>
                         <g:else>
                             <tr>
-                                <td colspan="5">
+                                <td colspan="4">
                                     <em>There are no additional contacts for this organization.</em>
                                 </td>
                             </tr>
@@ -530,7 +586,8 @@
             </div>
 
             <!-- Trustmark Metadata Sets -->
-            <div style="margin-top: 2em;">
+            <g:if test="${organization.isTrustmarkProvider}">
+                <div style="margin-top: 2em;">
                 <h4>Trustmark Metadata Sets</h4>
                 <div class="sectionDescription text-muted">
                     A list of Trustmark Metadata sets for which this organization is the provider.
@@ -566,7 +623,7 @@
                     </tbody>
                 </table>
             </div>
-
+            </g:if>
         </div>
 
         <script type="text/javascript">

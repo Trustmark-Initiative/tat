@@ -41,10 +41,20 @@
                     <asset:image src="spinner.gif" /> Loading Trustmark Definition satisfaction information...
                 </div>
 
+                <div class="form-group">
+                    <label for="trustmarkRecipientIdentifierId" class="col-sm-2 control-label">Trustmark Recipient Identifier</label>
+                    <div class="col-sm-10">
+                        <g:if test="${trustmarkRecipientIdentifierList.size() > 0}">
+                            <g:select name="trustmarkRecipientIdentifierId" id="trustmarkRecipientIdentifierId" class="form-control" optionKey="id" optionValue="uri" from="${trustmarkRecipientIdentifierList}"/>
+                            <span class="help-block">This trustmark recipient identifier identifies the organization that trustmarks will be granted for.</span>
+                        </g:if>
+                    </div>
+                </div>
+
 
                 <div class="form-group">
-                    <label for="trustmarkMetadataId" class="col-sm-1 control-label">Metadata</label>
-                    <div class="col-sm-11">
+                    <label for="trustmarkMetadataId" class="col-sm-2 control-label">Metadata</label>
+                    <div class="col-sm-10">
                         <g:if test="${metadataList.size() > 0}">
                             <g:select name="trustmarkMetadataId" id="trustmarkMetadataId" class="form-control" optionKey="id" optionValue="name" from="${metadataList}" onchange="checkExpiration();"/>
                             <span class="help-block">This metadata template will be used to generate metadata for the resulting trustmarks.</span>
@@ -52,7 +62,7 @@
                         <g:else>
                             <div class="alert alert-danger">No trustmark metadata sets have been defined. Follow this
                                 <a href="${createLink(controller:'trustmarkMetadata', action:'create')}">link</a>
-                            to create a metadata set.</div>
+                                to create a metadata set.</div>
                         </g:else>
                     </div>
                 </div>

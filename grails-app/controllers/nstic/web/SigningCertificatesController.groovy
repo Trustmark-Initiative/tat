@@ -39,7 +39,7 @@ import java.time.Period
 import java.time.ZoneId
 
 @Transactional
-@Secured("ROLE_USER")
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 class SigningCertificatesController {
 
     // certificate valid period in years

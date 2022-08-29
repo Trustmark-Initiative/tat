@@ -80,6 +80,7 @@ class UrlMappings {
         "/trustmarks/$id/edit"(controller: "trustmark", action: "edit")
         "/trustmarks/$id/update"(controller: "trustmark", action: "update")
         "/trustmarks/$id/xml"(controller: "trustmark", action: "generateXml")
+        "/trustmarks/$id/jwt"(controller: "trustmark", action: "generateJson")
         "/trustmarks/$id/status"(controller: "trustmark", action: "generateStatusXML")
         "/trustmarks/$id/revoke"(controller: "trustmark", action: "revoke")
 

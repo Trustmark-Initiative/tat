@@ -29,7 +29,6 @@ import javax.servlet.ServletException
 
 
 @Transactional
-@Secured("ROLE_USER")
 class ReportsController {
 
     def springSecurityService;
@@ -43,7 +42,6 @@ class ReportsController {
         log.debug("Loading report listing...");
     }//end index()
 
-    @Secured(["ROLE_REPORTS_ONLY", "ROLE_USER"])
     def share() {
         User user = springSecurityService.currentUser;
         log.debug("User[${user.username}] sharing report...")
@@ -271,8 +269,6 @@ class ReportsController {
     /**
      * Shows the user a form for picking the organizational report.
      */
-
-    @Secured(["ROLE_REPORTS_ONLY", "ROLE_USER"])
     def organizationReport() {
         User user = springSecurityService.currentUser;
         log.info("User[${user}] hitting org report...")
@@ -281,6 +277,7 @@ class ReportsController {
 
         if( request.getMethod().equalsIgnoreCase("GET") ){
             log.debug("Showing organization report form...");
+
             return render(view: '/reports/organization/form', model: [user: user, command: new OrganizationReportCommand()]);
         }else if( request.getMethod().equalsIgnoreCase("POST") ) {
             log.debug("Processing organization report form...");

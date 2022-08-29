@@ -83,6 +83,9 @@
                     <td>Recipient Organization</td><td>${trustmark.recipientOrganization.name}</td>
                 </tr>
                 <tr>
+                    <td>Trustmark Recipient Identifier</td><td>${trustmark.trustmarkRecipientIdentifier.uri}</td>
+                </tr>
+                <tr>
                     <td>Recipient Contact</td><td>${trustmark.recipientContactInformation.responder} - ${trustmark.recipientContactInformation.email}</td>
                 </tr>
                 <tr>
@@ -198,10 +201,11 @@
         </div>
 
         <div style="margin-top: 2em; margin-bottom: 3em;">
-            <a href="${createLink(controller:'trustmark', action: 'list')}" class="btn btn-default">List Trustmarks</a>
-            <a href="${createLink(controller:'trustmark', action: 'generateXml', id: trustmark.id)}" class="btn btn-primary">Generate XML</a>
-            <a href="${createLink(controller:'trustmark', action: 'edit', id: trustmark.id)}" class="btn btn-default">Edit</a>
-            <a href="javascript:revoke()" class="btn btn-danger">Revoke</a>
+            <a href="${createLink(controller:'trustmark', action: 'generateXml', id: trustmark.id)}" class="btn btn-primary">Show XML</a>
+            <a href="${createLink(controller:'trustmark', action: 'generateJson', id: trustmark.id)}" class="btn btn-primary">Show JWT</a>
+            <sec:ifAllGranted roles="ROLE_ADMIN">
+                <a href="javascript:revoke()" class="btn btn-danger">Revoke</a>
+            </sec:ifAllGranted>
         </div>
 
         <script type="text/javascript">

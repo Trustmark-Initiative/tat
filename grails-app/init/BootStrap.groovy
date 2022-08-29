@@ -292,10 +292,8 @@ ${grailsMailProps(config)}
                 }
 
                 for( Map org : defaultAccountData.orgs ?: [] ){
-                    Organization databaseOrg = new Organization()
-                    databaseOrg.name = org.name
-                    databaseOrg.identifier = org.identifier
-                    databaseOrg.uri = org.uri
+                    Organization databaseOrg = Organization.newOrganization(org.uri, org.identifier,
+                            org.name, org.isTrustmarkProvider.equals("1"))
                     databaseOrg.primaryContact = findContact(defaultAccountData.contacts, org.contact)
                     log.debug("Saving Organization[@|cyan ${org.name}|@]...")
                     databaseOrg.save(failOnError: true)
@@ -585,9 +583,8 @@ ${grailsMailProps(config)}
         def orgs = []
         for( Map.Entry<String, String> entry : sampleDomains.entrySet() ){
             Organization.withTransaction {
-                Organization org = new Organization()
-                org.uri = "http://" + entry.key
-                org.name = entry.value
+                Organization org = Organization.newOrganization("http://" + entry.key, "",
+                        entry.value, false)
                 org.save(failOnError: true)
                 orgs.add(org)
             }
@@ -644,10 +641,10 @@ ${grailsMailProps(config)}
                 user.save(failOnError: true, flush: false)
                 createdCount++
 
-                UserRole.create(user, userRole, false)
-
                 if (random.nextInt(100) > 95) {
                     UserRole.create(user, adminRole, false)
+                } else {
+                    UserRole.create(user, userRole, false)
                 }
 
                 if (i % 50 == 0 && i > 0) {
@@ -686,6 +683,7 @@ ${grailsMailProps(config)}
                 String lastName = LAST_NAMES.get(random.nextInt(LAST_NAMES.size()))
                 lastName = lastName.toLowerCase().capitalize()
                 String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "." + random.nextInt(98) + 1 + "@" + domain
+                email = email.replace("/", "")
 
                 contactInfo.email = email
                 contactInfo.responder = firstName + " " + lastName

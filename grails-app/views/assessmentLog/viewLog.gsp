@@ -23,8 +23,8 @@
             <table class="table-condensed table-bordered table-striped">
                 <thead>
                     <tr>
-                        <th>Position</th>
-                        <th>Create Date</th>
+                        <th>ID</th>
+                        <th>Created</th>
                         <th>Title</th>
                         <td>Message</td>
                     </tr>
@@ -33,8 +33,12 @@
                     <g:if test="${logEntries?.size() > 0}">
                         <g:each in="${logEntries}" var="entry">
                             <tr>
-                                <td>${entry.id}</td>
-                                <td><g:formatDate date="${entry.dateCreated}" format="yyyy-MM-dd HH:mm:ss" /></td>
+                                <td>
+                                    <a target="_blank" href="${createLink(controller:'assessmentLog', action: 'viewLogEntry', id: assessment.id, params: [entryId: entry.id])}">
+                                        ${entry.id}
+                                    </a>
+                                </td>
+                                <td style="white-space: nowrap"><g:formatDate date="${entry.dateCreated}" format="yyyy-MM-dd HH:mm:ss" /></td>
                                 <td>${entry.title}</td>
                                 <td>${entry.message}</td>
                             </tr>

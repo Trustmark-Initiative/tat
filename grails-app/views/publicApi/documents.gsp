@@ -4,7 +4,6 @@
     <meta name="layout" content="main"/>
     <title>Public Documents</title>
     <script type="text/javascript">
-        let MAX_DISPLAY = 10;
         let documents = {};
 
         $(function() {

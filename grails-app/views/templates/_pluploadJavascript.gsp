@@ -92,6 +92,15 @@
         $('#fileUploadProgressBar${pluploadCounter}').width(file.percent+'%');
         $('#fileUploadProgressBar${pluploadCounter}').attr('aria-valuenow', file.percent);
         $('#fileUploadProgressText${pluploadCounter}').html(file.percent+'%');
+
+        <g:if test="${uploadProgressCallback != null && uploadProgressCallback instanceof java.util.List}">
+            <g:each in="${uploadProgressCallback}" var="callbackFunction">
+                try{ ${callbackFunction}(up, file); } catch( e ) { console.log("Error executing callback '${callbackFunction}': "+e); }
+            </g:each>
+        </g:if>
+        <g:elseif test="${uploadProgressCallback != null}">
+            try{ ${uploadProgressCallback.toString()}(up, file); } catch( e ) { console.log("Error executing callback '${uploadProgressCallback.toString()}': "+e); }
+        </g:elseif>
     }
     function handleUploadError${pluploadCounter}(up, err) {
         console.log("handleUploadError${pluploadCounter}: "+JSON.stringify(err, null, "   "));

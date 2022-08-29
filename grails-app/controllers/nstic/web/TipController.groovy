@@ -11,7 +11,7 @@ import nstic.web.tip.TrustInteroperabilityProfile
 
 import javax.servlet.ServletException
 
-@Secured("ROLE_USER")
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 @Transactional
 class TipController {
 
@@ -117,16 +117,20 @@ class TipController {
     def typeahead() {
         log.debug("User[@|blue ${springSecurityService.currentUser}|@] searching[@|cyan ${params.q}|@] via TIP typeahead...")
 
-        // TODO Instead of this, integrate the searchable plugin
-        def criteria = TrustInteroperabilityProfile.createCriteria();
-        def results = criteria {
-            or {
-                like("name", '%'+params.q+'%')
-                like("description", '%'+params.q+'%')
-                like("tipVersion", '%'+params.q+'%')
+        def results = TrustInteroperabilityProfile.findByUri(params.q)
+
+        if (!results) {
+            // TODO Instead of this, integrate the searchable plugin
+            def criteria = TrustInteroperabilityProfile.createCriteria();
+            results = criteria {
+                or {
+                    like("name", '%' + params.q + '%')
+                    like("description", '%' + params.q + '%')
+                    like("tipVersion", '%' + params.q + '%')
+                }
+                maxResults(25)
+                order("name", "asc")
             }
-            maxResults(25)
-            order("name", "asc")
         }
 
         withFormat {

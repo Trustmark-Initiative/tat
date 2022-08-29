@@ -138,7 +138,7 @@
 
                     <div class="form-group">
                         <div class="col-sm-offset-2 col-sm-10">
-                            <button type="submit" class="btn btn-primary">
+                            <button id="submitButton" type="submit" class="btn btn-primary">
                                 <span class="glyphicon glyphicon-save"></span>
                                 Update
                             </button>
@@ -267,11 +267,28 @@
         console.log("Setting display name to file name["+firstFilename+"]...")
         $('#filename').val(firstFilename);
     }//end setUploadedFilename()
+
+    /**
+     * Called by pluploader template code during upload pregress
+     */
+    function uploadProgress(up, file) {
+        disableButton("submitButton");
+    }//end uploadProgress()
+
+    /**
+     * Called by pluploader template code after the file upload is complet
+     */
+    function fileUploadComplete(up){
+        enableButton("submitButton");
+    }//end setUploadedFilename()
+
 </script>
 
 <tmpl:/templates/pluploadJavascript
         pluploadCounter="1"
         filesAddedCallback="setUploadedFilename"
+        uploadProgressCallback="uploadProgress"
+        uploadCompleteCallback="fileUploadComplete"
         context="Add Document for Organization ${editDocumentCommand?.organization?.id}" />
 
 </body>

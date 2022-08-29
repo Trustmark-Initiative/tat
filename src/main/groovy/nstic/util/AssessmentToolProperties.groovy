@@ -99,7 +99,8 @@ class AssessmentToolProperties {
                     name: getString("org.${orgnum}.name"),
                     identifier: getString("org.${orgnum}.identifier"),
                     uri: getString("org.${orgnum}.uri"),
-                    contact: getString("org.${orgnum}.contact")
+                    contact: getString("org.${orgnum}.contact"),
+                    isTrustmarkProvider: getString("org.${orgnum}.isTrustmarkProvider")
             ]
             accountData.orgs.add(org);
         }

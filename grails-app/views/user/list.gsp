@@ -3,7 +3,7 @@
 <html>
 	<head>
 		<meta name="layout" content="main"/>
-		<title>List Users</title>
+		<title>List Contributors</title>
 
         <style type="text/css">
 
@@ -34,7 +34,7 @@
                         <th>&nbsp;</th>
                         <g:sortableColumn property="contactInformation.email" title="Email" />
                         <th>Role</th>
-                        <th>Enabled?</th>
+                        <th>Enabled</th>
                         <g:sortableColumn property="contactInformation.responder" title="Name" />
                         <g:sortableColumn property="contactInformation.phoneNumber" title="Phone" />
                         <g:sortableColumn property="organization.name" title="Organization" />
@@ -60,10 +60,10 @@
                                         <span class="label label-danger">Admin</span>
                                     </g:if>
                                     <g:elseif test="${user.isUser()}">
-                                        <span class="label label-info">User</span>
+                                        <span class="label label-info">Contributor</span>
                                     </g:elseif>
                                     <g:elseif test="${user.isReportOnly()}">
-                                        <span class="label label-default">Report Only</span>
+                                        <span class="label label-default">Report Viewer</span>
                                     </g:elseif>
                                     <g:else>
                                         <span class="label label-warning">No role</span>
@@ -71,10 +71,10 @@
                                 </td>
                                 <td>
                                     <g:if test="${user.enabled}">
-                                        <span class="glyphicon glyphicon-ok" title="This user is enabled"></span>
+                                        <span class="glyphicon glyphicon-ok" title="This contributor is enabled"></span>
                                     </g:if>
                                     <g:else>
-                                        <span class="glyphicon glyphicon-remove" title="This user is NOT enabled."></span>
+                                        <span class="glyphicon glyphicon-remove" title="This contributor is NOT enabled."></span>
                                     </g:else>
                                 </td>
                                 <td>${user.contactInformation.responder}</td>
@@ -85,7 +85,7 @@
                     </g:if>
                     <g:else>
                         <tr>
-                            <td colspan="7"><em>There are no users</em></td>
+                            <td colspan="7"><em>There are no contributors</em></td>
                         </tr>
                     </g:else>
                 </tbody>
