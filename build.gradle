@@ -114,7 +114,7 @@ dependencies {
     implementation 'com.github.blagerweij:liquibase-sessionlock:1.5.1'
 
     implementation "edu.gatech.gtri.trustmark:tf-api:1.4.37"
-    implementation "edu.gatech.gtri.trustmark:tf-api-impl:1.4.58"
+    implementation "edu.gatech.gtri.trustmark:tf-api-impl:1.4.59"
 
     compileOnly "io.micronaut:micronaut-inject-groovy"
 
