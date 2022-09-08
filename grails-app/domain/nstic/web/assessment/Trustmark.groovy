@@ -3,6 +3,7 @@ package nstic.web.assessment
 import nstic.web.BinaryObject
 import nstic.web.ContactInformation
 import nstic.web.Organization
+import nstic.web.TrustmarkRecipientIdentifier
 import nstic.web.SigningCertificate
 import nstic.web.User
 import nstic.web.td.TrustmarkDefinition
@@ -38,6 +39,7 @@ class Trustmark {
     ContactInformation providerContactInformation;
 
     Organization recipientOrganization;
+    TrustmarkRecipientIdentifier trustmarkRecipientIdentifier
     ContactInformation recipientContactInformation;
 
     String definitionExtension;
@@ -74,6 +76,7 @@ class Trustmark {
         definitionExtension(nullable: true, blank: true, maxSize: 65535)
         providerExtension(nullable: true, blank: true, maxSize: 65535)
         providerOrganization(nullable: false)
+        trustmarkRecipientIdentifier(nullable: false)
         providerContactInformation(nullable: false)
         recipientOrganization(nullable: false)
         recipientContactInformation(nullable: false)
@@ -103,6 +106,7 @@ class Trustmark {
         providerOrganization(column: 'provider_organization_ref')
         providerContactInformation(column: 'provider_contact_information_ref')
         recipientOrganization(column: 'recipient_organization_ref')
+        trustmarkRecipientIdentifier(column: 'trustmark_recipient_identifier_ref')
         recipientContactInformation(column: 'recipient_contact_information_ref')
 
         generatedXml(column: 'generated_xml_ref')
@@ -163,6 +167,7 @@ class Trustmark {
                                 uri: this.assessment.assessedOrganization.uri,
                                 name: this.assessment.assessedOrganization.name
                         ],
+                        trustmarkRecipientIdentifier: this.trustmarkRecipientIdentifier.uri,
                         contactInformation: [
                                 id: this.assessment.assessedContact.id,
                                 responder: this.assessment.assessedContact.responder,

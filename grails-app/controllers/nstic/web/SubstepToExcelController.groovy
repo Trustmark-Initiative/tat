@@ -21,7 +21,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 
-@Secured("ROLE_USER")
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 class SubstepToExcelController {
 
     def springSecurityService;

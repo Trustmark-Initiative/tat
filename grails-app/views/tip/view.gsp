@@ -19,21 +19,10 @@
 
         <div class="pageContent">
             <div class="row" style="margin-bottom: 2em;">
-                <div class="col-md-6" style="text-align: center;">
+                <div class="col-md-1" style="text-align: center;">
                     <a href="${databaseTip.uri}"
                        class="btn btn-primary" target="_blank" title="Clicking here will open this TIP in a new window at the originally hosted location.">
                         Open Remotely <span class="glyphicon glyphicon-new-window"></span>
-                    </a>
-                    &nbsp;
-                    <a href="${createLink(controller:'tip', action:'downloadCachedSource', id: databaseTip.id)}"
-                       class="btn btn-default" title="Clicking here will allow you to view the cached copy locally.">
-                        Download Cached Source <span class="glyphicon glyphicon-download-alt"></span>
-                    </a>
-                    &nbsp;
-                    <a href="#"
-                       class="btn btn-default disabled"
-                       title="Clicking here will allow you to download the difference between the local copy and the remote copy.">
-                        View Diff <span class="glyphicon glyphicon-transfer"></span>
                     </a>
                 </div>
             </div>

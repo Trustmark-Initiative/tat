@@ -139,7 +139,7 @@
 
                     <div class="form-group">
                         <div class="col-sm-offset-2 col-sm-10">
-                            <button type="submit" class="btn btn-primary">
+                            <button id="submitButton" type="submit" class="btn btn-primary">
                                 <span class="glyphicon glyphicon-save"></span>
                                 Save
                             </button>
@@ -180,6 +180,8 @@
             $('#organizationName').val('${command?.organizationName}')
         </g:if>
         </g:else>
+
+        disableButton("submitButton");
     })
 
     function validateForm() {
@@ -272,12 +274,22 @@
         var firstFilename = files[0].name;
         console.log("Setting display name to file name["+firstFilename+"]...")
         $('#filename').val(firstFilename);
+
+        disableButton("submitButton");
     }//end setUploadedFilename()
+
+    /**
+     * Called by pluploader template code after the file upload is complete
+     */
+    function fileUploadComplete(up){
+        enableButton("submitButton");
+    }//end fileUploadComplete()
 </script>
 
 <tmpl:/templates/pluploadJavascript
         pluploadCounter="1"
         filesAddedCallback="setUploadedFilename"
+        uploadCompleteCallback="fileUploadComplete"
         context="Add Document for Organization ${command?.organization?.id}" />
 
 </body>

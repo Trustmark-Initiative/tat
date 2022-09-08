@@ -435,173 +435,52 @@
                                         <div class="col-md-offset-1 col-md-10 tdTipSeparator"></div>
                                     </div>
                                 </div>
-                            </div>
-                        </g:each>
-                        </div>
-                        <%
-                            def stepListByTd = assessment.sortedSteps.groupBy{it.step.trustmarkDefinition}
-                            def completeResults = [AssessmentStepResult.Satisfied, AssessmentStepResult.Not_Applicable].toSet()
-                            def tdIsComplete = { TrustmarkDefinition td -> stepListByTd[td].every{ completeResults.contains(it.result) } }
-                            def sortedTds = assessment.tdLinks.collect{it.trustmarkDefinition}.sort { x, y ->
-                                def xCompletion = tdIsComplete(x)
-                                def yCompletion = tdIsComplete(y)
-                                if (xCompletion == yCompletion) { x.name.compareToIgnoreCase(y.name) }
-                                else { xCompletion ? -1 : 1 }
-                            }
-                        %>
-                        <g:each in="${sortedTds}" var="td">
-                            <%
-                                def tdStepList = stepListByTd[td]
-                                def stepCount = tdStepList.size()
-                                def satisfiedStepCount = tdStepList.count {it.result == AssessmentStepResult.Satisfied}
-                                def notSatisfiedStepCount = tdStepList.count {it.result == AssessmentStepResult.Not_Satisfied}
-                                def notKnownStepCount = tdStepList.count {it.result == AssessmentStepResult.Not_Known}
-                                def notApplicableStepCount = tdStepList.count {it.result == AssessmentStepResult.Not_Applicable}
-                                def omitAllStepBecauseSatisfiedOrNA = command.hideCompletedSteps && (stepCount == (satisfiedStepCount + notApplicableStepCount))
-                            %>
-                            <h4>
-                                <span>
-                                    <g:if test="${omitAllStepBecauseSatisfiedOrNA}">
-                                        <span class="glyphicon glyphicon-ok-sign text-success"></span>
-                                    </g:if>
-                                    <span class="glyphicon glyphicon-tag"></span>
-                                    ${td.name}, ${td.tdVersion}
-                                </span>
-                            </h4>
-                            <g:if test="${omitAllStepBecauseSatisfiedOrNA}">
-                                <!-- Omitting all steps because they are all Satisfied or N/A. -->
-                                <!-- Even if satisfied or N/A, show the parameter values. -->
-                                <g:each in="${tdStepList}" var="stepData">
-                                    <div class="stepContainer">
-                                        <g:if test="${stepData.parameterValues && !stepData.parameterValues.isEmpty()}">
-                                            <h5 style="margin-top: 10px;">
-                                                <div class="artifactsHeader">Parameter Values (${stepData.parameterValues?.size() ?: 0})</div>
-                                            </h5>
-                                            <ul class="stepArtifactsList">
-                                                <g:each in="${stepData.parameterValues}" var="paramValue">
-                                                    <li class="stepArtifactItem">
-                                                        <assess:renderParameterSummary paramValue="${paramValue}" />
-                                                    </li>
-                                                </g:each>
-                                            </ul>
-                                        </g:if>
-                                    </div>
-                                </g:each>
-                            </g:if>
-                            <g:else>
-                                <h5 style="margin-top: 10px;">
-                                    <b>TD Steps</b>
-                                    (${notSatisfiedStepCount} not satisfied, ${notKnownStepCount} unanswered, and ${notApplicableStepCount} N/A)
-                                </h5>
-                            </g:else>
-                            <g:each in="${tdStepList}" var="stepData">
-                                <g:if test="${(stepData.result == AssessmentStepResult.Satisfied || stepData.result == AssessmentStepResult.Not_Applicable) && command.hideCompletedSteps}">
-                                    <!-- Omitting step ${stepData.id} because it's Satisfied or N/A and we were told to hide those. -->
-                                </g:if>
-                                <g:else>
-                                    <div class="stepContainer">
-                                        <div class="row containsStepStatusAndNameContainer">
-                                            <div class="col-md-1 text-right" style="font-size: 120%; padding-right: 0;">
-                                                <assess:assessmentStepResult result="${stepData.result}" />
-                                                <assess:assessmentStepAttachmentStatus step="${stepData}" />
-                                            </div>
-                                            <div class="col-md-11">
-                                                <h4>
-                                                    ${stepData.step.name}
-                                                </h4>
-                                            </div>
-                                        </div>
-                                        <div class="row containsStepDescAndArtifactsContainer">
-                                            <div class="col-md-offset-1 col-md-11">
-                                                <b>Step Definition</b>
-                                                <div class="assessmentStepDescription">
-                                                    ${stepData.step.description}
-                                                </div>
-                                                <g:if test="${stepData.step.artifacts && stepData.step.artifacts.size() > 0}">
-                                                    <div class="assessmentStepArtifactDefinitions">
-                                                        <div class="requiredArtifactsHeader">Required Artifacts (${stepData.step.artifacts.size()})</div>
-                                                        <ul class="requiredArtifactsList">
-                                                            <g:each in="${stepData.step.artifacts.sort{it.name}}" var="artifactDef">
-                                                                <%
-                                                                    boolean satisfied = false;
-                                                                    stepData.artifacts.each{ artifact ->
-                                                                        if( artifact.requiredArtifact?.id == artifactDef.id )
-                                                                            satisfied = true;
-                                                                    }
 
-                                                                %>
-                                                                <li class="requiredArtifactDefinition">
-                                                                    <div class="requiredArtifactName">
-                                                                        <g:if test="${satisfied}">
-                                                                            <span class="glyphicon glyphicon-star" title="This artifact is satisfied."></span>
-                                                                        </g:if>
-                                                                        <g:else>
-                                                                            <span class="glyphicon glyphicon-star-empty" title="This artifact has not yet been satisfied."></span>
-                                                                        </g:else>
-                                                                        ${artifactDef.name}
-                                                                    </div>
-                                                                    <div class="requiredArtifactDesc">${artifactDef.description}</div>
-                                                                </li>
-                                                            </g:each>
-                                                        </ul>
-                                                    </div>
+                                <div class="col-md-11">
+                                    <%
+                                        def stepListByTd = assessment.sortedSteps.groupBy{it.step.trustmarkDefinition}
+                                        def completeResults = [AssessmentStepResult.Satisfied, AssessmentStepResult.Not_Applicable].toSet()
+                                        def tdIsComplete = { TrustmarkDefinition td -> stepListByTd[td].every{ completeResults.contains(it.result) } }
+
+                                        def usedTds = assessment.tdLinks.findAll{tipData.tdUris.contains(it.trustmarkDefinition.uri)}
+
+                                        def sortedTds = usedTds.collect{it.trustmarkDefinition}.sort { x, y ->
+                                            def xCompletion = tdIsComplete(x)
+                                            def yCompletion = tdIsComplete(y)
+                                            if (xCompletion == yCompletion) { x.name.compareToIgnoreCase(y.name) }
+                                            else { xCompletion ? -1 : 1 }
+                                        }
+                                    %>
+                                    <g:each in="${sortedTds}" var="td">
+                                        <%
+                                            def tdStepList = stepListByTd[td]
+                                            def stepCount = tdStepList.size()
+                                            def satisfiedStepCount = tdStepList.count {it.result == AssessmentStepResult.Satisfied}
+                                            def notSatisfiedStepCount = tdStepList.count {it.result == AssessmentStepResult.Not_Satisfied}
+                                            def notKnownStepCount = tdStepList.count {it.result == AssessmentStepResult.Not_Known}
+                                            def notApplicableStepCount = tdStepList.count {it.result == AssessmentStepResult.Not_Applicable}
+                                            def omitAllStepBecauseSatisfiedOrNA = command.hideCompletedSteps && (stepCount == (satisfiedStepCount + notApplicableStepCount))
+                                        %>
+
+
+                                        <h4>
+                                            <span>
+                                                <g:if test="${omitAllStepBecauseSatisfiedOrNA}">
+                                                    <span class="glyphicon glyphicon-ok-sign text-success"></span>
                                                 </g:if>
-                                                <g:if test="${stepData.step.parameters && stepData.step.parameters.count{it.required} > 0}">
-                                                    <div class="assessmentStepArtifactDefinitions">
-                                                        <div class="requiredArtifactsHeader">Required Parameters (${stepData.step.parameters.count{it.required}})</div>
-                                                        <ul class="requiredArtifactsList">
-                                                            <g:each in="${stepData.step.parameters.findAll{it.required}.sort()}" var="tdParam">
-                                                                <% boolean filled = stepData.isParameterFilled(tdParam) %>
-                                                                <li class="requiredArtifactDefinition">
-                                                                    <div class="requiredArtifactName">
-                                                                        <g:if test="${filled}">
-                                                                            <span class="glyphicon glyphicon-star" title="This parameter is filled."></span>
-                                                                        </g:if>
-                                                                        <g:else>
-                                                                            <span class="glyphicon glyphicon-star-empty" title="This parameter has not yet been filled."></span>
-                                                                        </g:else>
-                                                                        ${tdParam.name}
-                                                                    </div>
-                                                                    <div class="requiredArtifactDesc">${tdParam.description}</div>
-                                                                </li>
-                                                            </g:each>
-                                                        </ul>
-                                                    </div>
-                                                </g:if>
-                                            </div>
-                                        </div>
-                                        <div class="row containsAssessorFindingsContainer">
-                                            <div class="col-md-offset-1 col-md-11">
-                                                <b>Assessor Findings</b>
-                                                <div style="padding-left: 1em;">
-                                                    <div class="statusSummary">
-                                                        <assess:assessmentStepResult result="${stepData.result}" />
-                                                        <assess:assessmentStepResultTextOnly result="${stepData.result}" />
-                                                        <g:if test="${stepData.lastResultUser}">
-                                                            (marked by ${stepData.lastResultUser?.contactInformation?.responder}, <g:formatDate date="${stepData.resultLastChangeDate}" format="yyyy-MM-dd" />)
-                                                        </g:if>
-                                                    </div>
-                                                    <div>
-                                                        <g:if test="${org.apache.commons.lang.StringUtils.isNotEmpty(stepData.assessorComment)}">
-                                                            Comment by ${stepData.assessorCommentUser?.contactInformation?.responder ?: 'Unknown'}:
-                                                            <pre style="white-space: pre-wrap; word-break: keep-all">${stepData.assessorComment}</pre>
-                                                        </g:if>
-                                                        <g:else>
-                                                            <pre style="width: 100%;"><em>No Comment</em></pre>
-                                                        </g:else>
-                                                    </div>
-                                                    <g:if test="${stepData.artifacts && !stepData.artifacts.isEmpty()}">
-                                                        <div class="artifactsHeader">Artifacts (${stepData.artifacts.size()})</div>
-                                                        <ul class="stepArtifactsList">
-                                                            <g:each in="${stepData.artifacts}" var="artifact">
-                                                                <li class="stepArtifactItem">
-                                                                    <assess:renderArtifactSummary artifact="${artifact}" shortenComment="false" />
-                                                                </li>
-                                                            </g:each>
-                                                        </ul>
-                                                    </g:if>
+                                                <span class="glyphicon glyphicon-tag"></span>
+                                                ${td.name}, ${td.tdVersion}
+                                            </span>
+                                        </h4>
+                                        <g:if test="${omitAllStepBecauseSatisfiedOrNA}">
+                                            <!-- Omitting all steps because they are all Satisfied or N/A. -->
+                                            <!-- Even if satisfied or N/A, show the parameter values. -->
+                                            <g:each in="${tdStepList}" var="stepData">
+                                                <div class="stepContainer">
                                                     <g:if test="${stepData.parameterValues && !stepData.parameterValues.isEmpty()}">
-                                                        <div class="artifactsHeader">Parameter Values (${stepData.parameterValues?.size() ?: 0})</div>
+                                                        <h5 style="margin-top: 10px;">
+                                                            <div class="artifactsHeader">Parameter Values (${stepData.parameterValues?.size() ?: 0})</div>
+                                                        </h5>
                                                         <ul class="stepArtifactsList">
                                                             <g:each in="${stepData.parameterValues}" var="paramValue">
                                                                 <li class="stepArtifactItem">
@@ -611,49 +490,179 @@
                                                         </ul>
                                                     </g:if>
                                                 </div>
-                                            </div>
-                                        </div>
-                                        <g:if test="${stepData.step.substeps && !stepData.step.substeps.isEmpty()}">
-                                            <div class="row containsSubstepsContainer">
-                                                <div class="col-md-offset-1 col-md-11">
-                                                    <b style="font-size: 120%;">Substep Information</b>
-
-                                                    <ul style="list-style: none; margin: 0; padding: 0;">
-                                                        <g:each in="${stepData.step.substeps}" var="substepDef">
-                                                            <%
-                                                                AssessmentSubStepData substepData = null;
-                                                                for( AssessmentSubStepData cur : stepData.substeps ){
-                                                                    if( cur.substep.id == substepDef.id ){
-                                                                        substepData = cur;
-                                                                        break;
-                                                                    }
-                                                                }
-                                                            %>
-                                                            <li style="margin-bottom: 1em;">
-                                                                <div style="float: left; width: 30px; font-size: 120%; padding-top: 5px;">
-                                                                    <assess:assessmentStepResult result="${substepData?.result ?: AssessmentStepResult.Not_Known}" />
-                                                                </div>
-                                                                <div style="margin-left: 30px;">
-                                                                    <div style="font-weight: bold;">${substepDef.name}</div>
-                                                                    <div style="font-size: 90%;">${substepDef.description}</div>
-                                                                </div>
-                                                                <g:if test="${substepData?.assessorComment}">
-                                                                    <div style="clear: both; margin-left: 30px;">
-                                                                        Comment by ${substepData?.assessorCommentUser?.contactInformation?.responder ?: 'Unknown'}:
-                                                                        <pre style="width: 100%;">${substepData?.assessorComment}</pre>
-                                                                    </div>
-                                                                </g:if>
-                                                            </li>
-                                                        </g:each>
-                                                    </ul>
-
-                                                </div>
-                                            </div>
+                                            </g:each>
                                         </g:if>
-                                    </div>
-                                </g:else>
-                            </g:each>
+                                        <g:else>
+                                            <h5 style="margin-top: 10px;">
+                                                <b>TD Steps</b>
+                                                (${notSatisfiedStepCount} not satisfied, ${notKnownStepCount} unanswered, and ${notApplicableStepCount} N/A)
+                                            </h5>
+                                        </g:else>
+                                        <g:each in="${tdStepList}" var="stepData">
+                                            <g:if test="${(stepData.result == AssessmentStepResult.Satisfied || stepData.result == AssessmentStepResult.Not_Applicable) && command.hideCompletedSteps}">
+                                                <!-- Omitting step ${stepData.id} because it's Satisfied or N/A and we were told to hide those. -->
+                                            </g:if>
+                                            <g:else>
+                                                <div class="stepContainer">
+                                                    <div class="row containsStepStatusAndNameContainer">
+                                                        <div class="col-md-1 text-right" style="font-size: 120%; padding-right: 0;">
+                                                            <assess:assessmentStepResult result="${stepData.result}" />
+                                                            <assess:assessmentStepAttachmentStatus step="${stepData}" />
+                                                        </div>
+                                                        <div class="col-md-11">
+                                                            <h4>
+                                                                ${stepData.step.name}
+                                                            </h4>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row containsStepDescAndArtifactsContainer">
+                                                        <div class="col-md-offset-1 col-md-11">
+                                                            <b>Step Definition</b>
+                                                            <div class="assessmentStepDescription">
+                                                                ${stepData.step.description}
+                                                            </div>
+                                                            <g:if test="${stepData.step.artifacts && stepData.step.artifacts.size() > 0}">
+                                                                <div class="assessmentStepArtifactDefinitions">
+                                                                    <div class="requiredArtifactsHeader">Required Artifacts (${stepData.step.artifacts.size()})</div>
+                                                                    <ul class="requiredArtifactsList">
+                                                                        <g:each in="${stepData.step.artifacts.sort{it.name}}" var="artifactDef">
+                                                                            <%
+                                                                                boolean satisfied = false;
+                                                                                stepData.artifacts.each{ artifact ->
+                                                                                    if( artifact.requiredArtifact?.id == artifactDef.id )
+                                                                                        satisfied = true;
+                                                                                }
+
+                                                                            %>
+                                                                            <li class="requiredArtifactDefinition">
+                                                                                <div class="requiredArtifactName">
+                                                                                    <g:if test="${satisfied}">
+                                                                                        <span class="glyphicon glyphicon-star" title="This artifact is satisfied."></span>
+                                                                                    </g:if>
+                                                                                    <g:else>
+                                                                                        <span class="glyphicon glyphicon-star-empty" title="This artifact has not yet been satisfied."></span>
+                                                                                    </g:else>
+                                                                                    ${artifactDef.name}
+                                                                                </div>
+                                                                                <div class="requiredArtifactDesc">${artifactDef.description}</div>
+                                                                            </li>
+                                                                        </g:each>
+                                                                    </ul>
+                                                                </div>
+                                                            </g:if>
+                                                            <g:if test="${stepData.step.parameters && stepData.step.parameters.count{it.required} > 0}">
+                                                                <div class="assessmentStepArtifactDefinitions">
+                                                                    <div class="requiredArtifactsHeader">Required Parameters (${stepData.step.parameters.count{it.required}})</div>
+                                                                    <ul class="requiredArtifactsList">
+                                                                        <g:each in="${stepData.step.parameters.findAll{it.required}.sort()}" var="tdParam">
+                                                                            <% boolean filled = stepData.isParameterFilled(tdParam) %>
+                                                                            <li class="requiredArtifactDefinition">
+                                                                                <div class="requiredArtifactName">
+                                                                                    <g:if test="${filled}">
+                                                                                        <span class="glyphicon glyphicon-star" title="This parameter is filled."></span>
+                                                                                    </g:if>
+                                                                                    <g:else>
+                                                                                        <span class="glyphicon glyphicon-star-empty" title="This parameter has not yet been filled."></span>
+                                                                                    </g:else>
+                                                                                    ${tdParam.name}
+                                                                                </div>
+                                                                                <div class="requiredArtifactDesc">${tdParam.description}</div>
+                                                                            </li>
+                                                                        </g:each>
+                                                                    </ul>
+                                                                </div>
+                                                            </g:if>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row containsAssessorFindingsContainer">
+                                                        <div class="col-md-offset-1 col-md-11">
+                                                            <b>Assessor Findings</b>
+                                                            <div style="padding-left: 1em;">
+                                                                <div class="statusSummary">
+                                                                    <assess:assessmentStepResult result="${stepData.result}" />
+                                                                    <assess:assessmentStepResultTextOnly result="${stepData.result}" />
+                                                                    <g:if test="${stepData.lastResultUser}">
+                                                                        (marked by ${stepData.lastResultUser?.contactInformation?.responder}, <g:formatDate date="${stepData.resultLastChangeDate}" format="yyyy-MM-dd" />)
+                                                                    </g:if>
+                                                                </div>
+                                                                <div>
+                                                                    <g:if test="${org.apache.commons.lang.StringUtils.isNotEmpty(stepData.assessorComment)}">
+                                                                        Comment by ${stepData.assessorCommentUser?.contactInformation?.responder ?: 'Unknown'}:
+                                                                        <pre style="white-space: pre-wrap; word-break: keep-all">${stepData.assessorComment}</pre>
+                                                                    </g:if>
+                                                                    <g:else>
+                                                                        <pre style="width: 100%;"><em>No Comment</em></pre>
+                                                                    </g:else>
+                                                                </div>
+                                                                <g:if test="${stepData.artifacts && !stepData.artifacts.isEmpty()}">
+                                                                    <div class="artifactsHeader">Artifacts (${stepData.artifacts.size()})</div>
+                                                                    <ul class="stepArtifactsList">
+                                                                        <g:each in="${stepData.artifacts}" var="artifact">
+                                                                            <li class="stepArtifactItem">
+                                                                                <assess:renderArtifactSummary artifact="${artifact}" shortenComment="false" />
+                                                                            </li>
+                                                                        </g:each>
+                                                                    </ul>
+                                                                </g:if>
+                                                                <g:if test="${stepData.parameterValues && !stepData.parameterValues.isEmpty()}">
+                                                                    <div class="artifactsHeader">Parameter Values (${stepData.parameterValues?.size() ?: 0})</div>
+                                                                    <ul class="stepArtifactsList">
+                                                                        <g:each in="${stepData.parameterValues}" var="paramValue">
+                                                                            <li class="stepArtifactItem">
+                                                                                <assess:renderParameterSummary paramValue="${paramValue}" />
+                                                                            </li>
+                                                                        </g:each>
+                                                                    </ul>
+                                                                </g:if>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <g:if test="${stepData.step.substeps && !stepData.step.substeps.isEmpty()}">
+                                                        <div class="row containsSubstepsContainer">
+                                                            <div class="col-md-offset-1 col-md-11">
+                                                                <b style="font-size: 120%;">Substep Information</b>
+
+                                                                <ul style="list-style: none; margin: 0; padding: 0;">
+                                                                    <g:each in="${stepData.step.substeps}" var="substepDef">
+                                                                        <%
+                                                                            AssessmentSubStepData substepData = null;
+                                                                            for( AssessmentSubStepData cur : stepData.substeps ){
+                                                                                if( cur.substep.id == substepDef.id ){
+                                                                                    substepData = cur;
+                                                                                    break;
+                                                                                }
+                                                                            }
+                                                                        %>
+                                                                        <li style="margin-bottom: 1em;">
+                                                                            <div style="float: left; width: 30px; font-size: 120%; padding-top: 5px;">
+                                                                                <assess:assessmentStepResult result="${substepData?.result ?: AssessmentStepResult.Not_Known}" />
+                                                                            </div>
+                                                                            <div style="margin-left: 30px;">
+                                                                                <div style="font-weight: bold;">${substepDef.name}</div>
+                                                                                <div style="font-size: 90%;">${substepDef.description}</div>
+                                                                            </div>
+                                                                            <g:if test="${substepData?.assessorComment}">
+                                                                                <div style="clear: both; margin-left: 30px;">
+                                                                                    Comment by ${substepData?.assessorCommentUser?.contactInformation?.responder ?: 'Unknown'}:
+                                                                                    <pre style="width: 100%;">${substepData?.assessorComment}</pre>
+                                                                                </div>
+                                                                            </g:if>
+                                                                        </li>
+                                                                    </g:each>
+                                                                </ul>
+
+                                                            </div>
+                                                        </div>
+                                                    </g:if>
+                                                </div>
+                                            </g:else>
+                                        </g:each>
+                                    </g:each>
+                                </div>
+
+                            </div>
                         </g:each>
+                        </div>
                     </div>
                 </g:else>
             </g:each>

@@ -1,13 +1,17 @@
 package nstic.web
 
+import java.util.stream.Collectors
+
 class Organization {
 
-    static transients = ['sortedComments', 'sortedArtifacts']
+    static transients = ['sortedComments', 'sortedArtifacts', 'sortedTrustmarkRecipientIdentifiers']
 
     int id
-    String uri      // The URN which uniquely identifies this organization
-    String identifier // The short human-readable identifier for this org
-    String name     // A distinct "human readable" name for this organization
+    String uri                                      // The URN which uniquely identifies this organization
+    String identifier                               // The short human-readable identifier for this org
+    String name                                     // A distinct "human readable" name for this organization
+    Boolean isTrustmarkProvider = Boolean.FALSE     // A flag that, if true, identifies this organization as
+                                                    // a trustmark provider
 
     ContactInformation primaryContact;
 
@@ -18,13 +22,15 @@ class Organization {
             artifacts: OrganizationArtifact,
             comments: OrganizationComment,
             documents: Documents,
-            certificates: SigningCertificate
+            certificates: SigningCertificate,
+            trustmarkRecipientIdentifiers: TrustmarkRecipientIdentifier
     ]
 
     static constraints = {
         uri(nullable: false, blank: false, maxSize: 255)
         identifier(nullable: true, blank: true, maxSize: 50)
         name(nullable: false, blank: false, maxSize: 255)
+        isTrustmarkProvider(nullable: false)
         primaryContact(nullable: true)
         contacts(nullable: true)
         artifacts(nullable: true)
@@ -33,6 +39,8 @@ class Organization {
         comments(nullable: true)
         documents(nullable: true)
         certificates(nullable: true)
+        trustmarkRecipientIdentifiers(nullable: true)
+        trustmarkRecipientIdentifiers cascade: "all-delete-orphan"
     }
 
     static mapping = {
@@ -41,7 +49,21 @@ class Organization {
         primaryContact(column: 'primary_contact_ref')
     }
 
+    public static Organization newOrganization(String uri, String identifier, String name, Boolean isTrustmarkProvider) {
+        Organization org = new Organization(uri: uri, identifier: identifier, name: name, isTrustmarkProvider: isTrustmarkProvider)
+        org.addTrustmarkRecipientIdentifierUri(uri, true)
 
+        return org
+    }
+
+    public String defaultTustmarkRecipientIdentifierUri() {
+        return TrustmarkRecipientIdentifier.findByOrganizationAndDefaultTrustmarkRecipientIdentifier(this, true)
+    }
+
+    public void addTrustmarkRecipientIdentifierUri(String uri, boolean defaultTrustmarkRecipientIdentifier = false) {
+        this.addToTrustmarkRecipientIdentifiers(
+                new TrustmarkRecipientIdentifier(uri: uri, defaultTrustmarkRecipientIdentifier: defaultTrustmarkRecipientIdentifier))
+    }
 
     public OrganizationArtifact findArtifact( String id ){
         OrganizationArtifact oa = null;
@@ -72,14 +94,25 @@ class Organization {
         return sortedComments;
     }//end getSortedCOmments
 
+    public List<TrustmarkRecipientIdentifier> getSortedTrustmarkRecipientIdentifiers() {
+        List<TrustmarkRecipientIdentifier> sorted = []
+        if( this.trustmarkRecipientIdentifiers && !this.trustmarkRecipientIdentifiers.isEmpty() ) {
+            sorted.addAll(this.trustmarkRecipientIdentifiers)
+            sorted = sorted.stream()
+                    .sorted((p1, p2) -> Boolean.compare(p2.defaultTrustmarkRecipientIdentifier, p1.defaultTrustmarkRecipientIdentifier))
+                    .collect(Collectors.toList())
+        }
 
+        return sorted;
+    }
 
     public Map toJsonMap(boolean shallow = false) {
         def json = [
                 id: this.id,
                 shortName: this.identifier,
                 name: this.name,
-                uri: this.uri
+                uri: this.uri,
+                isTrustmarkProvider: isTrustmarkProvider
         ]
         if( shallow ){
             json.put("primaryContactId", primaryContact?.id)

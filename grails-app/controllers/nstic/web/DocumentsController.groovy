@@ -27,28 +27,43 @@ class DocumentsController {
     public static final String TM_SIGNING_CERTIFICATE_POLICY = "Trustmark Signing Certificate Policy"
 
     // map["Category": isPublic]
-    private static Map DOCUMENT_CATEGORIES = [TM_RECIPIENT_AGREEMENT : false,
-                                              TM_RELYING_PARTY_AGREEMENT : true,
-                                              TM_POLICY : true,
-                                              TM_SIGNING_CERTIFICATE_POLICY : true]
+    private static Map DOCUMENT_CATEGORIES = [(TM_RECIPIENT_AGREEMENT) : false,
+                                              (TM_RELYING_PARTY_AGREEMENT) : true,
+                                              (TM_POLICY) : true,
+                                              (TM_SIGNING_CERTIFICATE_POLICY) : true]
 
     def springSecurityService;
 
-    @Secured("ROLE_USER")
+    @Secured("ROLE_ADMIN, ROLE_USER")
     def index() {
         redirect(action:'list')
     }
 
-    @Secured("ROLE_USER")
+    @Secured(["ROLE_USER", "ROLE_ADMIN"])
     def list(){
         log.debug("Listing documents...")
         if (!params.max)
             params.max = '20';
         params.max = Math.min(100, Integer.parseInt(params.max)).toString(); // Limit to at most 100 docs at a time.
-        [documents: Documents.list(params), documentsCountTotal: Documents.count()]
+
+        User user = springSecurityService.currentUser
+
+        def documents = []
+        int documentsCount = 0
+
+        if (user.isUser()) {
+            documents = Documents.findAllByPublicDocument(true)
+            documents.addAll(Documents.findAllByDocumentCategoryAndOrganization(DocumentsController.TM_RECIPIENT_AGREEMENT, user.organization))
+            documentsCount = documents.size()
+        } else {
+            documents = Documents.list(params)
+            documentsCount = Documents.count()
+        }
+
+        [documents: documents, documentsCountTotal: documentsCount]
     }
 
-    @Secured("ROLE_USER")
+    @Secured(["ROLE_USER", "ROLE_ADMIN"])
     def add() {
         def docCategoryList = DOCUMENT_CATEGORIES.keySet() as ArrayList
 
@@ -60,7 +75,7 @@ class DocumentsController {
         ]
     }
 
-    @Secured("ROLE_USER")
+    @Secured(["ROLE_USER", "ROLE_ADMIN"])
     def edit() {
         def docCategoryList = DOCUMENT_CATEGORIES.keySet() as ArrayList
 
@@ -105,7 +120,7 @@ class DocumentsController {
         }
     }
 
-    @Secured("ROLE_USER")
+    @Secured(["ROLE_USER", "ROLE_ADMIN"])
     def saveDocument(AddDocumentCommand uploadForm) {
         User user = springSecurityService.currentUser;
         if( !uploadForm.validate() ){
@@ -140,7 +155,7 @@ class DocumentsController {
         return redirect(action:'list')
     }
 
-    @Secured("ROLE_USER")
+    @Secured(["ROLE_USER", "ROLE_ADMIN"])
     def updateDocument(EditDocumentCommand editForm) {
         User user = springSecurityService.currentUser
         if( !editForm.validate() ){
@@ -188,7 +203,7 @@ class DocumentsController {
         return redirect(action:'list')
     }
 
-    @Secured("ROLE_USER")
+    @Secured(["ROLE_USER", "ROLE_ADMIN"])
     def deleteDocument() {
         if( !params.orgId ){
             log.warn "Invalid org id!"
@@ -313,6 +328,18 @@ class AddDocumentCommand {
                         log.warn("No such org: $val");
                         return "org.does.not.exist"
                     }else{
+                        log.debug("Org ${val} exists, validating trustmark provider...");
+
+                        log.debug("Org ${val} trusmark provider: ${org.isTrustmarkProvider}");
+                        log.debug("Document category: ${obj.documentCategory}");
+
+                        // test trustmark provider
+                        if (!org.isTrustmarkProvider && !obj.documentCategory.equals(DocumentsController.TM_RECIPIENT_AGREEMENT)) {
+                            errors.rejectValue("organizationName", "org.trustmark.provider.public-documents", [obj.organizationName] as String[],
+                                    "Only trustmark provider organizations can upload public documents.")
+                            return false;
+                        }
+
                         log.debug("Org ${val} exists, validating URI...");
                         Organization uriConflictOrg = Organization.findByName(obj.organizationName);
                         if( uriConflictOrg ) {

@@ -6,7 +6,7 @@ import org.apache.commons.lang.StringUtils
 
 import javax.servlet.ServletException
 
-@Secured(["ROLE_REPORTS_ONLY", "ROLE_USER"])
+@Secured(["ROLE_REPORTS_ONLY", "ROLE_USER", "ROLE_ADMIN"])
 class ProfileController {
 
     def springSecurityService;
@@ -14,7 +14,10 @@ class ProfileController {
     def index() {
         User user = springSecurityService.currentUser
         log.debug("Showing @|cyan ${user}|@ their profile page...")
-        [command : new ProfileCommand(user), user: user];
+
+        ProfileCommand cmd = ProfileCommand.fromUser(user)
+
+        [command : cmd, user: user]
     }//end index()
 
     // Called by the index form as a post
@@ -53,15 +56,18 @@ class ProfileController {
 
 
 class ProfileCommand {
-    public ProfileCommand(){}
-    public ProfileCommand(User user){
-        this.username = user.username;
-        this.organization = user.organization;
-        this.email = user.contactInformation.email;
-        this.responder = user.contactInformation.responder;
-        this.phoneNumber = user.contactInformation.phoneNumber;
-        this.mailingAddress = user.contactInformation.mailingAddress;
-        this.notes = user.contactInformation.notes;
+
+    public static ProfileCommand fromUser( User user ){
+        ProfileCommand cmd = new ProfileCommand();
+        cmd.username = user.username;
+        cmd.organization = user.organization;
+        cmd.email = user.contactInformation.email;
+        cmd.responder = user.contactInformation.responder;
+        cmd.phoneNumber = user.contactInformation.phoneNumber;
+        cmd.mailingAddress = user.contactInformation.mailingAddress;
+        cmd.notes = user.contactInformation.notes;
+
+        return cmd;
     }
 
     String username;

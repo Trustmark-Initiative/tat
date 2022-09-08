@@ -58,7 +58,7 @@
                         <label for="organizationId" class="col-sm-2 control-label">Provider Organization</label>
                         <div class="col-sm-10">
                             <g:select name="organizationId" id="organizationId" onchange="updateDocsAndCerts(this.value)"
-                                      class="form-control" optionKey="id" optionValue="name" from="${nstic.web.Organization.findAll()}" />
+                                      class="form-control" optionKey="id" optionValue="name" from="${nstic.web.Organization.findByIsTrustmarkProvider(true)}" />
                             <span class="help-block">This organization's information will be used as the "Provider" of the Trustmark.</span>
                         </div>
                     </div>

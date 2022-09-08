@@ -215,6 +215,7 @@
 <tmpl:/templates/pluploadJavascript
         pluploadCounter="1"
         filesAddedCallback="setUploadedFilename"
+        uploadCompleteCallback="fileUploadComplete"
         context="Create Artifact for Assessment ${assessment.id}, Step ${currentStepData.step.stepNumber}" />
 
 <script type="text/javascript">
@@ -370,10 +371,14 @@
             $('#binaryId1').val(${command?.binaryId1});
             </g:if>
             $('#displayName').val('${command?.displayName}');
+
+            enableButton("submitButton");
         }else if( type == 'newUpload') {
             $('#fileUploadName').show()
             $('#artifactType').val('newUpload')
             $('#artifactFilePillUpload').addClass('active');
+
+            disableButton("submitButton");
         }else if( type == 'reuseExisting') {
             $('#selectExistingFileContainer').show()
             $('#artifactType').val('reuseExisting')
@@ -382,11 +387,15 @@
             if( !LOADED_ARTIFACTS ){
                 loadExistingArtifacts();
             }
+
+            enableButton("submitButton");
         }else{ // It is 'none'
             $('#commentLabelExtension').addClass('glyphicon')
             $('#commentLabelExtension').addClass('glyphicon-star')
             $('#artifactType').val('commentOnly')
             $('#artifactFilePillNone').addClass('active');
+
+            enableButton("submitButton");
         }
     }//end updateFileDisplay()
 
@@ -443,8 +452,16 @@
         var firstFilename = files[0].name;
         console.log("Setting display name to file name["+firstFilename+"]...")
         $('#displayName').val(firstFilename);
+
+        disableButton("submitButton");
     }//end setUploadedFilename()
 
+    /**
+     * Called by pluploader template code after the file upload is complete
+     */
+    function fileUploadComplete(up){
+        enableButton("submitButton");
+    }//end fileUploadComplete()
 </script>
 </body>
 </html>

@@ -15,7 +15,7 @@ import javax.servlet.ServletException
  * <br/><br/>
  * Created by brad on 9/8/14.
  */
-@Secured("ROLE_USER")
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 class BinaryController {
 
     def springSecurityService;

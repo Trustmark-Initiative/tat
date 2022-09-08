@@ -29,7 +29,7 @@ import javax.servlet.ServletException
  * This controller handles everything related to performing an assessment.
  */
 @Transactional
-@Secured("ROLE_USER")
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 class AssessmentPerformController {
     public static final String TD_ISSUANCE_CRITERIA_YES_ALL = "yes(all)"
     public static final String TD_ISSUANCE_CRITERIA_NO_ALL  = "no(all)"
@@ -842,6 +842,7 @@ class AssessmentPerformController {
 
         log.info("Importing assessment results for assessment #${assessment.id}...")
 
+        int stepsStatisfiedCount = 0;
         int count = 0
         for( AssessmentStepData stepData : assessment.getSortedSteps() ){
             log.debug("================================================================================================")
@@ -864,6 +865,7 @@ class AssessmentPerformController {
                     stepData.result = AssessmentStepResult.Not_Known
                 } else {
                     stepData.result = AssessmentStepResult.Satisfied
+                    stepsStatisfiedCount++;
                 }
             }
 
@@ -895,6 +897,19 @@ class AssessmentPerformController {
             stepData.save(failOnError: true)
             count++
         }
+
+        // One log entry for all steps
+        int stepsNotSolvedCount = count - stepsStatisfiedCount
+
+        String type = "Automatic Assessment"
+        String title = "Automatic Assessment"
+        String message = "User ${user.username} has performaed an automatic assessment for assessment[${assessment.id}]"
+        Map dataMap =  [
+                user      : [id: user.id, username: user.username],
+                assessment: [id: assessment.id],
+                stepsStat: [stepsSatisfied: stepsStatisfiedCount, setpsNotSatisfied: stepsNotSolvedCount]
+        ]
+        assessment.logg.addEntry(type, title, message, dataMap)
 
         log.info("Successfully imported assessments results for ${count} steps!")
 

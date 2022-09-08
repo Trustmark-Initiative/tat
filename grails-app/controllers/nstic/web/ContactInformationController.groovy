@@ -18,7 +18,7 @@ class ContactInformationController {
         redirect(action: 'list')
     }
 
-    @Secured("ROLE_USER")
+    @Secured(["ROLE_USER", "ROLE_ADMIN"])
     def list(){
         log.debug("Listing contacts...")
         if (!params.max)

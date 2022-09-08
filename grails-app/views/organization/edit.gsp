@@ -32,21 +32,129 @@
                     <legend>Organization Information</legend>
 
                     <div class="form-group">
-                        <label for="uri" class="col-sm-2 control-label">URI</label>
+                        <label for="name" class="col-sm-2 control-label">Name</label>
                         <div class="col-sm-10">
-                            <g:textField name="uri" id="uri" class="form-control" placeholder="http://www.somewhere.com" value="${orgCommand?.uri}" />
+                            <g:textField name="name" id="name" class="form-control" placeholder="Name" value="${orgCommand?.name}" />
                         </div>
                     </div>
+
                     <div class="form-group">
                         <label for="identifier" class="col-sm-2 control-label">Abbreviation</label>
                         <div class="col-sm-10">
                             <g:textField name="identifier" id="identifier" class="form-control" placeholder="ABBR" value="${orgCommand?.identifier}" />
                         </div>
                     </div>
+
                     <div class="form-group">
-                        <label for="name" class="col-sm-2 control-label">Name</label>
+                        <label for="uri" class="col-sm-2 control-label">Trustmark Recipient Identifiers</label>
                         <div class="col-sm-10">
-                            <g:textField name="name" id="name" class="form-control" placeholder="Name" value="${orgCommand?.name}" />
+                            <div id="trustmark-recipient-identifiers-list"></div>
+                            <div id="trustmark-recipient-identifiers-status"></div>
+                            <div id="trustmark-recipient-identifiers-details"></div>
+
+                            <script type="text/javascript">
+
+                                $(document).ready(function(){
+
+                                    getTrustmarkRecipientIdentifiers(${organization.id});
+                                })
+
+                                // Trustmark Recipient Identifiers
+
+                                let getTrustmarkRecipientIdentifiers = function(oid) {
+                                    list("${createLink(controller:'organization', action: 'trustmarkRecipientIdentifiers')}"
+                                        , trustmarkRecipientIdentifierResults
+                                        , { oid: oid }
+                                    );
+                                    hideIt('trustmark-recipient-identifiers-details');
+                                }
+
+                                let addTrustmarkRecipientIdentifier = function(trustmarkRecipientIdentifier)  {
+                                    if(checkTrustmarkRecipientIdentifier(trustmarkRecipientIdentifier)) {
+                                        add("${createLink(controller:'organization', action: 'addTrustmarkRecipientIdentifier')}"
+                                            , function (data) {
+                                                setStatusMessage('trustmark-recipient-identifiers-status', data);
+
+                                                getTrustmarkRecipientIdentifiers(${organization.id});
+                                            }
+                                            , {
+                                                orgid: ${organization.id}
+                                                , identifier: trustmarkRecipientIdentifier
+                                            }
+                                        );
+                                    }
+                                }
+
+                                let removeTrustmarkRecipientIdentifiers = function(oid)  {
+                                    getCheckedIds('edit-trustmarkRecipientIdentifier', function(list) {
+                                        update("${createLink(controller:'organization', action: 'deleteTrustmarkRecipientIdentifiers')}"
+                                            , function (data){getTrustmarkRecipientIdentifiers(oid);}
+                                            , { ids: list, orgid: oid }
+                                        );
+                                    });
+                                }
+
+                                let deleteTrustmarkRecipientIdentifier = function(tmrid)  {
+                                    add("${createLink(controller:'organization', action: 'deleteTrustmarkRecipientIdentifier')}"
+                                        , function(data){getTrustmarkRecipientIdentifiers(${organization.id});}
+                                        , {
+                                            orgid: ${organization.id}
+                                            , tmrid: tmrid
+                                        }
+                                    );
+                                }
+
+                                let trustmarkRecipientIdentifierResults = function(results)  {
+                                    renderTrustmarkRecipientIdentifiersOffset = curriedTrustmarkRecipientIdentifier('trustmark-recipient-identifiers-list')
+                                    ({
+                                        editable: results.editable
+                                        , fnAdd: function(){renderTrustmarkRecipientIdentifiersForm('trustmark-recipient-identifiers-details'
+                                            , populateTrustmarkRecipientIdentifiersForm
+                                            , function(){
+                                                addTrustmarkRecipientIdentifier(document.getElementById('trustmarkRecipientIdentifier').value);}, {id:0})}
+                                        , fnRemove: function(){removeTrustmarkRecipientIdentifiers('${organization.id}');}
+                                        , fnDraw: drawTrustmarkRecipientIdentifier
+                                        , title: 'Trustmark Recipient Identifiers'
+                                        , hRef: 'javascript:getTrustmarkRecipientIdentifierDetails'
+                                    })
+                                    (results)
+                                    renderTrustmarkRecipientIdentifiersOffset(0);
+                                }
+
+                                let populateTrustmarkRecipientIdentifiersForm = function(trustmarkRecipientIdentifier) {
+
+                                    if(trustmarkRecipientIdentifier.id !== 0) {
+                                        document.getElementById('trustmarkRecipientIdentifier').value = trustmarkRecipientIdentifier.uri;
+                                        document.getElementById('trustmarkRecipientIdentifier').focus();
+                                    }
+                                }
+
+                                let getTrustmarkRecipientIdentifierDetails = function(id)  {
+                                    get("${createLink(controller:'organization', action: 'getTrustmarkRecipientIdentifier')}"
+                                        , trustmarkRecipientIdentifierDetail('trustmark-recipient-identifiers-details')(populateTrustmarkRecipientIdentifiersForm)
+                                        (function(){updateTrustmarkRecipientIdentifier(id, document.getElementById('trustmarkRecipientIdentifier').value
+                                            , ${organization.id});})
+                                        , { orgid: ${organization.id}, rid:id }
+                                    );
+                                }
+
+                                let updateTrustmarkRecipientIdentifier = function(id, trustmarkRecipientIdentifier, orgId)  {
+
+                                    if(checkTrustmarkRecipientIdentifier(trustmarkRecipientIdentifier))  {
+                                        update("${createLink(controller:'organization', action: 'updateTrustmarkRecipientIdentifier')}"
+                                            , function(data){getTrustmarkRecipientIdentifiers(${organization.id});}
+                                            , {
+                                                id: id
+                                                , trustmarkRecipientIdentifier: trustmarkRecipientIdentifier
+                                                , organizationId: ${organization.id}
+                                            });
+                                    } else {
+                                        scroll(0,0);
+                                    }
+                                }
+
+                            </script>
+
                         </div>
                     </div>
 

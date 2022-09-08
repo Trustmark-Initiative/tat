@@ -113,6 +113,7 @@
 <tmpl:/templates/pluploadJavascript
         pluploadCounter="1"
         filesAddedCallback="setUploadedFilename"
+        uploadCompleteCallback="fileUploadComplete"
         context="Import Assessment Results for Assessment ${assessment.id}}" />
 
 <script type="text/javascript">
@@ -191,6 +192,8 @@
         $('#fileUploadName').show()
         $('#artifactType').val('newUpload')
         $('#artifactFilePillUpload').addClass('active');
+
+        disableButton("submitButton");
     }//end updateFileDisplay()
 
     function isEmpty( val ){
@@ -229,7 +232,16 @@
         var firstFilename = files[0].name;
         console.log("Setting display name to file name["+firstFilename+"]...")
         $('#displayName').val(firstFilename);
+
+        disableButton("submitButton");
     }//end setUploadedFilename()
+
+    /**
+     * Called by pluploader template code after the file upload is complete
+     */
+    function fileUploadComplete(up){
+        enableButton("submitButton");
+    }//end fileUploadComplete()
 
 </script>
 </body>

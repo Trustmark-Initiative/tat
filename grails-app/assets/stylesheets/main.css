@@ -161,7 +161,31 @@ table th {
     color: #fff;
 }
 
+tm-margin {
+    margin: 6px;
+}
 
+.tm-left {
+    float: left;
+}
+
+.tm-right {
+    float: right;
+}
+
+.tm-form {
+    width: 500px;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 6px;
+}
+
+.full-width-form {
+    width: 100%;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 6px;
+}
 
 
 
@@ -183,5 +207,18 @@ body.printablePage .pageContent {
 }
 
 
+#footerContainer {
+    clear: both;
+    position: fixed;
+    bottom: 0px;
+    height: 60px;
+    width: 100%;
 
+    text-align: center;
+    font-size: 80%;
+    font-style: italic;
+
+    background-color: #e2e2e2;
+    border-top: 3px double #002b55;
+}
 

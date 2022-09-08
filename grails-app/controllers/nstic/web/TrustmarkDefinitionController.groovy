@@ -20,7 +20,7 @@ import org.springframework.web.multipart.MultipartFile
 
 import javax.servlet.ServletException
 
-@Secured("ROLE_USER")
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 @Transactional
 class TrustmarkDefinitionController {
 
@@ -250,16 +250,20 @@ class TrustmarkDefinitionController {
     def typeahead() {
         log.debug("User[@|blue ${springSecurityService.currentUser}|@] searching[@|cyan ${params.q}|@] via TrustmarkDefinition typeahead...")
 
-        // TODO Instead of this, integrate the searchable plugin
-        def criteria = TrustmarkDefinition.createCriteria();
-        def results = criteria {
-            or {
-                like("name", '%'+params.q+'%')
-                like("description", '%'+params.q+'%')
-                like("tdVersion", '%'+params.q+'%')
+        def results = TrustmarkDefinition.findByUri(params.q)
+
+        if (!results) {
+            // TODO Instead of this, integrate the searchable plugin
+            def criteria = TrustmarkDefinition.createCriteria();
+            results = criteria {
+                or {
+                    like("name", '%' + params.q + '%')
+                    like("description", '%' + params.q + '%')
+                    like("tdVersion", '%' + params.q + '%')
+                }
+                maxResults(25)
+                order("name", "asc")
             }
-            maxResults(25)
-            order("name", "asc")
         }
 
         withFormat {

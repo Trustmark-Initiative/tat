@@ -8,9 +8,10 @@ import org.springframework.util.StringUtils
 import org.springframework.validation.ObjectError
 
 import javax.servlet.ServletException
+import java.util.stream.Collectors
 
 @Transactional
-@Secured("ROLE_USER")
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 class OrganizationController {
 
     def springSecurityService;
@@ -24,7 +25,7 @@ class OrganizationController {
         if (!params.max)
             params.max = '20';
         params.max = Math.min(100, Integer.parseInt(params.max)).toString(); // Limit to at most 100 orgs at a time.
-        [organizations: Organization.list(params), orgsCountTotal: Organization.count()]
+        [organizations: Organization.findAllByIsTrustmarkProvider(false, [params.max]), orgsCountTotal: Organization.count()]
     }
 
     @Secured(['ROLE_REPORTS_ONLY', 'ROLE_USER'])
@@ -110,6 +111,28 @@ class OrganizationController {
 
     }//end listUnaffiliatedContacts()
 
+    def trustmarkProvider() {
+        log.debug("User[@|blue ${springSecurityService.currentUser}|@] viewing trustmark provider org...")
+
+        Organization org = Organization.findByIsTrustmarkProvider(true)
+        if( !org ) {
+            throw new ServletException("No such organization: ${params.id}")
+        }
+
+        return redirect(action:'view', id: org.id)
+    }
+
+    def viewUserOrganization() {
+        User user = springSecurityService.getCurrentUser()
+        log.debug("User[@|blue ${user}|@] viewing user org...")
+
+        Organization org = user.organization
+        if( !org ) {
+            throw new ServletException("No such organization: ${user.username}")
+        }
+
+        return redirect(action:'view', id: org.id)
+    }
 
     def create(){
         [orgCommand : new CreateOrganizationCommand()]
@@ -134,13 +157,10 @@ class OrganizationController {
         contactInformation.notes = orgCommand.notes
         contactInformation.save(failOnError: true, flush: true)
 
-        Organization org = new Organization();
-        org.uri = orgCommand.uri
-        org.identifier = orgCommand.identifier
-        org.name = orgCommand.name
+        Organization org = Organization.newOrganization(orgCommand.uri, orgCommand.identifier,
+                orgCommand.name, false)
         org.primaryContact = contactInformation;
         org.save(failOnError: true, flush: true);
-
 
         flash.message = "Successfully created organization '${org.name}'"
         return redirect(action:'list');
@@ -154,11 +174,20 @@ class OrganizationController {
 
         EditOrganizationCommand command = new EditOrganizationCommand()
         command.setData(org);
-        [orgCommand: command]
+        [orgCommand: command, organization: org]
     }//end edit()
 
     def update(EditOrganizationCommand orgCommand){
         log.info("Updating organization @|cyan ${orgCommand.uri}|@...")
+
+        Organization org = Organization.findById(orgCommand.id);
+        if( !org ) {
+            throw new ServletException("Unable to find organization ${orgCommand.id}")
+        }
+
+        if (orgCommand.uri == null) {
+            orgCommand.uri = org.uri
+        }
 
         if(!orgCommand.validate()){
             log.warn "Organization edit form does not validate: "
@@ -168,11 +197,11 @@ class OrganizationController {
             return render(view: 'edit', model: [orgCommand: orgCommand])
         }
 
-        Organization org = Organization.findById(orgCommand.id);
-        if( !org )
-            throw new ServletException("Unable to find organization ${orgCommand.id}")
+        TrustmarkRecipientIdentifier trustmarkRecipientIdentifier = TrustmarkRecipientIdentifier.findByDefaultTrustmarkRecipientIdentifierAndOrganization(true, org)
+        if (trustmarkRecipientIdentifier && trustmarkRecipientIdentifier.uri != orgCommand.uri) {
+            org.uri = trustmarkRecipientIdentifier.uri
+        }
 
-        org.uri = orgCommand.uri
         org.name = orgCommand.name
         org.identifier = orgCommand.identifier
 
@@ -197,7 +226,131 @@ class OrganizationController {
         org.save(failOnError: true, flush: true);
 
         flash.message = "Successfully updated organization '${org.name}'"
-        return redirect(action:'list');
+
+        if (org.isTrustmarkProvider) {
+            return redirect(action: 'trustmarkProvider');
+        } else {
+            return redirect(action:'view', id: org.id);
+        }
+    }
+
+    def trustmarkRecipientIdentifiers() {
+        log.debug("trustmarkRecipientIdentifiers -> ${params.oid}")
+
+        Map results = [:]
+
+        results.put("editable", springSecurityService.isLoggedIn())
+
+        def trustmarkRecipientIdentifiers = []
+
+        Organization organization = Organization.get(Integer.parseInt(params.oid))
+        organization.trustmarkRecipientIdentifiers.forEach({o -> trustmarkRecipientIdentifiers.add(o)})
+
+        // sort with the default trustmark recipient identifier first
+        trustmarkRecipientIdentifiers = trustmarkRecipientIdentifiers.stream()
+                .sorted((p1, p2) -> Boolean.compare(p2.defaultTrustmarkRecipientIdentifier, p1.defaultTrustmarkRecipientIdentifier))
+                .collect(Collectors.toList())
+
+        results.put("records", trustmarkRecipientIdentifiers)
+
+        withFormat  {
+            json {
+                render results as JSON
+            }
+        }
+    }
+
+    def addTrustmarkRecipientIdentifier()  {
+        log.debug("organization -> ${params.orgid}")
+
+        Map results = [:]
+
+        Map messageMap = [:]
+
+        Organization organization = Organization.get(Integer.parseInt(params.orgid))
+
+        TrustmarkRecipientIdentifier trustmarkRecipientIdentifier =
+                TrustmarkRecipientIdentifier.findByUriAndOrganization(params.identifier, organization)
+
+        if (organization.trustmarkRecipientIdentifiers.contains(trustmarkRecipientIdentifier)) {
+            messageMap["WARNING"] = "Trustmark Recipient Identifier ${params.orgid} already exists!"
+        } else {
+
+            Organization.withTransaction {
+                organization.addTrustmarkRecipientIdentifierUri(params.identifier)
+                organization.save(true)
+            }
+        }
+
+        results.put("status", messageMap)
+
+        withFormat  {
+            json {
+                render results as JSON
+            }
+        }
+    }
+
+    def deleteTrustmarkRecipientIdentifiers()  {
+
+        List<String> ids = params.ids.split(":")
+
+        Organization organization = new Organization()
+        TrustmarkRecipientIdentifier trid = new TrustmarkRecipientIdentifier()
+
+        try {
+            ids.forEach({ s ->
+                if (s.length() > 0) {
+                    trid = TrustmarkRecipientIdentifier.get(Integer.parseInt(s))
+
+                    // now delete trustmark recipient identifier
+                    trid.delete()
+                }
+            })
+
+        } catch (NumberFormatException nfe) {
+            log.error("Invalid trustmark recipient identifier Id!")
+        }
+
+        withFormat  {
+            json {
+                render organization as JSON
+            }
+        }
+    }
+
+    def getTrustmarkRecipientIdentifier()  {
+        log.debug("repos -> ${params.orgid}")
+
+        Organization organization = Organization.get(Integer.parseInt(params.orgid))
+
+        Integer trustmarkRecipientIdentifierId = Integer.parseInt(params.rid)
+
+        TrustmarkRecipientIdentifier trustmarkRecipientIdentifier = organization.trustmarkRecipientIdentifiers.find { element ->
+            element.id == trustmarkRecipientIdentifierId
+        }
+
+        withFormat  {
+            json {
+                render trustmarkRecipientIdentifier as JSON
+            }
+        }
+    }
+
+    def updateTrustmarkRecipientIdentifier()  {
+        User user = springSecurityService.currentUser
+        log.info("user -> ${user.username}")
+
+        TrustmarkRecipientIdentifier trid = TrustmarkRecipientIdentifier.findById(Integer.parseInt(params.id))
+
+        trid.uri = params.trustmarkRecipientIdentifier
+        trid.save(true)
+
+        withFormat  {
+            json {
+                render trid as JSON
+            }
+        }
     }
 
     def deleteArtifact() {
@@ -225,7 +378,6 @@ class OrganizationController {
         log.debug("Redirecting to view Org[${org.identifier}] page...");
         return redirect(action:'view', id: org.identifier);
     }
-
 
     def createArtifact() {
         if( !params.id ){
@@ -323,8 +475,6 @@ class OrganizationController {
         log.debug("Redirecting to view Org[${editForm.organization.identifier}] page...");
         return redirect(action:'view', id: editForm.organization.identifier);
     }
-
-
 
     def view() {
         if( org.apache.commons.lang.StringUtils.isBlank(params.id) ){
@@ -760,21 +910,15 @@ class EditOrganizationCommand {
 
 
     static constraints = {
-        uri(nullable: false, blank: false, maxSize: 512, validator: {val, obj, errors ->
+        identifier(nullable: true, blank: true, maxSize: 50, validator: {val, obj, errors ->
             Organization.withTransaction { tx ->
-                Organization org = Organization.findByUri(val);
-                if( org && org.id != obj.id ){
-                    errors.rejectValue("uri", "org.uri.exists", [val] as String[], "An organizaiton with URI ${val} already exists.")
-                    return false;
-                }
-            }
-        })
-        identifier(nullable: false, blank: false, maxSize: 50, validator: {val, obj, errors ->
-            Organization.withTransaction { tx ->
-                Organization org = Organization.findByIdentifier(val);
-                if( org && org.id != obj.id ){
-                    errors.rejectValue("identifier", "org.name.exists", [val] as String[], "An organizaiton with identifier ${val} already exists.")
-                    return false;
+                // The data model allows null/empty identifier values
+                if (org.apache.commons.lang3.StringUtils.isNotEmpty(val)) {
+                    Organization org = Organization.findByIdentifier(val);
+                    if (org && org.id != obj.id) {
+                        errors.rejectValue("identifier", "org.name.exists", [val] as String[], "An organizaiton with identifier ${val} already exists.")
+                        return false;
+                    }
                 }
             }
         })

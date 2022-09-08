@@ -13,7 +13,7 @@
             %{--<li class="active">Home</li>--}%
         %{--</ol>--}%
 
-        <h1>Create New Organization</h1>
+        <h1>Create New Trustmark Recipient Organization</h1>
         <div class="pageSubsection">
 
         </div>
@@ -33,7 +33,8 @@
                     <div class="form-group">
                         <label for="uri" class="col-sm-2 control-label">URI</label>
                         <div class="col-sm-10">
-                            <g:textField name="uri" id="uri" class="form-control" placeholder="http://www.somewhere.com" value="${orgCommand?.uri}" />
+                            <g:textField name="uri" id="uri" class="form-control" placeholder="http://www.somewhere.com" value="${orgCommand?.uri}"
+                                         data-toggle="tooltip" data-placement="top" title="This is the default Trustmark Recipient Identifier for this organization."/>
                         </div>
                     </div>
                     <div class="form-group">

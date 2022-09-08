@@ -93,9 +93,8 @@
                         against the organization.
                     </div>
 
-                    <div id="tdAndTipRefContainer">
-
-                    </div>
+                    <div id="tdRefContainer"></div>
+                    <div id="tipRefContainer"></div>
 
                     <div class="form-group">
                         <label class="col-md-2 control-label">&nbsp;</label>
@@ -123,11 +122,13 @@
 
                     <input type="hidden" name="existingOrgId" id="existingOrgId" value="${command?.existingOrgId}" />
 
-                    <div class="form-group">
-                        <div class="col-md-10 col-md-offset-2" id="organizationEditInfo">
+                    <sec:ifAllGranted roles="ROLE_ADMIN">
+                        <div class="form-group">
+                            <div class="col-md-10 col-md-offset-2" id="organizationEditInfo">
 
+                            </div>
                         </div>
-                    </div>
+                    </sec:ifAllGranted>
 
                     <div class="form-group">
                         <label for="organizationUri" class="col-md-2 control-label">URI</label>
@@ -152,12 +153,13 @@
                     <input type="hidden" name="existingContactId" id="existingContactId" value="${command?.existingContactId}" />
                     <input type="hidden" name="existingContactBeingEdited" id="existingContactBeingEdited" value="${command?.existingContactBeingEdited}" />
 
-                    <div class="form-group">
-                        <div class="col-md-10 col-md-offset-2" id="editingContactData">
+                    <sec:ifAllGranted roles="ROLE_ADMIN">
+                        <div class="form-group">
+                            <div class="col-md-10 col-md-offset-2" id="editingContactData">
 
+                            </div>
                         </div>
-                    </div>
-
+                    </sec:ifAllGranted>
 
                     <div class="form-group">
                         <label for="contactResponder" class="col-md-2 control-label">Responder Name</label>
@@ -214,7 +216,7 @@
 
                 <div class="form-group" style="margin-top: 2em;">
                     <div class="col-sm-offset-2 col-sm-10">
-                        <g:submitButton name="Save" value="Create Fresh Assessment" class="btn btn-primary btnSameWidth"
+                        <g:submitButton name="Save" id="createFreshAssessment" value="Create Fresh Assessment" class="btn btn-primary btnSameWidth"
                                         data-toggle="tooltip" data-placement="top"
                                         title="Create new assessment that includes all trustmarks required to satisfy the selected TIPs."/>
                         <g:submitButton name="SaveDifferential" id="createDiffAssessment" class="btn btn-primary btnSameWidth"
@@ -321,17 +323,24 @@
             function removeTdInput(pos){
                 $('#trustmarkDefinitionTypeaheadContainer'+pos).remove();
                 // TODO Other cleanup actions....
-                if( $('#tdAndTipRefContainer').children().size() == 0 ){
-                    $('#tdAndTipRefContainer').html(DEFAULT_ASSESS_MSG_HTML);
+                if( $('#tdRefContainer').children().size() == 0 && $('#tipRefContainer').children().size() == 0){
+                    $('#tdRefContainer').html(DEFAULT_ASSESS_MSG_HTML);
+
+                    $('#createFreshAssessment').prop("disabled", true);
                 }
             }
             function removeTipInput(pos){
                 $('#tipTypeaheadContainer'+pos).remove();
                 // TODO Other cleanup actions....
-                if( $('#tdAndTipRefContainer').children().size() == 0 ){
-                    $('#tdAndTipRefContainer').html(DEFAULT_ASSESS_MSG_HTML);
 
-                    document.getElementById("createDiffAssessment").disabled = true;
+                if( $('#tdRefContainer').children().size() == 0 && $('#tipRefContainer').children().size() == 0){
+                    $('#tdRefContainer').html(DEFAULT_ASSESS_MSG_HTML);
+
+                    $('#createFreshAssessment').prop("disabled", true);
+                }
+
+                if( $('#tipRefContainer').children().size() == 0){
+                    $('#createDiffAssessment').prop("disabled", true);
                 }
             }
 
@@ -341,13 +350,14 @@
              */
             function addTrustmarkDefinitionToAssess(){
                 if( displayingDefaultAssessMessage() ){
-                    $('#tdAndTipRefContainer').html('');
+                    $('#tdRefContainer').html('');
+                    $('#tipRefContainer').html('');
                 }
 
                 TD_TYPEAHEAD_COUNT++;
 
                 var html = TD_TYPEAHEAD_TMPL.replace(/__POS__/g, ''+TD_TYPEAHEAD_COUNT);
-                $('#tdAndTipRefContainer').append(html);
+                $('#tdRefContainer').append(html);
 
 
                 $("#aTdTypeahead"+TD_TYPEAHEAD_COUNT).typeahead({
@@ -360,6 +370,8 @@
                 });
                 $("#aTdTypeahead"+TD_TYPEAHEAD_COUNT).focus();
 
+                $('#createFreshAssessment').prop("disabled", false);
+
             }//end addTrustmarkDefinitionToAssess()
 
 
@@ -369,13 +381,14 @@
              */
             function addTipToAssess(){
                 if( displayingDefaultAssessMessage() ){
-                    $('#tdAndTipRefContainer').html('');
+                    $('#tdRefContainer').html('');
+                    $('#tipRefContainer').html('');
                 }
 
                 TIP_TYPEAHEAD_COUNT++;
 
                 var html = TIP_TYPEAHEAD_TMPL.replace(/__POS__/g, ''+TIP_TYPEAHEAD_COUNT);
-                $('#tdAndTipRefContainer').append(html);
+                $('#tdRefContainer').append(html);
 
 
                 $("#tipTypeahead"+TIP_TYPEAHEAD_COUNT).typeahead({
@@ -388,7 +401,8 @@
                 });
                 $("#tipTypeahead"+TIP_TYPEAHEAD_COUNT).focus();
 
-                document.getElementById("createDiffAssessment").disabled = false;
+                $('#createFreshAssessment').prop("disabled", false);
+                $('#createDiffAssessment').prop("disabled", false);
             }//end addTipToAssess()
 
 
@@ -397,13 +411,14 @@
              * Returns true if the default assess message is displayed.
              */
             function displayingDefaultAssessMessage(){
-                return $('#tdAndTipRefContainer #defaultAssessMsg').length > 0;
+                return $('#tdRefContainer #defaultAssessMsg').length > 0;
             }
 
             $(document).ready(function(){
-                document.getElementById("createDiffAssessment").disabled = true;
+                $('#createDiffAssessment').prop("disabled", true);
+                $('#createFreshAssessment').prop("disabled", true);
 
-                $('#tdAndTipRefContainer').html(DEFAULT_ASSESS_MSG_HTML);
+                $('#tdRefContainer').html(DEFAULT_ASSESS_MSG_HTML);
 
 
                 $("#organizationUri").typeahead({
@@ -433,7 +448,6 @@
                 $("#contactEmail").on("change", function() {
                     console.log("The contact email has changed.")
                 })
-
 
                 <g:if test="${command?.existingOrgId}">
                     syncOrgEditing({name: '${command?.organizationName}', urn: '${command?.organizationUri}'});
@@ -651,17 +665,22 @@
             }//end clearContactEditing()
 
             function syncOrgEditing(orgCommand){
+
+                $('#organizationName').prop('readonly', true);
+                $('#organizationUri').prop('readonly', true);
+
                 var getOrgUrl = '${createLink(controller:'organization', action: 'view', id: command?.existingOrgId)}?format=json'
                 $.get(getOrgUrl, function(org){
                     SELECTED_ORG = org;
                     setOrganizationEditing(org);
-                    $('#organizationName').val(orgCommand.name);
-                    $('#organizationUri').val(orgCommand.uri);
                 }, 'json')
             }//end syncOrgEditing()
 
             function clearOrganization() {
                 SELECTED_ORG = null;
+
+                $('#organizationName').prop('readonly', false);
+                $('#organizationUri').prop('readonly', false);
 
                 $('#organizationEditInfo').html('<em>Creating new organization</em>');
 
@@ -678,6 +697,7 @@
                 $('#existingOrgId').val(org.id);
                 $('#organizationUri').val(org.uri);
                 $('#organizationName').val(org.name);
+                $('#contactEmail').val(org.primaryContact.email)
             }//end setOrganizationEditing
 
 
@@ -729,7 +749,8 @@
             }
 
             function validateForm(){
-                if( $('#tdAndTipRefContainer').children().size() == 0 || displayingDefaultAssessMessage() ){
+                if( ($('#tdRefContainer').children().size() == 0 && $('#tipRefContainer').children().size() == 0)
+                    || displayingDefaultAssessMessage() ){
                     alert("Cannot create assessment, you are missing a TD or TIP to Assess against.");
                     return false;
                 }
@@ -745,7 +766,7 @@
                 if ($assessmentName.val()) { return; }
 
                 var pollMs = 200;
-                var $tdAndTipRefContainer = $('#tdAndTipRefContainer');
+                var $tdRefContainer = $('#tdRefContainer');
                 var $inputOrgName = $('#organizationName');
 
                 setInterval(autoPopAssessmentName, pollMs);
@@ -754,7 +775,7 @@
                     var currentName = $assessmentName.val();
                     if (currentAutoName !== currentName) { return; }
 
-                    var typeaheads = $tdAndTipRefContainer.find('input[id*=Typeahead]').toArray();
+                    var typeaheads = $tdRefContainer.find('input[id*=Typeahead]').toArray();
                     var firstTypeahead = typeaheads && typeaheads[0];
                     if (!firstTypeahead) { return; }
                     var typeaheadName = firstTypeahead.value;

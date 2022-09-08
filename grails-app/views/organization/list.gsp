@@ -14,7 +14,7 @@
             %{--<li class="active">Home</li>--}%
         %{--</ol>--}%
 
-        <h1>Organizations <small>(${orgsCountTotal} total)</small></h1>
+        <h1>Trustmark Recipient Organizations <small>(${orgsCountTotal} total)</small></h1>
         <div class="pageSubsection">
 
         </div>
@@ -36,7 +36,10 @@
             <table class="table table-striped table-bordered table-condensed">
                 <thead>
                     <tr>
-                        <th>&nbsp;</th>
+                        <g:if test="${organizations && organizations.size() > 0}">
+                            <th>&nbsp;</th>
+                        </g:if>
+
                         <g:sortableColumn property="identifier" title="Abbreviation" />
                         <g:sortableColumn property="uri" title="URI" />
                         <g:sortableColumn property="name" title="Name" />
@@ -84,8 +87,9 @@
             </table>
             <div class="row" style="margin-bottom: 2em;">
                 <div class="col-md-6">
-                    <a href="${createLink(controller:'organization', action:'create')}" class="btn btn-primary">New Organization</a>
-                </div><div class="col-md-6" style="text-align: right">
+                    <a href="${createLink(controller:'organization', action:'create')}" class="btn btn-primary">Add Trustmark Recipient Organization</a>
+                </div>
+                <div class="col-md-6" style="text-align: right">
                     <g:paginate total="${orgsCountTotal}" />
                 </div>
             </div>

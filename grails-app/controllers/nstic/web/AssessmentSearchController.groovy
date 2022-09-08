@@ -13,7 +13,7 @@ import javax.servlet.ServletException
 /**
  * Responsible for providing search capabilities on Assessments.
  */
-@Secured("ROLE_USER")
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 class AssessmentSearchController {
 
     static List<String> SEARCH_FIELDS = [

@@ -3,7 +3,7 @@
 <html>
 	<head>
 		<meta name="layout" content="main"/>
-		<title>List Users</title>
+		<title>List Contributors</title>
 
         <style type="text/css">
 
@@ -16,7 +16,7 @@
 
         <h1>Create New User</h1>
         <div class="pageSubsection">
-            This page allows you to create a new user.  Users are capable of performing actions in the system, from
+            This page allows you to create a new contributor.  Contributors are capable of performing actions in the system, from
             viewing reports to assessing.  Contacts are used to identify people at organizations who do not use the tool.
         </div>
 
@@ -77,18 +77,18 @@
                 <div class="form-group">
                     <label class="col-sm-2 control-label">Roles</label>
                     <div class="col-sm-10">
-                        <g:hiddenField name="userRole" id="userRole" value="${userCommand?.userRole ?: 'false'}" />
-                        <g:hiddenField name="adminRole" id="adminRole" value="${userCommand?.adminRole ?: 'false'}" />
-                        <g:hiddenField name="reportOnlyRole" id="reportOnlyRole" value="${userCommand?.reportOnlyRole ?: 'false'}" />
+                        <g:hiddenField class="roleField" name="userRole" id="userRole" value="${userCommand?.userRole ?: 'false'}" />
+                        <g:hiddenField class="roleField" name="adminRole" id="adminRole" value="${userCommand?.adminRole ?: 'false'}" />
+                        <g:hiddenField class="roleField" name="reportOnlyRole" id="reportOnlyRole" value="${userCommand?.reportOnlyRole ?: 'false'}" />
 
                         <a id="reportOnlyRoleButton" href="javascript:changeRoleStatus('reportOnly')" class="btn btn-default">
                             <span id="reportOnlyRoleStatusContainer"></span>
-                            Report Only
+                            Report Viewer
                         </a>
 
                         <a id="userRoleButton" href="javascript:changeRoleStatus('user')" class="btn btn-default">
                             <span id="userRoleStatusContainer"></span>
-                            User
+                            Contributor
                         </a>
 
                         <a id="adminRoleButton" href="javascript:changeRoleStatus('admin')" class="btn btn-default">
@@ -96,15 +96,13 @@
                             Admin
                         </a>
                         <span id="helpBlock" class="help-block">
-                            <b>All Roles</b>: Are permitted to log on.  Remove all roles to prevent logins (ie, disable user).
-                                <br/>
-                            <b>Report Only Users</b>: Can only view reports based on their organization.
-                                <br/>
-                            <b>Users</b>: Can do most major tool functions, such as create &amp; perform assessments,
-                                    manage binary artifacts, trustmark definitions and trustmarks.
-                                <br/>
-                            <b>Admins</b>: Can do all functions of users, and manage any part of the system.  Including
-                                    creating user accounts, organizations, etc. <em>Different than organization administrators.</em>
+                            <b>Report Viewers</b>: Can only view reports for their organization.
+                            <br/>
+                            <b>Contributors</b>: Can perform assessments for their organization, view reports for their organization,
+                        and upload/view recipient agreements for their organization.
+                            <br/>
+                            <b>Admins</b>: Can do all functions allowed by the tool, including assessments of any organization, view all reports,
+                        issue trustmarks, configure TPATs, add/edit users, and upload all document types.</em>
 
                         </span>
 
@@ -129,18 +127,18 @@
             function changeRoleStatus(role){
                 var hasRole = $('#'+role+'Role').val();
                 if( hasRole === 'false' ){
+                    // reset other roles
+                    $(".roleField").each(function() {
+                        $(this).val('false');
+                    });
+
                     $('#'+role+'Role').val('true');
                 }else if( hasRole === 'true' ){
-                    $('#'+role+'Role').val('false');
+                    // ignore
                 }else{
                     alert("Invalid value for role '"+role+"': "+hasRole);
                     $('#'+role+'Role').val('false');
                 }
-
-
-
-
-
 
                 updateRoleButtonsView();
             }//end changeRoleStatus()

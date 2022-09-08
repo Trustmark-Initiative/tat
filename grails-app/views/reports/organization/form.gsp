@@ -38,21 +38,27 @@
                 <div class="form-group">
                     <label for="organization" class="col-sm-2 control-label">Organization</label>
                     <div class="col-sm-10">
-                        <%
-                            List<Organization> validOrgs = []
-                            if( user.isUser() ){
-                                validOrgs = Organization.findAll(); // Sort?
-                            }else{
-                                Organization.findAll().each { Organization org ->
-                                    if( org.primaryContact.equals(user.contactInformation) ||
-                                            org.contacts.contains(user.contactInformation) ||
-                                            user.organization.equals(org) ){
-                                        validOrgs.add( org );
+                        <g:if test="${user.isAdmin() || user.isReportOnly()}">
+                            <%
+                                List<Organization> validOrgs = []
+                                if( user.isAdmin() ){
+                                    validOrgs = Organization.findAll(); // Sort?
+                                }else{
+                                    Organization.findAll().each { Organization org ->
+                                        if( org.primaryContact.equals(user.contactInformation) ||
+                                                org.contacts.contains(user.contactInformation) ||
+                                                user.organization.equals(org) ){
+                                            validOrgs.add( org );
+                                        }
                                     }
                                 }
-                            }
-                        %>
-                        <g:select name="organization" id="organization" class="form-control" from="${validOrgs}" optionKey="id" optionValue="name" value="${command?.organization?.id}" />
+                            %>
+                            <g:select name="organization" id="organization" class="form-control" from="${validOrgs}" optionKey="id" optionValue="name" value="${command?.organization?.id}" />
+                        </g:if>
+                        <g:else>
+                            <g:hiddenField name="organization" id="organization" value="${user.organization.id}" />
+                            <input class="form-control" type="text" id="organizationInput" name="organizationInput" value=${user.organization.name} readonly>
+                        </g:else>
                         <p class="help-block">This is the organization to report on.</p>
                     </div>
                 </div>
@@ -113,11 +119,21 @@
                 <script type="text/javascript">
                     var STOP_LOOP = false;
                     var CANCEL_LOOP = false;
+                    var ORG_ID = -1;
+
+                    $(document).ready(function(){
+
+                        ORG_ID = $("select#organization option").filter(":selected").val();
+                        if(ORG_ID === undefined) {
+                            ORG_ID = $("#organization").val();
+                        }
+
+                    })
 
                     let runReport = function() {
                         console.log("runReport");
 
-                        var organizationId = $("select#organization option").filter(":selected").val();
+                        var organizationId = ORG_ID;
 
                         initOrganizationReportState();
 
@@ -131,7 +147,7 @@
 
                         $('#organizationReportStatusMessage').html('');
 
-                        var organizationId = $("select#organization option").filter(":selected").val();
+                        var organizationId = ORG_ID;
 
                         var url = '${createLink(controller: 'reports',  action: 'initOrganizationReportState')}';
                         $.ajax({
@@ -158,7 +174,7 @@
                     let startOrganizationReport = function() {
                         console.log("startOrganizationReport...");
 
-                        var organizationId = $("select#organization option").filter(":selected").val();
+                        var organizationId = ORG_ID;
 
                         var startyear = $("#startDate_year").val();
                         var startmonth = $("#startDate_month").val();

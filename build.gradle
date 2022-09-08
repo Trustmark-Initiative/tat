@@ -13,7 +13,7 @@ buildscript {
     }
 }
 
-version "1.3-SNAPSHOT"
+version "1.4"
 group "tmf.assessment"
 
 apply plugin:"idea"
@@ -104,15 +104,17 @@ dependencies {
 
     implementation 'org.freemarker:freemarker:2.3.31'
 
-    runtimeOnly ('org.grails.plugins:database-migration:4.0.0') {
+    runtimeOnly ('org.grails.plugins:database-migration:4.1.0') {
         // It seems that this module conflicts with the Tomcat boot process
         exclude group: 'org.springframework.boot', module: 'spring-boot-cli'
+        exclude group: 'com.vaadin.external.google', module:'android-json'
     }
 
-    implementation 'org.liquibase:liquibase-core:4.7.1'
+    implementation 'org.liquibase:liquibase-core:4.9.1'
+    implementation 'com.github.blagerweij:liquibase-sessionlock:1.5.1'
 
-    implementation "edu.gatech.gtri.trustmark:tf-api:1.4.24"
-    implementation "edu.gatech.gtri.trustmark:tf-api-impl:1.4.35"
+    implementation "edu.gatech.gtri.trustmark:tf-api:1.4.37"
+    implementation "edu.gatech.gtri.trustmark:tf-api-impl:1.4.59"
 
     compileOnly "io.micronaut:micronaut-inject-groovy"
 

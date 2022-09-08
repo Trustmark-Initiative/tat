@@ -27,7 +27,7 @@ import java.text.SimpleDateFormat
  * Created by brad on 9/9/14.
  */
 @Transactional
-@Secured("ROLE_USER")
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 class TrustmarkController {
 
     // Thread related variables
@@ -47,9 +47,16 @@ class TrustmarkController {
             params.max = '20'
         params.max = Math.min(100, Integer.parseInt(params.max)).toString(); // Limit to at most 100 orgs at a time.
 
+        User user = springSecurityService.currentUser
+
         // case for filtering by recipient organizations
-        if (params.containsKey("id")) {
-            Integer orgId = Integer.parseInt(params["id"])
+        if (params.containsKey("id") || user.isUser()) {
+            Integer orgId = -1
+            if (user.isUser() ) {
+                orgId = user.organization.id
+            } else {
+                orgId = Integer.parseInt(params["id"])
+            }
             Organization org = Organization.findById(orgId)
             def trustmarks = Trustmark.findAllByRecipientOrganization(org)
             [trustmarks: trustmarks, trustmarkCountTotal: trustmarks.size()]
@@ -210,6 +217,10 @@ class TrustmarkController {
         long stopTime = System.currentTimeMillis()
         log.info("*** Loading TDs time: ${(stopTime - startTime)}ms.")
 
+        log.debug("Listing and sorting all organization's trustmark recipient identifier instances...")
+        List<TrustmarkRecipientIdentifier> trustmarkRecipientIdentifierList =
+                TrustmarkRecipientIdentifier.findAllByOrganization(assessment.assessedOrganization)
+
         log.debug("Listing and sorting all TrustmarkMetdata instances...")
         List<TrustmarkMetadata> metadataList = TrustmarkMetadata.findAll()
         Collections.sort(metadataList, {m1, m2 -> return m1.name.compareToIgnoreCase(m2.name); } as Comparator)
@@ -218,7 +229,8 @@ class TrustmarkController {
 
         [assessment: assessment,
          metadataList: metadataList,
-         trustmarkDefinitions: trustmarkDefinitions]
+         trustmarkDefinitions: trustmarkDefinitions,
+         trustmarkRecipientIdentifierList: trustmarkRecipientIdentifierList]
     }//end create()
 
     @ParamConversion(paramName="assessmentId", toClass=Assessment.class, storeInto = "assessment")
@@ -398,6 +410,14 @@ class TrustmarkController {
                 return redirect(controller: 'trustmarkMetadata', action: 'create')
             }
 
+            TrustmarkRecipientIdentifier trustmarkRecipientIdentifier =
+                    TrustmarkRecipientIdentifier.get(paramsMap['trustmarkRecipientIdentifierId'])
+            if (trustmarkRecipientIdentifier == null) {
+                log.warn("No trustmark recipient identifier has been selected!")
+                flash.error = "You must select  trustmark recipient identifier set to grant a Trustmark on."
+                return redirect(action: 'create', params: [assessmentId: assessment.id])
+            }
+
 //            log.debug("///////////////////////////////////////////")
 //            log.debug("tdsToGrantOn size: ${tdsToGrantOn.size()}...")
 //            log.debug("tdsToGrantOn: ${tdsToGrantOn.toString()}...")
@@ -409,11 +429,14 @@ class TrustmarkController {
             final Integer assessmentId = assessment.id
             final Integer userId = user.id
             final Integer metadataSetId = metadata.id
+            final Integer trustmarkRecipientIdentifierId = trustmarkRecipientIdentifier.id
+
 
             Thread trustmarkListThread = new Thread(new Runnable() {
                 @Override
                 void run() {
-                    trustmarkService.generateTrustmarkList(userId, assessmentId, metadataSetId)
+                    trustmarkService.generateTrustmarkList(userId, assessmentId,
+                            metadataSetId, trustmarkRecipientIdentifierId)
                 }
             })
             trustmarkService.setAttribute(TRUSTMARK_GENERATION_THREAD_VAR, trustmarkListThread)
@@ -662,6 +685,26 @@ class TrustmarkController {
         String trustmarkXml = trustmark.signedXml
 
         return render(contentType: 'text/xml', text: trustmarkXml)
+    }
+
+    /**
+     * Generates the JSON representation for a trustmark in the system.
+     */
+    def generateJson() {
+        User user = springSecurityService.currentUser
+        if( StringUtils.isEmpty(params.id) )
+            throw new ServletException("Missing required parameter 'id'.")
+
+        Trustmark trustmark = Trustmark.findById(params.id)
+        if( !trustmark )
+            throw new ServletException("Unknown trustmark: ${params.id}")
+
+        if( trustmark.status != TrustmarkStatus.OK ){
+            log.warn("Refusing to generate for expired trustmark")
+            throw new ServletException("Trustmark ${params.id} has bad status: ${trustmark.status}.  Refusing to generate JSON.")
+        }
+
+        return render(contentType: 'text/jwt', text: trustmark.signedJson)
     }
 
     /**
@@ -1153,19 +1196,7 @@ class TrustmarkController {
 
         List<Trustmark> trustmarks = Trustmark.findAllByRecipientOrganization(org)
 
-        if( trustmarks && !trustmarks.isEmpty() ){
-
-            trustmarks.each { trustmark ->
-                // only revoke active trustmarks
-                if (trustmark.status == TrustmarkStatus.ACTIVE || trustmark.status == TrustmarkStatus.OK) {
-                    trustmark.status = TrustmarkStatus.REVOKED
-                    trustmark.revokedReason = params.reason
-                    trustmark.revokingUser = user
-                    trustmark.revokedTimestamp = Calendar.getInstance().getTime()
-                    trustmark.save(failOnError: true, flush: true)
-                }
-            }
-        }
+        trustmarkService.revokeAll(trustmarks, user, params.reason)
     }
 
     /**

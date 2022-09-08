@@ -7,6 +7,7 @@ import grails.converters.JSON
 import grails.converters.XML
 import grails.plugin.springsecurity.annotation.Secured
 import grails.gorm.transactions.Transactional
+import grails.util.GrailsStringUtils
 import grails.web.mapping.LinkGenerator
 import nstic.assessment.ColorPalette
 import nstic.util.DifferentialAssessmentProcessor
@@ -30,8 +31,12 @@ import javax.servlet.AsyncContext
 import javax.servlet.ServletException
 import javax.servlet.ServletResponse
 import javax.servlet.ServletResponseWrapper
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+import java.time.temporal.ChronoField
+import java.time.LocalDateTime
 
-@Secured("ROLE_USER")
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
 @Transactional
 class AssessmentController {
 
@@ -55,7 +60,21 @@ class AssessmentController {
         if (!params.max)
             params.max = '20'
         params.max = Math.min(100, Integer.parseInt(params.max)).toString(); // Limit to at most 100 users at a time.
-        [assessments: Assessment.list(params), assessmentsCountTotal: Assessment.count()]
+
+        User user = springSecurityService.currentUser
+        def assessments = []
+        int assessmentsCount = 0
+
+        if (user.isAdmin()) {
+            assessments = Assessment.list(params)
+            assessmentsCount = Assessment.count()
+        } else if (user.isUser()) {
+            assessments = Assessment.findAllByAssessedOrganization(
+                    user.organization, [max: params.max])
+            assessmentsCount = assessments.size()
+        }
+
+        [assessments: assessments, assessmentsCountTotal: assessmentsCount]
     }
 
     /**
@@ -71,11 +90,21 @@ class AssessmentController {
 select distinct assId from (
   SELECT a.id as assId, entry.id as entryId
   FROM assessment a, assessment_log log, assessment_log_entry entry
-  WHERE a.assessment_log_ref = log.id and entry.assessment_log_ref = log.id
+  WHERE %s a.assessment_log_ref = log.id and entry.assessment_log_ref = log.id
   ORDER BY entry.date_created desc
 ) as tempTable
 LIMIT 10
 """
+        if (user.isAdmin()) {
+            queryString = String.format(queryString, "")
+        } else {
+            // replace placeholder with a where clause for the user's organization
+            int orgId = user.organization.id
+            String orgWhere = String.format("a.organization_ref = %d and ", orgId)
+
+            queryString = String.format(queryString, orgWhere)
+        }
+
         final SQLQuery sqlQuery = session.createSQLQuery(queryString)
         def assessmentIds = []
         sqlQuery.list().each{ result ->
@@ -109,6 +138,15 @@ LIMIT 10
 
         }//end each assessmentId
 
+        // sort descending
+        DateTimeFormatter fm = new DateTimeFormatterBuilder()
+                .appendPattern("yyyy-MM-dd HH:mm:ss")
+                .appendFraction(ChronoField.MICRO_OF_SECOND, 0, 6, true)
+                .toFormatter();
+
+        assessments.sort((a1, a2) -> LocalDateTime.parse(a2.dateCreated.toString(), fm)
+                .compareTo(LocalDateTime.parse(a1.dateCreated.toString(), fm)));
+
         [assessments: assessments, assessmentLastLogEntryMap: assessmentLastLogEntryMap]
     }//end mostRelevantList()
 
@@ -120,7 +158,18 @@ LIMIT 10
         log.debug("Sending user @|cyan ${springSecurityService.currentUser}|@ to create form for assessment...")
 
         log.debug("Forwarding to form page...")
-        [command: new CreateAssessmentCommand()]
+
+        User user = springSecurityService.currentUser
+
+        CreateAssessmentCommand command = null
+
+        if (user.isUser()) {
+            command = CreateAssessmentCommand.fromUser(user)
+        } else {
+            command = new CreateAssessmentCommand()
+        }
+
+        [command: command]
     }//end create()
 
     /**
@@ -247,7 +296,7 @@ LIMIT 10
 
         log.info("Processing TD resolution for TIP ${databaseTip.name}, version ${databaseTip.version}...")
         for( String key : params.keySet() )  {
-            if( key.startsWith("tdCheckbox") && params.boolean(key) ){
+            if( key.startsWith("tdCheckbox") && processTdCheckboxParam(params[key]) ){
                 String[] tdtip = key.split("-")
                 if(tdtip.length > 1)  {
                     Long tipId = Long.parseLong(tdtip[1])
@@ -280,6 +329,25 @@ LIMIT 10
         return forward(action: 'actuallyCreateAssessment')
 
     }//end processTreeResolve()
+
+    private boolean processTdCheckboxParam(Object on) {
+        String ON = "";
+
+        if (on) {
+            if (on instanceof String) {
+                ON = (String) on;
+            } else if (on instanceof String[]) {
+                // multiple selected checkboxes with the same TD name comes back as an array of strings
+                // all values are the same so we select the 1st
+                String[] onStrings = (String[]) on;
+                ON = onStrings[0]
+            }
+
+            return GrailsStringUtils.toBoolean(ON)
+        }
+
+        return false;
+    }
 
     /**
      * This method will actually call the create assessment method.
@@ -516,7 +584,7 @@ LIMIT 10
         [assessment: assessment, oldId: oldId, archive: binaryObject]
     }//end delete()
 
-    @Secured(["ROLE_REPORTS_ONLY", "ROLE_USER"])
+    @Secured(["ROLE_REPORTS_ONLY", "ROLE_USER", "ROLE_ADMIN"])
     def getAssessmentStatusSummary(){
         User user = springSecurityService.currentUser
         log.debug("User[$user] is viewing status summary for assessment ${params.id}...")
@@ -849,6 +917,40 @@ LIMIT 10
         render results as JSON
     }
 
+    def listAssessmentLogEntries() {
+        if( StringUtils.isEmpty(params.id) ) {
+            throw new ServletException("Missing required parameter 'id'.")
+        }
+
+        Assessment assessment = Assessment.findById(params.id)
+        if( assessment == null ) {
+            throw new ServletException("Assessment not found.")
+        }
+
+        log.debug("Loading assessment log entries for assessment ${assessment?.id}...")
+
+
+        def criteria = AssessmentLogEntry.createCriteria()
+        def logEntries = criteria.list {
+            eq("logg", assessment.logg)
+//            not { 'in'('type', ["VIEW"]) } // TODO Add other log entry types we don't want to show.
+            maxResults(10)
+            order("dateCreated", "desc")
+        }
+
+        def assessmentLogEntryViewBaseUrl = grailsLinkGenerator.link(controller: 'assessmentLog', action: 'viewLogEntry',  id: assessment.id, absolute: true)
+
+        Map results = [:]
+
+        def logEntryCount = AssessmentLogEntry.countByLogg(assessment.logg)
+
+        results.put("logEntryCount", logEntryCount)
+        results.put("assessmentLogEntryViewBaseUrl", assessmentLogEntryViewBaseUrl)
+        results.put("records", logEntries)
+
+        render results as JSON
+    }
+
     //==================================================================================================================
     //  Private Helper Methods
     //==================================================================================================================
@@ -869,7 +971,7 @@ LIMIT 10
             if( paramName.startsWith("trustmarkDefinition") ){
                 Long tdIdentifier = Long.parseLong(params[paramName])
                 TrustmarkDefinition td = TrustmarkDefinition.get(tdIdentifier)
-                log.info("Resolve TD[${td.name} : ${td.tdVersion}] for param[$paramName]")
+                log.info("Resolve TD[${td.name} : ${td.tdVersion}] for params[$paramName]")
                 CreateAssessmentTdData tdData = new CreateAssessmentTdData()
                 tdData.databaseId = td.id
                 tdData.name = td.name
@@ -1090,7 +1192,7 @@ LIMIT 10
             }
             if( !org.uri.equalsIgnoreCase(createAssessmentCommand.organizationUri) ){
                 log.warn("For organization[${org.id}], User[${user}] is modifying URN from [${org.uri}] to [${createAssessmentCommand.organizationUri}].")
-                org.uri = createAssessmentCommand.organizationUri
+                org.addTrustmarkRecipientIdentifierUri(createAssessmentCommand.organizationUri)
                 org.save(failOnError: true, flush: true)
             }
             if( !org.name.equalsIgnoreCase(createAssessmentCommand.organizationName) ){
@@ -1100,9 +1202,9 @@ LIMIT 10
             }
         }else{ // This organization doesn't already exist.
             log.debug("Creating new organization[${createAssessmentCommand.organizationUri}]...")
-            org.name = createAssessmentCommand.organizationName
-            org.uri = createAssessmentCommand.organizationUri
-            org.save(failOnError: true, flush: true)
+            Organization newOrg = Organization.newOrganization(createAssessmentCommand.organizationUri, "",
+                    createAssessmentCommand.organizationName, false)
+            newOrg.save(failOnError: true, flush: true)
         }
         return org
     }//end handleOrg()
@@ -1199,6 +1301,23 @@ LIMIT 10
  */
 class CreateAssessmentCommand {
     static Logger log = LoggerFactory.getLogger(CreateAssessmentCommand.class)
+
+    public static CreateAssessmentCommand fromUser( User user ){
+        CreateAssessmentCommand cmd = new CreateAssessmentCommand();
+        cmd.existingOrgId = user.organization.id;
+        cmd.organizationUri = user.organization.uri;
+        cmd.organizationName = user.organization.name;
+
+        // get contact information from the user organization
+        cmd.existingContactId = user.organization.primaryContact.id;
+        cmd.contactResponder = user.organization.primaryContact.responder;
+        cmd.contactEmail = user.organization.primaryContact.email;
+        cmd.contactPhoneNumber = user.organization.primaryContact.phoneNumber;
+        cmd.contactMailingAddress = user.organization.primaryContact.mailingAddress;
+        cmd.contactNotes = user.organization.primaryContact.notes;
+
+        return cmd;
+    }
 
     String assessmentName
     Integer existingOrgId; // Immutable database key (in case they selected an existing organziation)

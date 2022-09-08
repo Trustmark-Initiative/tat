@@ -215,7 +215,7 @@ class UserCommand {
     String mailingAddress
     Integer organizationId
     Boolean adminRole = Boolean.FALSE
-    Boolean userRole = Boolean.FALSE
+    Boolean userRole = Boolean.TRUE
     Boolean reportOnlyRole = Boolean.FALSE
 
 
