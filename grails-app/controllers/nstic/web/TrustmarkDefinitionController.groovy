@@ -5,7 +5,6 @@ import edu.gatech.gtri.trustmark.v1_0.io.SerializerFactory
 import edu.gatech.gtri.trustmark.v1_0.io.TrustmarkDefinitionResolver
 import grails.converters.JSON
 import grails.converters.XML
-import grails.plugin.springsecurity.annotation.Secured
 import grails.gorm.transactions.Transactional
 import nstic.web.assessment.Assessment
 import nstic.web.assessment.AssessmentTrustmarkDefinitionLink
@@ -16,20 +15,25 @@ import nstic.web.td.TrustmarkDefinition
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.IOUtils
 import org.apache.commons.lang.StringUtils
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.web.multipart.MultipartFile
 
 import javax.servlet.ServletException
 
-@Secured(["ROLE_USER", "ROLE_ADMIN"])
+
+@PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
 @Transactional
 class TrustmarkDefinitionController {
 
-    def springSecurityService;
 //    def tdImporterService;
     def fileService;
 
+//    @PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
     def list() {
-        log.debug("User[@|blue ${springSecurityService.currentUser}|@] listing trustmark definitions...")
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        log.debug("User[@|blue ${user}|@] listing trustmark definitions...")
         if( !params.max ){
             params.max = "10"
         }
@@ -60,7 +64,7 @@ class TrustmarkDefinitionController {
      * which are based on that TD.
      */
     def listAssessments() {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
 
         if( !params.id ){
             log.warn("Missing required parameter 'id'")
@@ -124,6 +128,7 @@ class TrustmarkDefinitionController {
         render statusJson as JSON
     }
 
+//    @PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
     def disable(){
         log.info("Request to disable TrustmarkDefinition[${params.id}]...")
         TrustmarkDefinition td = TrustmarkDefinition.findById(params.id);
@@ -246,9 +251,9 @@ class TrustmarkDefinitionController {
 
     }//end view()
 
-
     def typeahead() {
-        log.debug("User[@|blue ${springSecurityService.currentUser}|@] searching[@|cyan ${params.q}|@] via TrustmarkDefinition typeahead...")
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        log.debug("User[@|blue ${user}|@] searching[@|cyan ${params.q}|@] via TrustmarkDefinition typeahead...")
 
         def results = TrustmarkDefinition.findByUri(params.q)
 

@@ -3,7 +3,6 @@ package nstic.web
 import grails.converters.JSON
 import grails.converters.XML
 import grails.gorm.transactions.Transactional
-import grails.plugin.springsecurity.annotation.Secured
 import nstic.TATPropertiesHolder
 import nstic.TrustmarkIdentifierGenerator
 import nstic.util.AssessmentToolProperties
@@ -12,6 +11,9 @@ import nstic.web.assessment.Assessment
 import org.grails.help.ParamConversion
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.validation.ObjectError
 
 import javax.servlet.ServletContext
@@ -22,10 +24,8 @@ import nstic.util.DefaultMetadataUtils
  * Created by brad on 5/5/16.
  */
 @Transactional
-@Secured("ROLE_ADMIN")
+@PreAuthorize('hasAuthority("tat-admin")')
 class TrustmarkMetadataController {
-
-    def springSecurityService;
 
     //==================================================================================================================
     //  Web Methods
@@ -71,7 +71,7 @@ class TrustmarkMetadataController {
     }//end create()
 
     def save(CreateTrustmarkMetadataCommand command){
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         log.debug("Processing CreateTrustmarkMetadataCommand...")
         if( !command.validate() ){
             log.warn "CreateTrustmarkMetadataCommand form does not validate: "
@@ -110,7 +110,7 @@ class TrustmarkMetadataController {
 
     def update(EditTrustmarkMetadataCommand command){
         log.info("========================================= UPDATING TM METADATA ===============================>");
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         log.debug("Processing EditTrustmarkMetadataCommand...")
         if (!command.validate()) {
             log.warn "EditTrustmarkMetadataCommand form does not validate: "

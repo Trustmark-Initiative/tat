@@ -2,19 +2,15 @@ package nstic.web
 
 import assessment.tool.ImportExportService
 import grails.converters.JSON
-import grails.plugin.springsecurity.annotation.Secured
-import nstic.TATPropertiesHolder
 import org.apache.commons.lang.StringUtils
+import org.springframework.security.access.prepost.PreAuthorize
 
 import javax.servlet.ServletException
 import java.text.SimpleDateFormat
 
-import edu.gatech.gtri.trustmark.v1_0.impl.util.TrustmarkMailClientImpl
-
-@Secured("ROLE_ADMIN")
+@PreAuthorize('hasAuthority("tat-admin")')
 class AdminController {
 
-    def springSecurityService
     ImportExportService importExportService
 
     /**

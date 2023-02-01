@@ -5,7 +5,6 @@ import com.googlecode.charts4j.PieChart
 import com.googlecode.charts4j.Slice
 import grails.converters.JSON
 import grails.converters.XML
-import grails.plugin.springsecurity.annotation.Secured
 import grails.gorm.transactions.Transactional
 import grails.util.GrailsStringUtils
 import grails.web.mapping.LinkGenerator
@@ -25,6 +24,11 @@ import org.hibernate.SQLQuery
 import org.hibernate.Session
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.Authentication
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.oauth2.client.authentication.OAuth2LoginAuthenticationToken
 import org.springframework.validation.ObjectError
 
 import javax.servlet.AsyncContext
@@ -36,7 +40,7 @@ import java.time.format.DateTimeFormatterBuilder
 import java.time.temporal.ChronoField
 import java.time.LocalDateTime
 
-@Secured(["ROLE_USER", "ROLE_ADMIN"])
+@PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
 @Transactional
 class AssessmentController {
 
@@ -44,7 +48,6 @@ class AssessmentController {
     static String TDS_AND_TIPS_SESSION_VARIABLE = AssessmentController.class.getName()+".TD_AND_TIP_PARAMS"
     static String LAST_TIP_TREE_SESSION_VARIABLE = AssessmentController.class.getName()+".LAST_TIP_TREE"
 
-    def springSecurityService
     def fileService
     def sessionFactory
     def trustmarkService
@@ -61,7 +64,8 @@ class AssessmentController {
             params.max = '20'
         params.max = Math.min(100, Integer.parseInt(params.max)).toString(); // Limit to at most 100 users at a time.
 
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+
         def assessments = []
         int assessmentsCount = 0
 
@@ -81,7 +85,9 @@ class AssessmentController {
      * Returns a list of the most relevant assessments to the current user.
      */
     def mostRelevantList() {
-        User user = springSecurityService.currentUser
+        String userName = ((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName()
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        
         log.info("User[${user?.username}] requesting most relevant list of assessments...")
 
         log.debug("Executing native SQL query...")
@@ -155,11 +161,10 @@ LIMIT 10
      * Called when the user wishes to create a new assessment.  Takes the user to the create assessment form.
      */
     def create() {
-        log.debug("Sending user @|cyan ${springSecurityService.currentUser}|@ to create form for assessment...")
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        log.debug("Sending user @|cyan ${user}|@ to create form for assessment...")
 
         log.debug("Forwarding to form page...")
-
-        User user = springSecurityService.currentUser
 
         CreateAssessmentCommand command = null
 
@@ -176,7 +181,7 @@ LIMIT 10
      * Called when the user clicks "create" on the create assessment form.
      */
     def save(CreateAssessmentCommand createAssessmentCommand) { // called when user submits a create assessment command
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("User[${user}] is calling AssessmentController.save()...")
 
         CreateAssessmentTdsAndTips tdsAndTips = processParams(params)
@@ -353,7 +358,7 @@ LIMIT 10
      * This method will actually call the create assessment method.
      */
     def actuallyCreateAssessment() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         CreateAssessmentCommand createAssessmentCommand = null
         CreateAssessmentTdsAndTips tdsAndTips = null
@@ -383,7 +388,8 @@ LIMIT 10
     }
 
     def updateName(EditAssessmentNameCommand editAssessmentNameCommand) {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        
         Assessment assessment = Assessment.get(editAssessmentNameCommand.assessmentId)
         log.debug("User[$user] is editing the name of assessment ${assessment.id}...")
         assessment.assessmentName = editAssessmentNameCommand.assessmentName
@@ -404,7 +410,8 @@ LIMIT 10
      * about viewing the current status of an assessment rather than modifying it.
      */
     def view(){
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        
         if(StringUtils.isEmpty(params.id)){
             log.warn("Cannot display assessment when missing id parameter")
             throw new ServletException("Missing id parameter")
@@ -552,7 +559,8 @@ LIMIT 10
 
 
     def delete() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        
         log.debug("User[$user] is deleting assessment ${params.id}...")
 
         Assessment assessment = Assessment.get(params.id)
@@ -584,9 +592,10 @@ LIMIT 10
         [assessment: assessment, oldId: oldId, archive: binaryObject]
     }//end delete()
 
-    @Secured(["ROLE_REPORTS_ONLY", "ROLE_USER", "ROLE_ADMIN"])
+    @PreAuthorize('hasAnyAuthority("tat-contributor", "tat-viewer", "tat-admin")')
     def getAssessmentStatusSummary(){
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        
         log.debug("User[$user] is viewing status summary for assessment ${params.id}...")
 
         Assessment assessment = Assessment.get(params.id)
@@ -621,7 +630,8 @@ LIMIT 10
      */
     @ParamConversion(paramName="id", toClass=Assessment.class, storeInto = "assessment")
     def listAvailableArtifacts() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        
         Assessment assessment = params.assessment
         if( !assessment )
             throw new ServletException("Missing required field 'id' to resolve an assessment.")
@@ -667,7 +677,8 @@ LIMIT 10
 
 
     def viewStepData() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        
         log.debug("User[$user] is requesting step data[${params.stepDataId}] data on assessment[${params.id}]...")
 
         if(StringUtils.isEmpty(params.id)){
@@ -710,7 +721,8 @@ LIMIT 10
      * Creates a copy of an assessment.
      */
     def copy() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        
         log.debug("User[$user] creating assessment from copy...")
 
         if( request.method.toUpperCase() == 'GET' ){
@@ -851,7 +863,8 @@ LIMIT 10
      * Revoke all trustmarks that were issued for the specified assessment.
      */
     def revokeAllTrustmarksIssuedforAssessment() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        
         if( StringUtils.isEmpty(params.id) ) {
             throw new ServletException("Missing required parameter 'id'.")
         }

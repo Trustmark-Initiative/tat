@@ -13,7 +13,7 @@ buildscript {
     }
 }
 
-version "1.4"
+version "2.0-SNAPSHOT"
 group "tmf.assessment"
 
 apply plugin:"idea"
@@ -46,14 +46,17 @@ sourceSets {
 
 dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
-
     console "org.grails:grails-console"
 
     implementation "org.springframework.boot:spring-boot-starter-logging"
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation "org.springframework.boot:spring-boot-autoconfigure"
 
-    implementation "org.grails:grails-core"
+    //    implementation "org.grails:grails-core"
+    implementation( "org.grails:grails-core" ) {
+        exclude group: 'org.fusesource.jansi', module: 'jansi:1.18'
+    }
+    implementation group: 'org.fusesource.jansi', name: 'jansi', version: '2.4.0'
 
     implementation "org.springframework.boot:spring-boot-starter-actuator"
     testImplementation "org.springframework.boot:spring-boot-starter-tomcat"
@@ -61,7 +64,6 @@ dependencies {
 
     implementation "org.grails:grails-web-boot"
     implementation "org.grails:grails-logging"
-
     implementation "org.grails:grails-plugin-rest"
     implementation "org.grails:grails-plugin-databinding"
     implementation "org.grails:grails-plugin-i18n"
@@ -80,9 +82,20 @@ dependencies {
     implementation "org.hibernate:hibernate-core:5.6.3.Final"
     implementation "org.grails.plugins:events"
 
-    implementation 'org.grails.plugins:spring-security-core:4.0.3'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation "org.springframework.boot:spring-boot-starter-security"
+    implementation "org.springframework.boot:spring-boot-starter-oauth2-client"
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation "org.springframework.security:spring-security-taglibs"
 
-    implementation "shared.views:tmf-shared-views:0.3"
+
+    implementation 'org.grails:grails-web-jsp:5.2.1'
+    implementation 'javax.servlet:jstl:1.2'
+    implementation 'taglibs:standard:1.1.2'
+
+    runtimeOnly "javax.servlet.jsp:javax.servlet.jsp-api:2.3.3"
+
+    implementation "shared.views:tmf-shared-views:0.6"
 
     implementation 'org.grails.plugins:quartz:2.0.13' // For monitoring configuration directories periodically
     implementation 'org.quartz-scheduler:quartz:2.2.1' // required for quartz scheduler
@@ -113,8 +126,8 @@ dependencies {
     implementation 'org.liquibase:liquibase-core:4.9.1'
     implementation 'com.github.blagerweij:liquibase-sessionlock:1.5.1'
 
-    implementation "edu.gatech.gtri.trustmark:tf-api:1.4.37"
-    implementation "edu.gatech.gtri.trustmark:tf-api-impl:1.4.59"
+    implementation "edu.gatech.gtri.trustmark:tf-api:1.4.41"
+    implementation "edu.gatech.gtri.trustmark:tf-api-impl:1.4.66"
 
     compileOnly "io.micronaut:micronaut-inject-groovy"
 
@@ -145,7 +158,8 @@ bootRun {
             '-Dspring.output.ansi.enabled=always',
             '-noverify',
             '-XX:TieredStopAtLevel=1',
-            '-Xmx1024m')
+            '-Xmx1024m'
+    )
     sourceResources sourceSets.main
     String springProfilesActive = 'spring.profiles.active'
     systemProperty springProfilesActive, System.getProperty(springProfilesActive)

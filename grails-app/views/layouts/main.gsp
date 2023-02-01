@@ -1,3 +1,4 @@
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 <!DOCTYPE html>
 <!--[if lt IE 7 ]> <html lang="en" class="no-js ie6"> <![endif]-->
 <!--[if IE 7 ]>    <html lang="en" class="no-js ie7"> <![endif]-->
@@ -12,8 +13,6 @@
 
         <asset:stylesheet src="application.css"/>
         <asset:javascript src="application.js"/>
-
-        <asset:link rel="shortcut icon" href="favicon.ico" type="image/icon" />
 
 		<g:layoutHead/>
 

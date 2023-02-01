@@ -36,15 +36,6 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="password" class="col-sm-2 control-label">Password</label>
-                    <div class="col-sm-5">
-                        <g:passwordField name="password" id="password" class="form-control col-md-6" value="${userCommand?.password}" placeholder="Password" />
-                    </div>
-                    <div class="col-sm-5">
-                        <g:passwordField name="passwordAgain" id="passwordAgain" class="form-control col-md-6" value="${userCommand?.passwordAgain}" placeholder="Password (Again)" />
-                    </div>
-                </div>
-                <div class="form-group">
                     <label for="name" class="col-sm-2 control-label">Name</label>
                     <div class="col-sm-10">
                         <g:textField name="name" id="name" class="form-control" placeholder="George Washington" value="${userCommand?.name}" />

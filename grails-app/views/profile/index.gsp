@@ -34,8 +34,10 @@
         </div>
 
         <div class="pageContent" style="margin-top: 3em;">
-
-            <form action="${createLink(controller:'profile', action:'update', id: sec.username())}" method="POST" class="form-horizontal">
+%{--            TODO: Get the principal from the Spring context --}%
+%{--            <sec:authentication property="principal.username" />--}%
+%{--            <form action="${createLink(controller:'profile', action:'update', id: sec.username())}" method="POST" class="form-horizontal">--}%
+            <form action="${createLink(controller:'profile', action:'update', id: '')}" method="POST" class="form-horizontal">
                 <fieldgroup>
                     <legend>Login Information</legend>
                     <div class="form-group">

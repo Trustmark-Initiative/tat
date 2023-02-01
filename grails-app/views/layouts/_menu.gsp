@@ -1,6 +1,6 @@
-<%@ page import="grails.plugin.springsecurity.SpringSecurityUtils" %>
-<%@ page import="nstic.web.UserRole" %>
-<%@ page import="nstic.web.Role" %>
+<%@ page import="nstic.util.AssessmentToolProperties" %>
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
+<%@ page import="nstic.web.User; nstic.web.Role" %>
 
 <nav class="navbar navbar-inverse navbar-fixed-top">
 <!--  <nav class="navbar navbar-default tatmenu" role="navigation">  -->
@@ -20,14 +20,14 @@
     <!-- Collect the nav links, forms, and other content for toggling -->
     <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
         <ul class="nav navbar-nav navbar-center">
-            <sec:ifLoggedIn>
+            <sec:authorize access="isAuthenticated()">
                 <li>
                     <a href="${createLink(uri:'/')}">
                         <span class="glyphicon glyphicon-home"></span>
                         Home
                     </a>
                 </li>
-                <sec:ifNotGranted roles="ROLE_REPORTS_ONLY">
+                <sec:authorize access="!hasAuthority('tat-viewer')">
                     <li class="dropdown">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                             <span class="glyphicon glyphicon-list"></span>
@@ -35,41 +35,42 @@
                         </a>
                         <ul class="dropdown-menu" role="menu">
                             <li><a href="${createLink(controller:'assessment', action:'list')}">Assessments</a></li>
-                            <sec:ifAllGranted roles="ROLE_ADMIN">
+                            <sec:authorize access="hasAuthority('tat-admin')">
                                 <li><a href="${createLink(controller: 'contactInformation', action: 'list')}" title="Manage Contacts">Contacts</a></li>
                                 <li><a href="${createLink(controller: 'organization', action: 'trustmarkProvider')}" title="Manage Trustmark Provider">Trustmark Provider</a></li>
                                 <li><a href="${createLink(controller: 'organization', action: 'list')}" title="Manage Trustmark Recipients">Trustmark Recipients</a></li>
-                            </sec:ifAllGranted>
-                            <sec:ifAllGranted roles="ROLE_USER">
+                            </sec:authorize>
+                            <sec:authorize access="hasAuthority('tat-contributor')">
                                 <li><a href="${createLink(controller: 'organization', action: 'viewUserOrganization')}" title="Manage User's Organization">Organization</a></li>
-                            </sec:ifAllGranted>
+                            </sec:authorize>
                             <li><a href="${createLink(controller: 'documents', action: 'list')}" title="Manage Documents">Documents</a></li>
                             <li><a href="${createLink(controller:'tip', action:'list')}">Trust Interoperability Profiles</a></li>
                             <li><a href="${createLink(controller:'trustmark', action:'list')}">Trustmarks</a></li>
                             <li><a href="${createLink(controller:'trustmarkDefinition', action:'list')}">Trustmark Definitions</a></li>
-                            <sec:ifAllGranted roles="ROLE_ADMIN">
+                            <sec:authorize access="hasAuthority('tat-admin')">
                                 <li><a href="${createLink(controller:'trustmarkMetadata', action:'list')}">Trustmark Metadata</a></li>
                                 <li><a href="${createLink(controller: 'user', action: 'list')}" title="Manage User Accounts">Users</a></li>
-                            </sec:ifAllGranted>
+                            </sec:authorize>
                         </ul>
                     </li>
-                </sec:ifNotGranted>
+                </sec:authorize>
                 <li>
-                    <a href="${createLink(controller:'profile', id: sec.username())}" title="Manage Your User Profile">
+%{--                    <a href="${createLink(controller:'profile', id: sec.username())}" title="Manage Your User Profile">--}%
+                    <a href="${createLink(controller:'profile', id: '')}" title="Manage Your User Profile">
                         <span class="glyphicon glyphicon-user"></span>
                         Profile
                     </a>
                 </li>
-                <sec:ifAnyGranted roles="ROLE_ADMIN, ROLE_USER">
+                <sec:authorize access="hasAuthority('tat-admin') or hasAuthority('tat-contributor')">
                     <li>
                         <a href="${createLink(controller:'reports', action: 'organizationReport')}" title="Generate Organizational Reports">
                             <span class="glyphicon glyphicon-stats"></span>
                             Organizational Reports
                         </a>
                     </li>
-                </sec:ifAnyGranted>
-            </sec:ifLoggedIn>
-            <sec:ifAllGranted roles="ROLE_ADMIN">
+                </sec:authorize>
+            </sec:authorize>
+            <sec:authorize access="hasAuthority('tat-admin')">
                 <li class="dropdown">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                         <span class="glyphicon glyphicon-list-alt"></span>
@@ -82,11 +83,11 @@
                         <li><a href="${createLink(controller: 'email', action: 'settings')}">Email</a></li>
                     </ul>
                 </li>
-            </sec:ifAllGranted>
-            <sec:ifLoggedIn>
+            </sec:authorize>
+            <sec:authorize access="isAuthenticated()">
                 <li><a href="${createLink(controller: 'logout')}">Logout</a></li>
-            </sec:ifLoggedIn>
-            <sec:ifNotLoggedIn>
+            </sec:authorize>
+            <sec:authorize access="!isAuthenticated()">
                 <li class="dropdown">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                         <span class="glyphicon glyphicon-list"></span>
@@ -94,13 +95,15 @@
                     </a>
                     <ul class="dropdown-menu" role="menu">
                         <li><a href="${createLink(controller: 'publicApi', action: 'documents')}">Documents</a></li>
-                        <li><a href="${createLink(controller: 'publicApi', action: 'trustmarks')}">Trustmarks</a></li>
+                        <g:if test="${!AssessmentToolProperties.getIsApiClientAuthorizationRequired()}">
+                            <li><a href="${createLink(controller: 'publicApi', action: 'trustmarks')}">Trustmarks</a></li>
+                        </g:if>
                     </ul>
                 </li>
-                <g:if test="${(UserRole.countByRole(Role.findByAuthority(Role.ROLE_ADMIN)) != 0)}">
+                <g:if test="${(nstic.web.User.hasAdmin())}">
                     <li><a href="${createLink(controller: 'login')}">Login</a></li>
                 </g:if>
-            </sec:ifNotLoggedIn>
+            </sec:authorize>
         </ul>
     </div><!-- /.navbar-collapse -->
 </nav>

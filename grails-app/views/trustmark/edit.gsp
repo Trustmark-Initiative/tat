@@ -1,4 +1,5 @@
 <%@ page import="nstic.web.ContactInformation; nstic.web.Organization" %>
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 <!DOCTYPE html>
 <html>
 	<head>
@@ -158,8 +159,8 @@
 
                 <hr />
 
-                <sec:ifLoggedIn>
-                    <sec:ifAllGranted roles="ROLE_ADMIN">
+                <sec:authorize access="isAuthenticated()">
+                    <sec:authorize access="hasAuthority('tat-admin')">
                         <div class="form-group">
                             <label for="distinguishedName" class="col-sm-1 control-label">Signing Certificate</label>
                             <div class="col-sm-10">
@@ -198,8 +199,8 @@
                                 }
                             </script>
                         </div>
-                    </sec:ifAllGranted>
-                </sec:ifLoggedIn>
+                    </sec:authorize>
+                </sec:authorize>
 
                 <hr />
 

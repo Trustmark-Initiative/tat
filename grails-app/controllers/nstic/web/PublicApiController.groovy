@@ -8,12 +8,12 @@ import edu.gatech.gtri.trustmark.v1_0.model.TrustmarkStatusCode
 import edu.gatech.gtri.trustmark.v1_0.model.TrustmarkStatusReport
 import grails.converters.JSON
 import grails.converters.XML
-import grails.plugin.springsecurity.SpringSecurityUtils
 import nstic.util.AssessmentToolProperties
 import nstic.web.assessment.Trustmark
 import nstic.web.assessment.TrustmarkStatus
 import nstic.web.td.TrustmarkDefinition
 import org.apache.commons.lang.StringUtils
+import org.springframework.security.access.prepost.PreAuthorize
 
 import javax.servlet.ServletException
 import java.text.SimpleDateFormat
@@ -25,6 +25,8 @@ class PublicApiController {
     def index() {
     }
 
+
+    @PreAuthorize('permitAll()')
     def documents() {
     }
 
@@ -54,17 +56,22 @@ class PublicApiController {
         trustmark.statusURL = generateTrustmarkStatusUrl(trustmark.identifier)
 
         withFormat {
-            html {
-                [trustmark: trustmark]
+            if (!AssessmentToolProperties.getIsApiClientAuthorizationRequired()) {
+                html {
+                    [trustmark: trustmark]
+                }
+
+                json {
+                    render(contentType: 'text/html', text: 'JSON not supported, yet')
+                }
             }
-            json {
-                render (contentType: 'text/html', text: 'JSON not supported, yet')
-            }
-            jwt {
-                render(contentType: 'text/jwt', text: trustmark.signedJson)
-            }
+
             xml {
                 render(contentType: 'text/xml', text: trustmark.signedXml)
+            }
+
+            jwt {
+                render(contentType: 'text/jwt', text: trustmark.signedJson)
             }
         }
     }
@@ -88,10 +95,10 @@ class PublicApiController {
             throw new ServletException("No such binary object: ${doc.binaryObjectId}")
         }
 
-        boolean  isUser = SpringSecurityUtils.ifAllGranted("ROLE_USER")
+
         boolean isPublic = doc.publicDocument
 
-        if (isUser || isPublic) {
+        if (isPublic) {
             response.setHeader("Content-length", binaryObject.fileSize.toString())
             response.setHeader("Content-Disposition",
                     "inline; filename= ${URLEncoder.encode(binaryObject.originalFilename ?: "", "UTF-8")}")
@@ -115,6 +122,7 @@ class PublicApiController {
      * find public documents
      * @return
      */
+    @PreAuthorize('permitAll()')
     def findDocs() {
         log.info("Finding documents ...")
         List<PublicDocument> documents = new ArrayList<>()
@@ -157,6 +165,7 @@ class PublicApiController {
             render (status:404, text: "Missing required parameter: id")
             return
         }
+
         Trustmark trustmark = Trustmark.findByIdentifier(params.id)
 
         if( !trustmark )  {
@@ -184,10 +193,8 @@ class PublicApiController {
         log.info("trustmark.status.report ${trustmarkStatusReport.trustmarkReference},  ${trustmarkStatusReport.status},  ${trustmarkStatusReport.statusDateTime}")
         SerializerFactory factory = FactoryLoader.getInstance(SerializerFactory.class)
 
+
         withFormat {
-            html {
-                [trustmarkStatusReport: trustmarkStatusReport]
-            }
             json {
                 Serializer serializer = factory.getJsonSerializer()
                 StringWriter output = new StringWriter()
@@ -294,9 +301,10 @@ class PublicApiController {
      * Called to find all trustmarks issued to a trustmark recipient id.
      */
     def findByRecipient() {
-        log.info("trustmark.findByRecipients ${params.recipientId}")
+        String id = params.recipientId
+        log.info("trustmark.findByRecipients ${id}")
 
-        String decoded = decodeURIComponent(params.recipientId)
+        String decoded = decodeURIComponent(id)
 
         String decodedRecipientId = new String(decoded.decodeBase64())
 
@@ -332,8 +340,16 @@ class PublicApiController {
     def serverStatus() {
         log.info("TAT status...")
 
+        Optional<Organization> defaultOrganization = Organization.findByIsTrustmarkProviderHelper(true);
+
+        String email = defaultOrganization.get().primaryContact.email
+
         def tatStatus = [
-                status: "OK"
+                status: "OK",
+                api_client_authorization_required:
+                        AssessmentToolProperties.getIsApiClientAuthorizationRequired() ? "true" : "false",
+                client_authorization_configuration_help_hint: "contact the administrator of this tool at ${email} for help in getting your " +
+                        "client authorized."
         ]
 
         withFormat {

@@ -3,7 +3,9 @@ package nstic.web
 import grails.converters.JSON
 import grails.converters.XML
 import grails.gorm.transactions.Transactional
-import grails.plugin.springsecurity.annotation.Secured
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.util.StringUtils
 import org.springframework.validation.ObjectError
 
@@ -11,10 +13,8 @@ import javax.servlet.ServletException
 import java.util.stream.Collectors
 
 @Transactional
-@Secured(["ROLE_USER", "ROLE_ADMIN"])
+@PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
 class OrganizationController {
-
-    def springSecurityService;
 
     def index() {
         redirect(action:'list')
@@ -28,9 +28,9 @@ class OrganizationController {
         [organizations: Organization.findAllByIsTrustmarkProvider(false, [params.max]), orgsCountTotal: Organization.count()]
     }
 
-    @Secured(['ROLE_REPORTS_ONLY', 'ROLE_USER'])
+    @PreAuthorize('hasAnyAuthority("tat-contributor", "tat-viewer")')
     def listContacts() {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         log.debug("User[@|blue ${user}|@] viewing contact list for org[@|cyan ${params.id}|@]...")
         Organization org = find(params.id);
 
@@ -71,7 +71,7 @@ class OrganizationController {
      * Lists all contacts from the database who do NOT have any affiliation with the supplied organization.
      */
     def listUnaffiliatedContacts() {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         log.debug("User[@|blue ${user}|@] viewing unaffiliated contact list for org[@|cyan ${params.id}|@]...")
         Organization org = find(params.id);
 
@@ -112,7 +112,8 @@ class OrganizationController {
     }//end listUnaffiliatedContacts()
 
     def trustmarkProvider() {
-        log.debug("User[@|blue ${springSecurityService.currentUser}|@] viewing trustmark provider org...")
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        log.debug("User[@|blue ${user}|@] viewing trustmark provider org...")
 
         Organization org = Organization.findByIsTrustmarkProvider(true)
         if( !org ) {
@@ -123,7 +124,8 @@ class OrganizationController {
     }
 
     def viewUserOrganization() {
-        User user = springSecurityService.getCurrentUser()
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+
         log.debug("User[@|blue ${user}|@] viewing user org...")
 
         Organization org = user.organization
@@ -239,6 +241,7 @@ class OrganizationController {
 
         Map results = [:]
 
+        // TODO: Deal with springSecurityService.isLoggedIn()
         results.put("editable", springSecurityService.isLoggedIn())
 
         def trustmarkRecipientIdentifiers = []
@@ -338,7 +341,7 @@ class OrganizationController {
     }
 
     def updateTrustmarkRecipientIdentifier()  {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.info("user -> ${user.username}")
 
         TrustmarkRecipientIdentifier trid = TrustmarkRecipientIdentifier.findById(Integer.parseInt(params.id))
@@ -354,7 +357,7 @@ class OrganizationController {
     }
 
     def deleteArtifact() {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         if( !params.id ){
             log.warn "Organization view requires org id!"
             throw new ServletException("Missing required id parameter.")
@@ -385,7 +388,8 @@ class OrganizationController {
             throw new ServletException("Missing required id parameter.")
         }
 
-        log.info("User[@|blue ${springSecurityService.currentUser}|@] creating artifact for org [@|cyan ${params.id}|@]...")
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        log.info("User[@|blue ${user}|@] creating artifact for org [@|cyan ${params.id}|@]...")
         Organization org = find(params.id);
 
         CreateOrganizationArtifactCommand createForm = new CreateOrganizationArtifactCommand();
@@ -396,7 +400,7 @@ class OrganizationController {
     }
 
     def saveArtifact(CreateOrganizationArtifactCommand createForm) {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         if( !createForm.validate() ){
             log.warn "Create Organization Artifact form does not validate: "
             createForm.errors.getAllErrors().each { ObjectError error ->
@@ -427,7 +431,8 @@ class OrganizationController {
             throw new ServletException("Missing required id parameter.")
         }
 
-        log.info("User[@|blue ${springSecurityService.currentUser}|@] editing artifact @|yellow ${params.artifactId}|@ for org [@|cyan ${params.id}|@]...")
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        log.info("User[@|blue ${user}|@] editing artifact @|yellow ${params.artifactId}|@ for org [@|cyan ${params.id}|@]...")
         Organization org = find(params.id);
         OrganizationArtifact organizationArtifact = org.findArtifact(params.artifactId);
         if( organizationArtifact == null ){
@@ -444,7 +449,7 @@ class OrganizationController {
     }
 
     def updateArtifact(EditOrganizationArtifactCommand editForm) {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         if( !editForm.validate() ){
             log.warn "Edit Organization Artifact form does not validate: "
             editForm.errors.getAllErrors().each { ObjectError error ->
@@ -482,7 +487,8 @@ class OrganizationController {
             throw new ServletException("Missing required id parameter.")
         }
 
-        log.debug("User[@|blue ${springSecurityService.currentUser}|@] viewing org [@|cyan ${params.id}|@]...")
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        log.debug("User[@|blue ${user}|@] viewing org [@|cyan ${params.id}|@]...")
         Organization org = find(params.id);
 
         List<TrustmarkMetadata> metadataList = TrustmarkMetadata.findAllByProvider(org);
@@ -502,7 +508,8 @@ class OrganizationController {
     }
 
     def typeahead() {
-        log.debug("User[@|blue ${springSecurityService.currentUser}|@] searching[@|cyan ${params.q}|@] via Organization typeahead...")
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        log.debug("User[@|blue ${user}|@] searching[@|cyan ${params.q}|@] via Organization typeahead...")
 
         def criteria = Organization.createCriteria();
         def results = criteria {
@@ -536,7 +543,7 @@ class OrganizationController {
      * Adds a contact to the given organization.
      */
     def addContact() {
-        User user = springSecurityService.getCurrentUser();
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Organization org = find(params.id);
         log.info("User[$user] adding contact ${params.contactToAdd} to org[${org.identifier}]...")
 
@@ -560,7 +567,7 @@ class OrganizationController {
      * Removes the contact from the given organization.
      */
     def removeContact() {
-        User user = springSecurityService.getCurrentUser();
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Organization org = find(params.id);
         log.info("User[$user] removing contact[${params.contactToRemove}] from org[${org.identifier}]...")
 
@@ -590,7 +597,7 @@ class OrganizationController {
 
 
     def createComment() {
-        def user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("User[$user] is creating a new comment for organization[${params.id}]...")
         Organization org = find(params.id);
 
@@ -601,7 +608,7 @@ class OrganizationController {
     }//end createComment()
 
     def saveComment(CreateOrganizationCommentCommand command) {
-        def user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("User[$user] is saving a new comment for organization[${params.id}]...")
 
         if(command.hasErrors() ){
@@ -626,7 +633,7 @@ class OrganizationController {
     }//end saveComment()
 
     def editComment() {
-        def user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("User[$user] is updating an existing comment for organization[${params.id}]...")
         Organization org = find(params.id);
 
@@ -653,7 +660,7 @@ class OrganizationController {
     }//end createComment()
 
     def updateComment(EditOrganizationCommentCommand command) {
-        def user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("User[$user] is updating an existing comment for organization[${params.id}]...")
         Organization org = find(params.id);
 
@@ -686,7 +693,7 @@ class OrganizationController {
     }//end saveComment()
 
     def deleteComment() {
-        def user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("User[$user] is updating an existing comment for organization[${params.id}]...")
         Organization org = find(params.id);
 

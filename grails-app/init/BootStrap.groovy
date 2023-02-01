@@ -18,8 +18,7 @@ import nstic.web.SigningCertificateStatus
 import nstic.web.SystemVariable
 import nstic.web.TrustmarkMetadata
 import nstic.web.User
-import nstic.web.UserRole
-import org.grails.web.util.WebUtils
+//import org.grails.web.util.WebUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.apache.commons.lang.StringUtils
@@ -59,7 +58,6 @@ class BootStrap {
             try {
                 log.warn("Loading lots of @|yellow TEST|@ Data...")
                 loadTestOrganizations()
-                loadTestUsers()
                 loadTestContacts()
                 log.warn("Successfully loaded @|yellow TEST|@ Data!")
             }catch(Throwable t){
@@ -253,26 +251,15 @@ ${grailsMailProps(config)}
     }
 
     private boolean isDatabaseEmpty() {
-        return Role.count() == 0
+
+        // We should have at least one organization after initial DB setup
+        return Organization.count() == 0
     }
 
     /**
      * Verifies the integrity of the database on application startup.
      */
     private void checkDatabase(ServletContext servletContext, Properties props) {
-        Role.withTransaction {
-            log.debug("Checking user roles...")
-            for (String roleName : Role.ALL_ROLES) {
-                Role role = Role.findByAuthority(roleName)
-                if (!role) {
-                    log.info("Creating Role @|cyan ${roleName}|@...")
-                    role = new Role(authority: roleName)
-                    role.save(failOnError: true)
-                }
-            }
-            log.info("Database roles are correct.")
-        }
-
         User.withTransaction {
             int userCount = User.count()
             if (userCount == 0) {
@@ -303,11 +290,6 @@ ${grailsMailProps(config)}
                 for( Map user : defaultAccountData.users ?: [] ){
                     User databaseUser = new User()
                     databaseUser.username = user.username
-                    databaseUser.password = user.password
-                    databaseUser.enabled = true
-                    databaseUser.accountExpired = false
-                    databaseUser.accountLocked = false
-                    databaseUser.passwordExpired = false
 
                     databaseUser.contactInformation = findContact(defaultAccountData.contacts, user.contact)
                     databaseUser.organization = findOrganization(defaultAccountData.orgs, user.org)
@@ -315,16 +297,6 @@ ${grailsMailProps(config)}
                     log.debug("Saving User[@|cyan ${databaseUser.username}|@]...")
                     databaseUser.save(failOnError: true)
                     user.databaseObj = databaseUser
-
-
-                    for( String roleName : user.roles.split(Pattern.quote(",")) ){
-                        Role role = Role.findByAuthority(roleName)
-                        if( !role )
-                            throw new RuntimeException("Cannot find any role named ${roleName} to apply to user ${user.username}!  Check your configuration file.")
-
-                        UserRole.create(databaseUser, role, true)
-                    }
-
                 }
 
                 // TODO Assign extra contacts, or users in orgs, etc.
@@ -346,12 +318,6 @@ ${grailsMailProps(config)}
             } else {
                 log.debug("@|cyan ${userCount}|@ users exist in the database, so we don't need to create any.")
             }
-/*
-            if (UserRole.countByRole(Role.findByAuthority(Role.ROLE_ADMIN)) == 0) {
-                log.error("ERROR - Cannot find any administrator configured in the system.  Please check the system and try again!")
-                throw new RuntimeException("Unable to start.  Database in strange state, there are users but none with ${Role.ROLE_ADMIN}.")
-            }
- */
         }
 
         // Need to generate the signing certificate before the default trustmark metadata is generated
@@ -590,72 +556,6 @@ ${grailsMailProps(config)}
             }
         }
     }
-
-    private void loadTestUsers() {
-        User.withTransaction {
-            Random random = new Random(System.currentTimeMillis())
-            Integer userCount = 5
-
-            Role userRole = Role.findByAuthority(Role.ROLE_USER)
-            Role adminRole = Role.findByAuthority(Role.ROLE_ADMIN)
-
-            int createdCount = 0
-            log.debug("Creating @|cyan ${userCount}|@ @|yellow TEST|@ users...")
-            for (int i = 0; i < userCount; i++) {
-                log.debug("Constructing new user...")
-                String firstName = MALE_FIRST_NAMES.get(random.nextInt(MALE_FIRST_NAMES.size()))
-                if (random.nextBoolean())
-                    firstName = FEMALE_FIRST_NAMES.get(random.nextInt(FEMALE_FIRST_NAMES.size()))
-                firstName = firstName.toLowerCase().capitalize()
-                String lastName = LAST_NAMES.get(random.nextInt(LAST_NAMES.size()))
-                lastName = lastName.toLowerCase().capitalize()
-                String domain = domainsList.get(random.nextInt(domainsList.size()))
-                Organization org = Organization.findByUri("http://"+domain)
-                String email = firstName.toLowerCase() + "." + lastName.toLowerCase() + "." + random.nextInt(98) + 1 + "@" + domain
-                email = email.replace("/", "")
-
-                log.debug("Built email=[${email}]")
-
-                ContactInformation contactInformation = new ContactInformation()
-                contactInformation.responder = firstName + " " + lastName
-                contactInformation.email = email
-                contactInformation.phoneNumber = random.nextInt(9).toString() + random.nextInt(9).toString() + random.nextInt(9).toString() + "-" + random.nextInt(9).toString() + random.nextInt(9).toString() + random.nextInt(9).toString() + "-" +
-                        random.nextInt(9).toString() + random.nextInt(9).toString() + random.nextInt(9).toString() + random.nextInt(9).toString()
-                contactInformation.mailingAddress = random.nextInt(1000) + " Peachtree, Atlanta, GA"
-                contactInformation.save(failOnError: true, flush: true)
-
-                if( random.nextBoolean() ) {
-                    org.primaryContact = contactInformation
-                    org.save(failOnError: true, flush: true)
-                }
-
-                User user = new User()
-                user.username = email
-                user.contactInformation = contactInformation
-                user.organization = org
-                user.password = "test11!"
-                user.enabled = true
-                user.accountLocked = false
-                user.accountExpired = false
-                user.passwordExpired = false
-                user.save(failOnError: true, flush: false)
-                createdCount++
-
-                if (random.nextInt(100) > 95) {
-                    UserRole.create(user, adminRole, false)
-                } else {
-                    UserRole.create(user, userRole, false)
-                }
-
-                if (i % 50 == 0 && i > 0) {
-                    log.debug("Created ${i} users.")
-                }
-            }
-            log.debug("Successfully created @|cyan ${createdCount}|@ users.")
-
-        }//end User transaction.
-
-    }//end loadTestUsers()
 
     /**
      * Loads up sample organization and contact information for use

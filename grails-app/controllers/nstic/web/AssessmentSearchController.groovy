@@ -1,19 +1,21 @@
 package nstic.web
 
 import grails.converters.JSON
-import grails.plugin.springsecurity.annotation.Secured
 import nstic.web.assessment.Assessment
 import nstic.web.assessment.AssessmentLog
 import org.apache.commons.lang.StringUtils
 import org.hibernate.SQLQuery
 import org.hibernate.Session
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 
 import javax.servlet.ServletException
 
 /**
  * Responsible for providing search capabilities on Assessments.
  */
-@Secured(["ROLE_USER", "ROLE_ADMIN"])
+@PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
 class AssessmentSearchController {
 
     static List<String> SEARCH_FIELDS = [
@@ -45,14 +47,13 @@ where (
 """
 
 
-    def springSecurityService
     def sessionFactory
 
     /**
      * Called to perform a search, when given a user-typed query string (as parameter 'q').
      */
     def search(){
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("User[${user.username}] sending Assessment query[${params.q}]....[${params.max}]")
 
         if( StringUtils.isEmpty(params.q) ){

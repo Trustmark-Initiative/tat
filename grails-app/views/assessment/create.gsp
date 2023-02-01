@@ -1,5 +1,6 @@
 <%@ page import="nstic.util.AssessmentToolProperties" %>
 <%@ page import="nstic.TATPropertiesHolder" %>
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 <!DOCTYPE html>
 <html>
 	<head>
@@ -122,13 +123,13 @@
 
                     <input type="hidden" name="existingOrgId" id="existingOrgId" value="${command?.existingOrgId}" />
 
-                    <sec:ifAllGranted roles="ROLE_ADMIN">
+                    <sec:authorize access="hasAuthority('tat-admin')">
                         <div class="form-group">
                             <div class="col-md-10 col-md-offset-2" id="organizationEditInfo">
 
                             </div>
                         </div>
-                    </sec:ifAllGranted>
+                    </sec:authorize>
 
                     <div class="form-group">
                         <label for="organizationUri" class="col-md-2 control-label">URI</label>
@@ -153,13 +154,13 @@
                     <input type="hidden" name="existingContactId" id="existingContactId" value="${command?.existingContactId}" />
                     <input type="hidden" name="existingContactBeingEdited" id="existingContactBeingEdited" value="${command?.existingContactBeingEdited}" />
 
-                    <sec:ifAllGranted roles="ROLE_ADMIN">
+                    <sec:authorize access="hasAuthority('tat-admin')">
                         <div class="form-group">
                             <div class="col-md-10 col-md-offset-2" id="editingContactData">
 
                             </div>
                         </div>
-                    </sec:ifAllGranted>
+                    </sec:authorize>
 
                     <div class="form-group">
                         <label for="contactResponder" class="col-md-2 control-label">Responder Name</label>

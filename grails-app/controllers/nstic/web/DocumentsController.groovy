@@ -3,10 +3,12 @@ package nstic.web
 import grails.converters.JSON
 import grails.converters.XML
 import grails.gorm.transactions.Transactional
-import grails.plugin.springsecurity.annotation.Secured
 import nstic.util.AssessmentToolProperties
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.validation.ObjectError
 
 import javax.servlet.ServletException
@@ -14,8 +16,6 @@ import javax.servlet.ServletException
 import org.grails.web.util.WebUtils
 
 import grails.util.Environment
-
-import grails.plugin.springsecurity.SpringSecurityUtils
 
 @Transactional
 class DocumentsController {
@@ -32,21 +32,19 @@ class DocumentsController {
                                               (TM_POLICY) : true,
                                               (TM_SIGNING_CERTIFICATE_POLICY) : true]
 
-    def springSecurityService;
-
-    @Secured("ROLE_ADMIN, ROLE_USER")
+    @PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
     def index() {
         redirect(action:'list')
     }
 
-    @Secured(["ROLE_USER", "ROLE_ADMIN"])
+    @PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
     def list(){
         log.debug("Listing documents...")
         if (!params.max)
             params.max = '20';
         params.max = Math.min(100, Integer.parseInt(params.max)).toString(); // Limit to at most 100 docs at a time.
 
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         def documents = []
         int documentsCount = 0
@@ -63,7 +61,7 @@ class DocumentsController {
         [documents: documents, documentsCountTotal: documentsCount]
     }
 
-    @Secured(["ROLE_USER", "ROLE_ADMIN"])
+    @PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
     def add() {
         def docCategoryList = DOCUMENT_CATEGORIES.keySet() as ArrayList
 
@@ -75,7 +73,7 @@ class DocumentsController {
         ]
     }
 
-    @Secured(["ROLE_USER", "ROLE_ADMIN"])
+    @PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
     def edit() {
         def docCategoryList = DOCUMENT_CATEGORIES.keySet() as ArrayList
 
@@ -120,9 +118,9 @@ class DocumentsController {
         }
     }
 
-    @Secured(["ROLE_USER", "ROLE_ADMIN"])
+    @PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
     def saveDocument(AddDocumentCommand uploadForm) {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         if( !uploadForm.validate() ){
             log.warn "Upload Document form does not validate: "
             uploadForm.errors.getAllErrors().each { ObjectError error ->
@@ -155,9 +153,9 @@ class DocumentsController {
         return redirect(action:'list')
     }
 
-    @Secured(["ROLE_USER", "ROLE_ADMIN"])
+    @PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
     def updateDocument(EditDocumentCommand editForm) {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if( !editForm.validate() ){
             log.warn "Edit Document form does not validate: "
             editForm.errors.getAllErrors().each { ObjectError error ->
@@ -203,7 +201,7 @@ class DocumentsController {
         return redirect(action:'list')
     }
 
-    @Secured(["ROLE_USER", "ROLE_ADMIN"])
+    @PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
     def deleteDocument() {
         if( !params.orgId ){
             log.warn "Invalid org id!"
@@ -238,7 +236,8 @@ class DocumentsController {
             throw new ServletException("No such document asscociated to binary object id: ${params.documentId}")
         }
 
-        boolean  isUser = SpringSecurityUtils.ifAllGranted("ROLE_USER")
+        boolean  isUser = ((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).authorities.contains((String)"tat-contributor")
+
         boolean isPublic = doc.publicDocument
 
         if (isUser || isPublic) {
@@ -257,9 +256,6 @@ class DocumentsController {
 
             return render(file: fileInputStream, contentType: mimeType);
         } else {
-            //String baseAppUrl = getBaseAppUrl()
-
-            //return redirect(controller:'error', action:'notAuthorized401', params:[loginUrl:baseAppUrl])
             return redirect(controller:'error', action:'notAuthorized401')
         }
     }

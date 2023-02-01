@@ -1,3 +1,5 @@
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
+<%@ page import="nstic.util.AssessmentToolProperties" %>
 <!DOCTYPE html>
 <html>
 	<head>
@@ -32,7 +34,13 @@
                     <td>Identifier</td><td><a href="${trustmark.identifier}">${trustmark.identifier}</a></td>
                 </tr>
                 <tr>
-                    <td>Identifier URL</td><td><a href="${trustmark.identifierURL}">${trustmark.identifierURL}</a></td>
+                    <td>Identifier URL</td>
+                    <g:if test="${AssessmentToolProperties.getIsApiClientAuthorizationRequired()}">
+                        <td>${trustmark.identifierURL}</td>
+                    </g:if>
+                    <g:else>
+                        <td><a href="${trustmark.identifierURL}">${trustmark.identifierURL}</a></td>
+                    </g:else>
                 </tr>
                 <tr>
                     <td>Assessment</td>
@@ -101,7 +109,13 @@
                     <td>Relying Party Agreement URL</td><td><a href="${trustmark.relyingPartyAgreementURL}">${trustmark.relyingPartyAgreementURL}</a></td>
                 </tr>
                 <tr>
-                    <td>Status URL</td><td><a href="${trustmark.statusURL}">${trustmark.statusURL}</a></td>
+                    <td>Status URL</td>
+                    <g:if test="${AssessmentToolProperties.getIsApiClientAuthorizationRequired()}">
+                        <td>${trustmark.statusURL}</td>
+                    </g:if>
+                    <g:else>
+                        <td><a href="${trustmark.statusURL}">${trustmark.statusURL}</a></td>
+                    </g:else>
                 </tr>
                 <tr>
                     <td>Definition Extension</td>
@@ -203,9 +217,9 @@
         <div style="margin-top: 2em; margin-bottom: 3em;">
             <a href="${createLink(controller:'trustmark', action: 'generateXml', id: trustmark.id)}" class="btn btn-primary">Show XML</a>
             <a href="${createLink(controller:'trustmark', action: 'generateJson', id: trustmark.id)}" class="btn btn-primary">Show JWT</a>
-            <sec:ifAllGranted roles="ROLE_ADMIN">
+            <sec:authorize access="hasAuthority('tat-admin')">
                 <a href="javascript:revoke()" class="btn btn-danger">Revoke</a>
-            </sec:ifAllGranted>
+            </sec:authorize>
         </div>
 
         <script type="text/javascript">

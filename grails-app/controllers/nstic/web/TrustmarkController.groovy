@@ -3,7 +3,6 @@ package nstic.web
 import assessment.tool.TrustmarkService
 import grails.converters.JSON
 import grails.converters.XML
-import grails.plugin.springsecurity.annotation.Secured
 import grails.gorm.transactions.Transactional
 import nstic.TrustmarkIdentifierGenerator
 import nstic.util.AssessmentToolProperties
@@ -18,6 +17,9 @@ import nstic.web.td.TdParameter
 import nstic.web.td.TrustmarkDefinition
 import org.apache.commons.lang.StringUtils
 import org.grails.help.ParamConversion
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.validation.ObjectError
 import javax.servlet.ServletException
 import javax.xml.bind.DatatypeConverter
@@ -27,14 +29,12 @@ import java.text.SimpleDateFormat
  * Created by brad on 9/9/14.
  */
 @Transactional
-@Secured(["ROLE_USER", "ROLE_ADMIN"])
+@PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
 class TrustmarkController {
 
     // Thread related variables
     public static final String INFO_LIST_THREAD_VAR = TrustmarkController.class.getName()+".INFO_LIST_THREAD"
     public static final String TRUSTMARK_GENERATION_THREAD_VAR = TrustmarkController.class.getName()+".TRUSTMARK_GENERATION_THREAD"
-
-    def springSecurityService
 
     def trustmarkService
 
@@ -47,7 +47,7 @@ class TrustmarkController {
             params.max = '20'
         params.max = Math.min(100, Integer.parseInt(params.max)).toString(); // Limit to at most 100 orgs at a time.
 
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         // case for filtering by recipient organizations
         if (params.containsKey("id") || user.isUser()) {
@@ -87,7 +87,7 @@ class TrustmarkController {
             trustmarkService.setExecuting(TrustmarkService.INFO_LIST_EXECUTING_VAR)
 
             log.debug("Create trustmark called...")
-            User user = springSecurityService.currentUser
+            User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
             Assessment assessment = params.assessment
 
             final Integer assessmentId = assessment.id
@@ -111,7 +111,7 @@ class TrustmarkController {
     def getCreateInfoList() {
         log.debug("getCreateInfoList...")
 
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Assessment assessment = params.assessment
 
         List<GrantTrustmarkInfo> infoList = trustmarkService.getAttribute(TrustmarkService.GENERATED_TD_INFO_LIST_VAR)
@@ -169,7 +169,7 @@ class TrustmarkController {
     @ParamConversion(paramName="assessmentId", toClass=Assessment.class, storeInto = "assessment")
     def create() {
         log.debug("Create trustmark called...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Assessment assessment = params.assessment
         if( assessment == null )
             throw new InvalidRequestError("Could not locate any assessment from assessmentId=${params.assessmentId}")
@@ -235,7 +235,7 @@ class TrustmarkController {
 
     @ParamConversion(paramName="assessmentId", toClass=Assessment.class, storeInto = "assessment")
     def cancelCreateInfoList(){
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Assessment assessment = params.assessment
         log.debug("Request to cancel grant Trustmarks...")
 
@@ -298,7 +298,7 @@ class TrustmarkController {
     @ParamConversion(paramName="assessmentId", toClass=Assessment.class, storeInto = "assessment")
     def generateTrustmarks() {
         log.debug("Generate trustmark called...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Assessment assessment = params.assessment
         if( assessment == null )
             throw new InvalidRequestError("Could not locate any assessment from assessmentId=${params.assessmentId}")
@@ -348,7 +348,7 @@ class TrustmarkController {
 
         log.debug("generateTrustmarkList...")
 
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Assessment assessment = params.assessment
         if( assessment == null ) {
             log.warn("Bad or missing assessment id")
@@ -451,7 +451,7 @@ class TrustmarkController {
 
     @ParamConversion(paramName="assessmentId", toClass=Assessment.class, storeInto = "assessment")
     def cancelTrustmarkGeneration(){
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Assessment assessment = params.assessment
 
         log.debug("Request to cancel trustmark generation...")
@@ -490,7 +490,7 @@ class TrustmarkController {
      */
     @ParamConversion(paramName="assessmentId", toClass=Assessment.class, storeInto = "assessment")
     def save(){
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("Request to grant Trustmarks...")
         Assessment assessment = params.assessment
         if( assessment == null ) {
@@ -521,7 +521,7 @@ class TrustmarkController {
      * Called to view a trustmark in the system.
      */
     def view() {
-        def user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if( StringUtils.isEmpty(params.id) )
             throw new ServletException("Missing required parameter 'id'.")
 
@@ -595,7 +595,7 @@ class TrustmarkController {
      * Called when the user is submitting the edit form, performs the database update command.
      */
     def update(TrustmarkCommand command) {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("Request to update trustmark[${command.identifier}]...")
         Assessment assessment = Assessment.findById(command.assessmentId)
         if( assessment == null )
@@ -669,7 +669,7 @@ class TrustmarkController {
      * Generates the XML for a trustmark in the system.
      */
     def generateXml() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if( StringUtils.isEmpty(params.id) )
             throw new ServletException("Missing required parameter 'id'.")
 
@@ -691,7 +691,7 @@ class TrustmarkController {
      * Generates the JSON representation for a trustmark in the system.
      */
     def generateJson() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if( StringUtils.isEmpty(params.id) )
             throw new ServletException("Missing required parameter 'id'.")
 
@@ -711,7 +711,7 @@ class TrustmarkController {
      * This method displays the status XML for a given trustmark.
      */
     def generateStatusXML() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if( StringUtils.isEmpty(params.id) )
             throw new ServletException("Missing required parameter 'id'.")
 
@@ -778,7 +778,7 @@ class TrustmarkController {
      * revoked, indicating that it is no longer valid.
      */
     def revoke() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if( StringUtils.isEmpty(params.id) )
             throw new ServletException("Missing required parameter 'id'.")
         if( StringUtils.isEmpty(params.reason) )
@@ -815,7 +815,7 @@ class TrustmarkController {
      * Shows the current user the page where they can select multiple trustmarks to export.
      */
     def showBulkExportPage() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("Showing User[${user.username}] the bulk export page...")
 
         if (!params.max)
@@ -835,7 +835,7 @@ class TrustmarkController {
      * Returns some HTML that can be displayed to the user to show which trustmarks will be exported.
      */
     def addToExportList(){
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("Adding to User[${user.username}] bulk export list...")
 
         def actualValue = params.get('trustmarkIds[]')
@@ -896,7 +896,7 @@ class TrustmarkController {
      * Returns some HTML that can be displayed to the user to show which trustmarks will be exported.
      */
     def removeFromExportList(){
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("Removing From User[${user.username}] bulk export list...")
 
         def actualValue = params.get('trustmarkIds[]')
@@ -933,7 +933,7 @@ class TrustmarkController {
      * to a directory containing the XML files.  Zips the directory up, and then sends that zip file to the user.
      */
     def doBulkExport() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("User[${user.username}] performing bulk export...")
 
         List exportList = []
@@ -1184,7 +1184,7 @@ class TrustmarkController {
      * Revokes all trustmarks that were granted for a particular organization.
      */
     def revokeAll() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if( StringUtils.isEmpty(params.id) )
             throw new ServletException("Missing required parameter 'id'.")
         if( StringUtils.isEmpty(params.reason) )
@@ -1203,7 +1203,7 @@ class TrustmarkController {
      * Revokes all trustmarks that were signed with a particular signing certificate.
      */
     def revokeAllTrustmarksSignedWithCertificate() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if( StringUtils.isEmpty(params.id) ) {
             throw new ServletException("Missing required parameter 'id'.")
         }

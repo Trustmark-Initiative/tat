@@ -34,7 +34,6 @@
                         <th>&nbsp;</th>
                         <g:sortableColumn property="contactInformation.email" title="Email" />
                         <th>Role</th>
-                        <th>Enabled</th>
                         <g:sortableColumn property="contactInformation.responder" title="Name" />
                         <g:sortableColumn property="contactInformation.phoneNumber" title="Phone" />
                         <g:sortableColumn property="organization.name" title="Organization" />
@@ -54,7 +53,8 @@
                                     %{--</g:link>--}%
 
                                 </td>
-                                <td>${user.contactInformation.email}</td>
+%{--                                <td>${user.contactInformation?.email}</td>--}%
+                                <td>${user.contactEmail}</td>
                                 <td>
                                     <g:if test="${user.isAdmin()}">
                                         <span class="label label-danger">Admin</span>
@@ -69,17 +69,9 @@
                                         <span class="label label-warning">No role</span>
                                     </g:else>
                                 </td>
-                                <td>
-                                    <g:if test="${user.enabled}">
-                                        <span class="glyphicon glyphicon-ok" title="This contributor is enabled"></span>
-                                    </g:if>
-                                    <g:else>
-                                        <span class="glyphicon glyphicon-remove" title="This contributor is NOT enabled."></span>
-                                    </g:else>
-                                </td>
-                                <td>${user.contactInformation.responder}</td>
-                                <td>${user.contactInformation.phoneNumber}</td>
-                                <td>${user.organization.name}</td>
+                                <td>${user.contactInformation?.responder}</td>
+                                <td>${user.contactInformation?.phoneNumber}</td>
+                                <td>${user.organization?.name}</td>
                             </tr>
                         </g:each>
                     </g:if>

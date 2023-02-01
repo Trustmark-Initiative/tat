@@ -1,18 +1,17 @@
 package nstic.web
 
-import grails.plugin.springsecurity.annotation.Secured
 import nstic.util.PasswordUtil
 import org.apache.commons.lang.StringUtils
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 
-import javax.servlet.ServletException
 
-@Secured(["ROLE_REPORTS_ONLY", "ROLE_USER", "ROLE_ADMIN"])
+@PreAuthorize('hasAnyAuthority("tat-contributor", "tat-viewer", "tat-admin")')
 class ProfileController {
 
-    def springSecurityService;
-
     def index() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("Showing @|cyan ${user}|@ their profile page...")
 
         ProfileCommand cmd = ProfileCommand.fromUser(user)
@@ -22,7 +21,7 @@ class ProfileController {
 
     // Called by the index form as a post
     def update(ProfileCommand command) {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("Processing @|cyan ${user}|@ profile changes...")
 
         if (command.hasErrors()) {

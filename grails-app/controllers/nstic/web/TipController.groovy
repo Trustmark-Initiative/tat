@@ -5,20 +5,21 @@ import edu.gatech.gtri.trustmark.v1_0.io.SerializerFactory
 import edu.gatech.gtri.trustmark.v1_0.io.TrustInteroperabilityProfileResolver
 import grails.converters.JSON
 import grails.converters.XML
-import grails.plugin.springsecurity.annotation.Secured
 import grails.gorm.transactions.Transactional
 import nstic.web.tip.TrustInteroperabilityProfile
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 
 import javax.servlet.ServletException
 
-@Secured(["ROLE_USER", "ROLE_ADMIN"])
+@PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
 @Transactional
 class TipController {
 
-    def springSecurityService;
-
     def list() {
-        log.debug("User[@|blue ${springSecurityService.currentUser}|@] listing trust interoperability profiles...")
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        log.debug("User[@|blue ${user}|@] listing trust interoperability profiles...")
         if( !params.max ){
             params.max = "10"
         }
@@ -115,7 +116,8 @@ class TipController {
 
 
     def typeahead() {
-        log.debug("User[@|blue ${springSecurityService.currentUser}|@] searching[@|cyan ${params.q}|@] via TIP typeahead...")
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        log.debug("User[@|blue ${user}|@] searching[@|cyan ${params.q}|@] via TIP typeahead...")
 
         def results = TrustInteroperabilityProfile.findByUri(params.q)
 

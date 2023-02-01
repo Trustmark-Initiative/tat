@@ -13,8 +13,6 @@
         <asset:stylesheet src="application.css"/>
         <asset:javascript src="application.js"/>
 
-        <asset:link rel="shortcut icon" href="favicon.ico" type="image/icon" />
-
 		<g:layoutHead/>
 	</head>
 	<body class="printablePage">

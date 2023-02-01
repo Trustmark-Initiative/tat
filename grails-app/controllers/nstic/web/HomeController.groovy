@@ -5,26 +5,28 @@ import nstic.util.DefaultMetadataUtils
 import nstic.util.QuartzConfig
 import nstic.web.assessment.Assessment
 import nstic.web.td.TrustmarkDefinition
-import nstic.web.UserRole
-import nstic.web.Role
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.core.ResolvableType
+import org.springframework.security.authentication.AbstractAuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.client.registration.ClientRegistration
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
+import org.springframework.stereotype.Controller
 
-import javax.servlet.ServletContext
-import java.util.regex.Pattern
 
+@Controller
 class HomeController {
 
-    //def sessionFactory
-    def springSecurityService
-
-
     def index() {
-        User user = springSecurityService.currentUser
+
+        User user = User.findByUsername(((AbstractAuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.info "Loading home page for user: @|cyan ${user ?: 'anonymous'}|@"
 
         //def connectionUrl = sessionFactory.getCurrentSession().connection().getMetaData().getURL()
         //log.info "Connection URL: $connectionUrl"
 
-        boolean firstTimeLogin = (UserRole.countByRole(Role.findByAuthority(Role.ROLE_ADMIN)) == 0)
+        boolean isAdmin = user && user.isAdmin()
+        boolean firstTimeLogin = (user && !user.isAdmin())
 
         boolean noTpatRegistryUrl = (AssessmentToolProperties.getRegistryUrl() == null)
 
@@ -48,7 +50,7 @@ class HomeController {
                 trustmarkDefinitionCount: TrustmarkDefinition.count(),
                 trustmarkDefinitions: TrustmarkDefinition.list([max:10]), // TODO Improve this to most relevant 10
                 assessmentCount: assessmentCount,
-                user : springSecurityService.currentUser
+                user : user
         ]
 
     }//end index()

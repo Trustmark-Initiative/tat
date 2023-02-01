@@ -86,7 +86,6 @@ class ReportsService {
     public static final String ORGANIZATION_REPORT_RENDER_MODEL_VAR = ReportsService.class.getName() + ".ORGANIZATION_REPORT_RENDER_MODEL"
 
     def sessionFactory;
-    def springSecurityService;
 
     PageRenderer groovyPageRenderer
 

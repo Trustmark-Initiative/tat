@@ -2,13 +2,13 @@ package nstic.web
 
 import assessment.tool.FileFormatUpdateService
 import grails.converters.JSON
-import grails.plugin.springsecurity.annotation.Secured
 import groovy.json.JsonSlurper
 import org.apache.commons.lang.StringUtils
+import org.springframework.security.access.prepost.PreAuthorize
 
 import javax.servlet.ServletException
 
-@Secured("ROLE_ADMIN")
+@PreAuthorize('hasAuthority("tat-admin")')
 class TdAndTipUpdateController {
     //==================================================================================================================
     //  SERVICES
