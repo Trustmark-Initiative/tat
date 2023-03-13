@@ -18,6 +18,7 @@ dataSource:
     driverClassName: com.mysql.cj.jdbc.Driver
     dialect: org.hibernate.dialect.MySQL5InnoDBDialect
 
+    #Staging DB Settings
     url: jdbc:mysql://tatDatabase:3306/tat_db?verifyServerCertificate=false&useSSL=false&allowPublicKeyRetrieval=true
     username: tat_user
     password: tat_pw_11

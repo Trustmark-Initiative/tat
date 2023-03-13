@@ -84,7 +84,7 @@ class User {
         if (StringUtils.isNotEmpty(this.roleArrayJson)) {
         JSONArray rolesJsonArray = new JSONArray(roleArrayJson);
 
-        return rolesJsonArray.toList()
+        return !isAdmin() && rolesJsonArray.toList()
                 .stream()
                 .filter(role -> Role.fromValue((String) role).isPresent())
                 .map(role -> Role.fromValue((String)role).get())

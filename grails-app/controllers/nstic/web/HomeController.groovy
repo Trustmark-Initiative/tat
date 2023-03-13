@@ -45,12 +45,17 @@ class HomeController {
             }
         }
 
+        Optional<Organization> defaultOrganization = Organization.findByIsTrustmarkProviderHelper(true);
+
+        String administratorEmail = defaultOrganization.get().primaryContact.email
+
         [
                 firstTimeLogin: firstTimeLogin,
                 trustmarkDefinitionCount: TrustmarkDefinition.count(),
                 trustmarkDefinitions: TrustmarkDefinition.list([max:10]), // TODO Improve this to most relevant 10
                 assessmentCount: assessmentCount,
-                user : user
+                user : user,
+                administratorEmail: administratorEmail
         ]
 
     }//end index()

@@ -36,7 +36,7 @@ class UserController {
         log.info("Editing user @|cyan ${user.id}|@:@|green ${user.username}|@...")
         UserEditCommand editCmd = UserEditCommand.fromUser(user);
 
-        [userCommand: editCmd]
+        [userCommand: editCmd, user: user]
     }//end edit()
 
     def create(){
@@ -100,48 +100,20 @@ class UserController {
     def update(UserEditCommand userCommand){
         log.info("Updating user @|cyan ${userCommand.email}|@...")
 
+        User user = User.findById(userCommand.existingUserId);
+
         if(!userCommand.validate()){
             log.warn "User edit form does not validate: "
             userCommand.errors.getAllErrors().each { ObjectError error ->
                 log.warn "    ${error.defaultMessage}"
             }
-            return render(view: 'edit', model: [userCommand: userCommand])
+            return render(view: 'edit', model: [userCommand: userCommand, user: user])
         }
 
-        User user = User.findById(userCommand.existingUserId);
-        if( user.username != userCommand.email ){
-            // User has updated their email address.  This affects their username to login as well.
-            User existingUser = User.findByUsername(userCommand.email);
-            if( existingUser ){
-                log.warn "Cannot change email[@|green ${user.username}|@] to @|yellow ${userCommand.email}|@, a user already exists with that email!";
-                userCommand.errors.reject('user.email.not.unique', [user.username, userCommand.email] as Object[],
-                        "Cannot change email ${user.username} to ${userCommand.email}.  A user with that email already exists.")
-                return render(view: 'edit', model: [userCommand: userCommand])
-            }
-            user.contactInformation.email = userCommand.email
-            user.username = userCommand.email
-        }
-        user.contactInformation.responder = userCommand.name
-        user.contactInformation.mailingAddress = userCommand.mailingAddress
-        user.contactInformation.phoneNumber = userCommand.phone
         user.organization = Organization.findById(userCommand.organizationId);
         // TODO associate contact information to org?
 
         user.save(failOnError: true, flush: true);
-
-//        UserRole.removeAll(user);
-//        if( userCommand.reportOnlyRole ){
-//            Role userRole = Role.findByAuthority(Role.ROLE_REPORTS_ONLY);
-//            UserRole.create(user, userRole, true);
-//        }
-//        if( userCommand.userRole ){
-//            Role userRole = Role.findByAuthority(Role.ROLE_USER);
-//            UserRole.create(user, userRole, true);
-//        }
-//        if( userCommand.adminRole ){
-//            Role userRole = Role.findByAuthority(Role.ROLE_ADMIN);
-//            UserRole.create(user, userRole, true);
-//        }
 
         flash.message = "Successfully udpated user '${user.username}'"
         return redirect(action:'list');
@@ -237,8 +209,9 @@ class UserEditCommand {
     public static UserEditCommand fromUser( User user ){
         UserEditCommand cmd = new UserEditCommand();
         cmd.existingUserId = user.id
-        cmd.name = user.nameGiven //user.contactInformation.responder;
-        cmd.email = user.contactEmail //user.contactInformation.email;
+        cmd.username = user.username
+        cmd.name = user.contactInformation.responder;
+        cmd.email = user.contactEmail
         cmd.phone = user.contactInformation?.phoneNumber;
         cmd.mailingAddress = user.contactInformation?.mailingAddress;
         cmd.organizationId = user.organization?.id;
@@ -249,6 +222,7 @@ class UserEditCommand {
     }
 
     Integer existingUserId;
+    String username
     String name
     String email
     String phone
@@ -264,9 +238,9 @@ class UserEditCommand {
         email(nullable: false, blank: false, email: true)
 
         name(nullable: false, blank: false)
-        phone(nullable: false, blank: false, matches: '([0-9]{3}\\-[0-9]{3}\\-[0-9]{4})|([0-9]{10})')
-        mailingAddress(nullable: false, blank: false)
-        organizationId(nullable: false, validator: { val, obj, errors ->
+        phone(nullable: true, blank: false, matches: '([0-9]{3}\\-[0-9]{3}\\-[0-9]{4})|([0-9]{10})')
+        mailingAddress(nullable: true, blank: false)
+        organizationId(nullable: true, validator: { val, obj, errors ->
             Organization.withTransaction { tx ->
                 Organization org = Organization.findById(val);
                 if( !org ){

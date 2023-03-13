@@ -104,11 +104,15 @@ LIMIT 10
         if (user.isAdmin()) {
             queryString = String.format(queryString, "")
         } else {
-            // replace placeholder with a where clause for the user's organization
-            int orgId = user.organization.id
-            String orgWhere = String.format("a.organization_ref = %d and ", orgId)
+            if (user.organization != null) {
+                // replace placeholder with a where clause for the user's organization
+                int orgId = user.organization.id
+                String orgWhere = String.format("a.organization_ref = %d and ", orgId)
 
-            queryString = String.format(queryString, orgWhere)
+                queryString = String.format(queryString, orgWhere)
+            } else {
+                queryString = String.format(queryString, "")
+            }
         }
 
         final SQLQuery sqlQuery = session.createSQLQuery(queryString)

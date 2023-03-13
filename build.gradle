@@ -95,7 +95,8 @@ dependencies {
 
     runtimeOnly "javax.servlet.jsp:javax.servlet.jsp-api:2.3.3"
 
-    implementation "shared.views:tmf-shared-views:0.6"
+    //implementation "shared.views:tmf-shared-views:0.6"
+    implementation "edu.gatech.gtri.trustmark:tf-grails-shared-views:0.9.1"
 
     implementation 'org.grails.plugins:quartz:2.0.13' // For monitoring configuration directories periodically
     implementation 'org.quartz-scheduler:quartz:2.2.1' // required for quartz scheduler
@@ -126,8 +127,8 @@ dependencies {
     implementation 'org.liquibase:liquibase-core:4.9.1'
     implementation 'com.github.blagerweij:liquibase-sessionlock:1.5.1'
 
-    implementation "edu.gatech.gtri.trustmark:tf-api:1.4.41"
-    implementation "edu.gatech.gtri.trustmark:tf-api-impl:1.4.66"
+    implementation "edu.gatech.gtri.trustmark:tf-api:1.4.44"
+    implementation "edu.gatech.gtri.trustmark:tf-api-impl:1.4.70"
 
     compileOnly "io.micronaut:micronaut-inject-groovy"
 

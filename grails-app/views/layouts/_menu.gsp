@@ -1,6 +1,7 @@
 <%@ page import="nstic.util.AssessmentToolProperties" %>
 <%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 <%@ page import="nstic.web.User; nstic.web.Role" %>
+<%@ page import="assessment.tool.UserService" %>
 
 <nav class="navbar navbar-inverse navbar-fixed-top">
 <!--  <nav class="navbar navbar-default tatmenu" role="navigation">  -->
@@ -27,7 +28,7 @@
                         Home
                     </a>
                 </li>
-                <sec:authorize access="!hasAuthority('tat-viewer')">
+                <sec:authorize access="hasAuthority('tat-admin') or hasAuthority('tat-contributor')">
                     <li class="dropdown">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                             <span class="glyphicon glyphicon-list"></span>
@@ -55,8 +56,7 @@
                     </li>
                 </sec:authorize>
                 <li>
-%{--                    <a href="${createLink(controller:'profile', id: sec.username())}" title="Manage Your User Profile">--}%
-                    <a href="${createLink(controller:'profile', id: '')}" title="Manage Your User Profile">
+                    <a href="${createLink(controller:'profile', id: UserService.currentUserName())}" title="Manage Your User Profile">
                         <span class="glyphicon glyphicon-user"></span>
                         Profile
                     </a>
