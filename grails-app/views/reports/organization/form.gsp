@@ -119,21 +119,24 @@
                 <script type="text/javascript">
                     var STOP_LOOP = false;
                     var CANCEL_LOOP = false;
-                    var ORG_ID = -1;
 
                     $(document).ready(function(){
 
-                        ORG_ID = $("select#organization option").filter(":selected").val();
-                        if(ORG_ID === undefined) {
-                            ORG_ID = $("#organization").val();
+                    })
+
+                    let selectedOrganizationId = function() {
+                        var organizationId = $("select#organization option").filter(":selected").val();
+                        if(organizationId === undefined) {
+                            organizationId = $("#organization").val();
                         }
 
-                    })
+                        return organizationId;
+                    }
 
                     let runReport = function() {
                         console.log("runReport");
 
-                        var organizationId = ORG_ID;
+                        var organizationId = selectedOrganizationId();
 
                         initOrganizationReportState();
 
@@ -147,7 +150,7 @@
 
                         $('#organizationReportStatusMessage').html('');
 
-                        var organizationId = ORG_ID;
+                        var organizationId = selectedOrganizationId();
 
                         var url = '${createLink(controller: 'reports',  action: 'initOrganizationReportState')}';
                         $.ajax({
@@ -174,7 +177,7 @@
                     let startOrganizationReport = function() {
                         console.log("startOrganizationReport...");
 
-                        var organizationId = ORG_ID;
+                        var organizationId = selectedOrganizationId();
 
                         var startyear = $("#startDate_year").val();
                         var startmonth = $("#startDate_month").val();

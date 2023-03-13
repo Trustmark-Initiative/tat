@@ -25,7 +25,7 @@
         <h1>Overall Report <small>Summary of Every Assessment & Org</small></h1>
         <div>
             Generated <g:formatDate date="${Calendar.getInstance().getTime()}" format="MM/dd/yyyy" />,
-            By <sec:authentication property="principal.username" /> <br/>
+            By ${user.username} <br/>
             Including Assessment Data from <g:formatDate date="${startDate}" format="MM/dd/yyyy" />
             to <g:formatDate date="${endDate}" format="MM/dd/yyyy" />, resulting in ${assessmentStats['overallCount']} assessments (of ${nstic.web.assessment.Assessment.count()}).
         </div>

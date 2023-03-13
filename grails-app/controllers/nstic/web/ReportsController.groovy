@@ -247,6 +247,7 @@ class ReportsController {
             return render(
                     view: '/reports/overall/view',
                     model: [
+                            user: user,
                             startDate: command.startDate,
                             endDate: command.endDate,
                             assessments: assessments,
@@ -367,6 +368,7 @@ class ReportsController {
     } // end organizationReport()
 
     def renderOrganizationReport() {
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         log.info("renderOrganizationReport...")
 
         String sessionId = session.getId()
@@ -533,6 +535,7 @@ class ReportsController {
         render(
             view: '/reports/organization/view',
             model: [
+                    user                                : user,
                     command                             : command,
                     startDate                           : command.startDate,
                     endDate                             : command.endDate,
@@ -661,6 +664,7 @@ class ReportsController {
             return render(
                     view: '/reports/td/view',
                     model: [
+                            user: user,
                             command: command,
                             startDate: command.startDate,
                             endDate: command.endDate,
