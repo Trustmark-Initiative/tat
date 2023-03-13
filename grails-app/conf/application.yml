@@ -18,7 +18,6 @@ dataSource:
     driverClassName: com.mysql.cj.jdbc.Driver
     dialect: org.hibernate.dialect.MySQL5InnoDBDialect
 
-    #Staging DB Settings
     url: jdbc:mysql://tatDatabase:3306/tat_db?verifyServerCertificate=false&useSSL=false&allowPublicKeyRetrieval=true
     username: tat_user
     password: tat_pw_11
@@ -32,6 +31,7 @@ environments:
 #           Dev DB Settings
 #           A dbCreate value of 'none' allows the database migration plugin to always recreate the database from changelog.groovy
             dbCreate: none
+
     production:
         dataSource:
             dbCreate: none
@@ -73,27 +73,7 @@ info:
         grailsVersion: '@info.app.grailsVersion@'
         buildDate: '@info.app.buildDate@'
 
-# Keycloak 20
 spring:
-    security:
-        oauth2:
-            client:
-                registration:
-                    keycloak:
-                        client-id: tat
-                        authorization-grant-type: authorization_code
-
-                provider:
-                    keycloak:
-                        issuer-uri: http://localhost:8080/realms/trustmark
-                        user-name-attribute: preferred_username
-
-            resourceserver:
-                jwt:
-                    #                 This allows the resource server to validate the access token
-                    jwk-set-uri: http://localhost:8080/realms/trustmark/protocol/openid-connect/certs
-                    issuer-uri: http://localhost:8080/realms/trustmark
-
     profiles:
         active: dev
     groovy:
