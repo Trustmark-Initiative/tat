@@ -1,18 +1,17 @@
 package nstic.web
 
-import grails.plugin.springsecurity.annotation.Secured
 import nstic.util.PasswordUtil
 import org.apache.commons.lang.StringUtils
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 
-import javax.servlet.ServletException
 
-@Secured(["ROLE_REPORTS_ONLY", "ROLE_USER", "ROLE_ADMIN"])
+@PreAuthorize('hasAnyAuthority("tat-contributor", "tat-viewer", "tat-admin")')
 class ProfileController {
 
-    def springSecurityService;
-
     def index() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("Showing @|cyan ${user}|@ their profile page...")
 
         ProfileCommand cmd = ProfileCommand.fromUser(user)
@@ -22,7 +21,7 @@ class ProfileController {
 
     // Called by the index form as a post
     def update(ProfileCommand command) {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("Processing @|cyan ${user}|@ profile changes...")
 
         if (command.hasErrors()) {
@@ -31,9 +30,7 @@ class ProfileController {
         }
 
         user.username = command.username;
-        if( command.password )
-            user.password = command.password;
-        if( user.isUser() ) {
+        if( user.isUser() || user.isAdmin()) {
             user.organization = command.organization;
         }
         user.contactInformation.email = command.email;
@@ -71,9 +68,6 @@ class ProfileCommand {
     }
 
     String username;
-    String password;
-    String password2;
-
     Organization organization;
 
     String email;
@@ -84,25 +78,11 @@ class ProfileCommand {
 
     static constraints = {
         username(blank: false, maxSize: 255) // TODO add a check for pre-existing username.
-        password(nullable: true, blank: true, maxSize: 255, validator: {value, object, errors ->
-            if( value && value.trim().length() > 0 && PasswordUtil.isValid(value)){
-                errors.rejectValue('password', 'password.complexity.fail', 'Your password should be more than 6 characters, and contain at least 2 numbers & 2 letters.');
-                return false;
-            }
-        })
-        password2(nullable: true, maxSize: 255, validator: {value, object, errors ->
-            if( (StringUtils.isNotBlank(value) || StringUtils.isNotBlank(object.password)) && !value.equals(object.password) ){
-                errors.rejectValue("password2", "passwords.not.match", "The two password fields do not match.")
-                return false;
-            }
-        })
-
-        organization(nullable: false)
-
+        organization(nullable: true)
         email(email: true, blank: false, maxSize: 255)
         responder(blank: false, maxSize: 512)
-        phoneNumber(blank: false, maxSize: 32)
-        mailingAddress(blank: false, maxSize: 1024)
+        phoneNumber(nullable: true, blank: true, maxSize: 32)
+        mailingAddress(nullable: true, blank: true, maxSize: 1024)
         notes(nullable: true, blank: true, maxSize: 65535)
     }
 

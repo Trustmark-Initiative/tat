@@ -1,3 +1,4 @@
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 <!DOCTYPE html>
 <html>
 	<head>
@@ -95,8 +96,8 @@
                 </div>
             </div>
 
-            <sec:ifLoggedIn>
-                <sec:ifAllGranted roles="ROLE_ADMIN">
+            <sec:authorize access="isAuthenticated()">
+                <sec:authorize access="hasAuthority('tat-admin')">
                     <div style="margin-top: 2em;">
                         <h4>Trustmark Recipient Identifiers</h4>
                         <div class="sectionDescription  text-muted">
@@ -137,103 +138,103 @@
                             </tbody>
                         </table>
                     </div>
-                </sec:ifAllGranted>
-            </sec:ifLoggedIn>
+                </sec:authorize>
+            </sec:authorize>
 
             <!-- Signing Certificates -->
             <g:if test="${organization.isTrustmarkProvider}">
-                <sec:ifLoggedIn>
-                <sec:ifAllGranted roles="ROLE_ADMIN">
-                    <div style="margin-top: 2em;">
-                        <h4>Signing Certificates</h4>
-                        <div class="sectionDescription  text-muted">
-                            These are the cryptographic keys and X.509 certificates that are used for digital signature and verification of Trustmarks that this Trustmark Provider issues.
-                        </div>
-                        <table class="table table-bordered table-striped table-condensed">
-                            <thead>
-                                <tr>
-                                    <th class="certificateActionCol certificateActionColHeader">&nbsp;</th>
-                                    <th class="certificateDistinguishedNameCol certificateDistinguishedNameColHeader">Distinguished Name</th>
-                                    <th class="certificateEmailAddressCol certificateEmailAddressColHeader">Email Address</th>
-                                    <th class="certificateUrlCol certificateUrlColHeader">URL</th>
-                                    <th class="certificateStatusCol certificateStatusColHeader">Status</th>
-                                    <th class="certificateDefaultCol certificateDefaultColHeader">Default</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <g:if test="${organization.certificates && !organization.certificates.isEmpty()}">
-                                    <g:each in="${organization.certificates}" var="cert">
-                                        <tr>
-                                            <td class="certificateActionCol">
-                                                <a href="${createLink(controller:'signingCertificates', action:'view', id:cert.id)}"
-                                                    title="View ${cert.distinguishedName}">
-                                                    <span class="glyphicon glyphicon-eye-open"></span>
-                                                </a>
-                                                <a href="${createLink(controller:'signingCertificates',action:'download', id:cert.id)}"
-                                                    target="_blank" title="Download ${cert.distinguishedName}">
-                                                    <span class="glyphicon glyphicon-download"></span>
-                                                </a>
+                <sec:authorize access="isAuthenticated()">
+                    <sec:authorize access="hasAuthority('tat-admin')">
+                        <div style="margin-top: 2em;">
+                            <h4>Signing Certificates</h4>
+                            <div class="sectionDescription  text-muted">
+                                These are the cryptographic keys and X.509 certificates that are used for digital signature and verification of Trustmarks that this Trustmark Provider issues.
+                            </div>
+                            <table class="table table-bordered table-striped table-condensed">
+                                <thead>
+                                    <tr>
+                                        <th class="certificateActionCol certificateActionColHeader">&nbsp;</th>
+                                        <th class="certificateDistinguishedNameCol certificateDistinguishedNameColHeader">Distinguished Name</th>
+                                        <th class="certificateEmailAddressCol certificateEmailAddressColHeader">Email Address</th>
+                                        <th class="certificateUrlCol certificateUrlColHeader">URL</th>
+                                        <th class="certificateStatusCol certificateStatusColHeader">Status</th>
+                                        <th class="certificateDefaultCol certificateDefaultColHeader">Default</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <g:if test="${organization.certificates && !organization.certificates.isEmpty()}">
+                                        <g:each in="${organization.certificates}" var="cert">
+                                            <tr>
+                                                <td class="certificateActionCol">
+                                                    <a href="${createLink(controller:'signingCertificates', action:'view', id:cert.id)}"
+                                                        title="View ${cert.distinguishedName}">
+                                                        <span class="glyphicon glyphicon-eye-open"></span>
+                                                    </a>
+                                                    <a href="${createLink(controller:'signingCertificates',action:'download', id:cert.id)}"
+                                                        target="_blank" title="Download ${cert.distinguishedName}">
+                                                        <span class="glyphicon glyphicon-download"></span>
+                                                    </a>
 
-                                            </td>
-                                            <td class="certificateDistinguishedNameCol">
-                                                <a href="${createLink(controller:'signingCertificates', action:'view', id:cert.id)}"
-                                                   title="View ${cert.distinguishedName}">
-                                                    <span>${cert.distinguishedName}</span>
-                                                </a>
-                                            </td>
-                                            <td class="certificateEmailAddressCol">
-                                                ${cert.emailAddress}
-                                            </td>
-                                            <td class="certificateUrlCol">
-                                                <g:link url="${cert.certificatePublicUrl}">
-                                                    ${cert.certificatePublicUrl}
-                                                </g:link>
-                                            </td>
-                                            <td class="certificateStatusCol">
-                                                <g:if test="${cert.status == nstic.web.SigningCertificateStatus.ACTIVE}">
-                                                    <span style="color: darkgreen;" class="glyphicon glyphicon-ok-sign" title="Certificate still valid"></span>
-                                                </g:if>
-                                                <g:if test="${cert.status == nstic.web.SigningCertificateStatus.REVOKED}">
-                                                    <span style="color: darkred;" class="glyphicon glyphicon-remove-sign" title="Certificate has been revoked."></span>
-                                                </g:if>
-                                                <g:if test="${cert.status == nstic.web.SigningCertificateStatus.EXPIRED}">
-                                                    <span style="color: rgb(150, 150, 0);" class="glyphicon glyphicon-minus-sign" title="Certificate has expired."></span>
-                                                </g:if>
-                                            </td>
-                                            <td class="certificateDefaultCol">
-                                                <g:if test="${cert.defaultCertificate}">
-                                                    <span>Yes</span>
-                                                </g:if>
-                                                <g:else>
-                                                    <span>No</span>
-                                                </g:else>
+                                                </td>
+                                                <td class="certificateDistinguishedNameCol">
+                                                    <a href="${createLink(controller:'signingCertificates', action:'view', id:cert.id)}"
+                                                       title="View ${cert.distinguishedName}">
+                                                        <span>${cert.distinguishedName}</span>
+                                                    </a>
+                                                </td>
+                                                <td class="certificateEmailAddressCol">
+                                                    ${cert.emailAddress}
+                                                </td>
+                                                <td class="certificateUrlCol">
+                                                    <g:link url="${cert.certificatePublicUrl}">
+                                                        ${cert.certificatePublicUrl}
+                                                    </g:link>
+                                                </td>
+                                                <td class="certificateStatusCol">
+                                                    <g:if test="${cert.status == nstic.web.SigningCertificateStatus.ACTIVE}">
+                                                        <span style="color: darkgreen;" class="glyphicon glyphicon-ok-sign" title="Certificate still valid"></span>
+                                                    </g:if>
+                                                    <g:if test="${cert.status == nstic.web.SigningCertificateStatus.REVOKED}">
+                                                        <span style="color: darkred;" class="glyphicon glyphicon-remove-sign" title="Certificate has been revoked."></span>
+                                                    </g:if>
+                                                    <g:if test="${cert.status == nstic.web.SigningCertificateStatus.EXPIRED}">
+                                                        <span style="color: rgb(150, 150, 0);" class="glyphicon glyphicon-minus-sign" title="Certificate has expired."></span>
+                                                    </g:if>
+                                                </td>
+                                                <td class="certificateDefaultCol">
+                                                    <g:if test="${cert.defaultCertificate}">
+                                                        <span>Yes</span>
+                                                    </g:if>
+                                                    <g:else>
+                                                        <span>No</span>
+                                                    </g:else>
+                                                </td>
+                                            </tr>
+                                        </g:each>
+
+                                    </g:if>
+                                    <g:else>
+                                        <tr>
+                                            <td colspan="6">
+                                                <em>There are no signing certificates tied to this organization.</em>
                                             </td>
                                         </tr>
-                                    </g:each>
+                                    </g:else>
+                                </tbody>
+                            </table>
+                            <div>
+                                <g:link controller="signingCertificates" action="add" params="[orgId: organization.id]" class="btn btn-default">
+                                    Generate New Certificate
+                                </g:link>
 
-                                </g:if>
-                                <g:else>
-                                    <tr>
-                                        <td colspan="6">
-                                            <em>There are no signing certificates tied to this organization.</em>
-                                        </td>
-                                    </tr>
-                                </g:else>
-                            </tbody>
-                        </table>
-                        <div>
-                            <g:link controller="signingCertificates" action="add" params="[orgId: organization.id]" class="btn btn-default">
-                                Generate New Certificate
-                            </g:link>
+                                <g:link controller="signingCertificates" action="importPkcs12" params="[orgId: organization.id]" class="btn btn-default">
+                                    Import Signing Certificate
+                                </g:link>
 
-                            <g:link controller="signingCertificates" action="importPkcs12" params="[orgId: organization.id]" class="btn btn-default">
-                                Import Signing Certificate
-                            </g:link>
-
+                            </div>
                         </div>
-                    </div>
-                </sec:ifAllGranted>
-            </sec:ifLoggedIn>
+                    </sec:authorize>
+                </sec:authorize>
             </g:if>
 
             <!-- Trustmarks -->
@@ -306,7 +307,7 @@
                     </tr>
                 </table>
 
-                <sec:ifAllGranted roles="ROLE_ADMIN">
+                <sec:authorize access="hasAuthority('tat-admin')">
                     <g:if test="${numberOfActiveTrustmarks > 0}">
                         <div style="margin-top: 2em; margin-bottom: 3em;">
                             <a href="javascript:revokeAllTrustmarks()" class="btn btn-danger">Revoke All Active Trustmarks</a>
@@ -315,7 +316,7 @@
                             </div>
                         </div>
                     </g:if>
-                </sec:ifAllGranted>
+                </sec:authorize>
                 <script type="text/javascript">
                     function revokeAllTrustmarks() {
 

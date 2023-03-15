@@ -2,10 +2,12 @@ package nstic.web
 
 import grails.converters.JSON
 import grails.converters.XML
-import grails.plugin.springsecurity.annotation.Secured
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.IOUtils
 import org.apache.commons.lang.StringUtils
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.web.multipart.MultipartFile
 
 import javax.servlet.ServletException
@@ -15,10 +17,9 @@ import javax.servlet.ServletException
  * <br/><br/>
  * Created by brad on 9/8/14.
  */
-@Secured(["ROLE_USER", "ROLE_ADMIN"])
+@PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
 class BinaryController {
 
-    def springSecurityService;
     def fileService;
 
     def list() {
@@ -61,7 +62,7 @@ class BinaryController {
      *   <b>file</b> - The multipart file being uploaded.
      */
     def upload() {
-        User user = springSecurityService.getCurrentUser();
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         log.info("Handling file upload...");
         MultipartFile file = request.getFile("file");

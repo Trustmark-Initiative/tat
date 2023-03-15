@@ -32,11 +32,10 @@
                 <thead>
                     <tr>
                         <th>&nbsp;</th>
-                        <g:sortableColumn property="contactInformation.email" title="Email" />
+                        <g:sortableColumn property="user.username" title="Username" />
                         <th>Role</th>
-                        <th>Enabled</th>
                         <g:sortableColumn property="contactInformation.responder" title="Name" />
-                        <g:sortableColumn property="contactInformation.phoneNumber" title="Phone" />
+                        <g:sortableColumn property="user.contactEmail" title="Email" />
                         <g:sortableColumn property="organization.name" title="Organization" />
                     </tr>
                 </thead>
@@ -48,13 +47,8 @@
                                     <g:link controller="user" action="edit" id="${user.id}">
                                         <span class="glyphicon glyphicon-edit" title="Edit user ${user.contactInformation?.responder}"></span>
                                     </g:link>
-
-                                    %{--<g:link controller="user" action="edit" id="${user.id}">--}%
-                                        %{--<span class="glyphicon glyphicon-remove-sign" title="Edit user ${user.contactInformation?.responder}"></span>--}%
-                                    %{--</g:link>--}%
-
                                 </td>
-                                <td>${user.contactInformation.email}</td>
+                                <td>${user.username}</td>
                                 <td>
                                     <g:if test="${user.isAdmin()}">
                                         <span class="label label-danger">Admin</span>
@@ -69,17 +63,9 @@
                                         <span class="label label-warning">No role</span>
                                     </g:else>
                                 </td>
-                                <td>
-                                    <g:if test="${user.enabled}">
-                                        <span class="glyphicon glyphicon-ok" title="This contributor is enabled"></span>
-                                    </g:if>
-                                    <g:else>
-                                        <span class="glyphicon glyphicon-remove" title="This contributor is NOT enabled."></span>
-                                    </g:else>
-                                </td>
-                                <td>${user.contactInformation.responder}</td>
-                                <td>${user.contactInformation.phoneNumber}</td>
-                                <td>${user.organization.name}</td>
+                                <td>${user.contactInformation?.responder}</td>
+                                <td>${user.contactEmail}</td>
+                                <td>${user.organization?.name}</td>
                             </tr>
                         </g:each>
                     </g:if>
@@ -91,12 +77,6 @@
                 </tbody>
             </table>
             <div class="row" style="margin-bottom: 2em;">
-                <div class="col-md-6">
-                    <a href="${createLink(controller:'user', action:'create')}" class="btn btn-primary">
-                        <span class="glyphicon glyphicon-plus-sign" title="Create a new user"></span>
-                        New User
-                    </a>
-                </div>
                 <div class="col-md-6" style="text-align: right">
                     <g:paginate total="${userCountTotal}" />
                 </div>

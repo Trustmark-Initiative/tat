@@ -1,3 +1,4 @@
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 <!DOCTYPE html>
 <html>
 	<head>
@@ -40,14 +41,14 @@
         </style>
 	</head>
 	<body>
-    <g:if test='${flash.message}'>
-        <div class="alert alert-danger" style="margin-top: 1em; width: 45%;">
-            <div style="font-weight: bold;">Authentication Failed!</div>
-            ${flash.message}
-        </div>
-    </g:if>
+        <g:if test='${flash.message}'>
+            <div class="alert alert-danger" style="margin-top: 1em; width: 45%;">
+                <div style="font-weight: bold;">Authentication Failed!</div>
+                ${flash.message}
+            </div>
+        </g:if>
 
-    <sec:ifNotLoggedIn>
+        <sec:authorize access="!isAuthenticated()">
             <g:if test="${firstTimeLogin}">
                 <script type="text/javascript">
                     $(document).ready(function(){
@@ -216,55 +217,70 @@
                             </div>
                     </form>
                 </div>
-            </g:if><g:else>
-            <div class="row">
-                <div class="col-md-offset-4 col-md-4">
-                    <div class="mustLoginDetails alert alert-warning">
-                        <div class="mustLoginText">
-                            This page requires authentication.  Please click below to start the process.
+            </g:if>
+            <g:else>
+                <div class="d-flex align-content-center">
+                    <div class="col-md-offset-4 col-md-4">
+                        <div class="mustLoginDetails alert alert-warning">
+                            <div class="mustLoginText">
+                                This page requires authentication.  Please click below to start the process.
+                            </div>
+                            <a href="oauth2/authorize-client/keycloak" class="btn btn-primary">Login &raquo;</a>
                         </div>
-                        <a href="${createLink(controller:'login')}" class="btn btn-primary">Login &raquo;</a>
                     </div>
                 </div>
-            </div>
 
-            <div style="height: 600px;">&nbsp;</div>
-        </g:else>
-        </sec:ifNotLoggedIn>
+                <div style="height: 600px;">&nbsp;</div>
+            </g:else>
+            </sec:authorize>
 
-        <sec:ifLoggedIn>
-            <sec:ifAnyGranted roles="ROLE_USER,ROLE_ADMIN">
-                <h3>Recent Assessments <small>(Total ${assessmentCount})</small></h3>
-                <div class="searchFormContainer">
-                    <form class="form-inline" action="${createLink(controller:'assessmentSearch', action: 'search')}">
-                        <div class="form-group">
-                            <input name="q" type="text" class="form-control" placeholder="Search Phrase" />
+        <sec:authorize access="isAuthenticated()">
+            <sec:authorize access="hasAuthority('tat-admin') or hasAuthority('tat-contributor')">
+
+                <g:if test="${user.isUser() && user.getOrganization() == null}">
+                    <div class="row">
+                        <div class="col-md-offset-4 col-md-4">
+                            <div class="mustLoginDetails alert alert-warning">
+                                <div class="mustLoginText">
+                                    You must be assigned to an organization by your TAT administrator to use this tool.  Please contact your TAT administrator for help..
+                                </div>
+                            </div>
                         </div>
-                        <button type="submit" class="btn btn-default">Search</button>
-                    </form>
-                </div>
-
-                <div id="assessmentsContainer">
-                    <div style="margin-top: 2em; margin-bottom: 2em;">
-                        <asset:image src="spinner.gif" /> Loading most relevant Assessments...
                     </div>
-                </div>
-                <script type="text/javascript">
-                    $(document).ready(function(){
-                        var url = '${createLink(controller:'assessment', action: 'mostRelevantList')}';
-                        console.log('Getting contents of: '+url);
-                        $.get(url, function(data){
-                            $('#assessmentsContainer').html(data);
+                </g:if>
+                <g:else>
+                    <h3>Recent Assessments <small>(Total ${assessmentCount})</small></h3>
+                    <div class="searchFormContainer">
+                        <form class="form-inline" action="${createLink(controller:'assessmentSearch', action: 'search')}">
+                            <div class="form-group">
+                                <input name="q" type="text" class="form-control" placeholder="Search Phrase" />
+                            </div>
+                            <button type="submit" class="btn btn-default">Search</button>
+                        </form>
+                    </div>
+
+                    <div id="assessmentsContainer">
+                        <div style="margin-top: 2em; margin-bottom: 2em;">
+                            <asset:image src="spinner.gif" /> Loading most relevant Assessments...
+                        </div>
+                    </div>
+                    <script type="text/javascript">
+                        $(document).ready(function(){
+                            var url = '${createLink(controller:'assessment', action: 'mostRelevantList')}';
+                            console.log('Getting contents of: '+url);
+                            $.get(url, function(data){
+                                $('#assessmentsContainer').html(data);
+                            });
                         });
-                    });
-                </script>
-                <div>
-                    <a href="${createLink(controller:'assessment', action: 'create')}" class="btn btn-default">Create</a>
-                    <a href="${createLink(controller:'assessment', action: 'list')}" class="btn btn-primary">View All &raquo;</a>
-                </div>
+                    </script>
+                    <div>
+                        <a href="${createLink(controller:'assessment', action: 'create')}" class="btn btn-default">Create</a>
+                        <a href="${createLink(controller:'assessment', action: 'list')}" class="btn btn-primary">View All &raquo;</a>
+                    </div>
+                </g:else>
 
-            </sec:ifAnyGranted>
-            <sec:ifNotGranted roles="ROLE_USER,ROLE_ADMIN">
+            </sec:authorize>
+            <sec:authorize access="hasAuthority('tat-viewer')">
                 <h3 style="margin-top: 2em;">Report Viewer Account</h3>
                 <div class="text-muted">
                     On this page, you can view the organization report for ${user?.organization?.name},
@@ -298,7 +314,26 @@
                     </div>
                 </div>
 
-            </sec:ifNotGranted>
-        </sec:ifLoggedIn>
+            </sec:authorize>
+
+            <sec:authorize access="!(hasAuthority('tat-viewer') or hasAuthority('tat-admin') or hasAuthority('tat-contributor'))">
+                <div class="row">
+                    <div class="col-md-offset-4 col-md-4">
+                        <div class="mustLoginDetails alert alert-warning">
+                            <div class="mustLoginText">
+                                Your trustmark tools login does not include permissions to use this Trustmark
+                                Assessment Tool.  If you believe this is an error, please contact your trustmark tools
+                                administrator: ${administratorEmail}.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </sec:authorize>
+
+            <div style="height: 600px;">&nbsp;</div>
+
+
+
+        </sec:authorize>
 	</body>
 </html>

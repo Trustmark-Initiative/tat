@@ -1,4 +1,5 @@
 <%@ page import="nstic.web.User; nstic.web.Role" defaultCodec="none"  %>
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 <!DOCTYPE html>
 <html>
 <head>
@@ -24,7 +25,7 @@
         <h1>Overall Report <small>Summary of Every Assessment & Org</small></h1>
         <div>
             Generated <g:formatDate date="${Calendar.getInstance().getTime()}" format="MM/dd/yyyy" />,
-            By <sec:username /> <br/>
+            By ${user.username} <br/>
             Including Assessment Data from <g:formatDate date="${startDate}" format="MM/dd/yyyy" />
             to <g:formatDate date="${endDate}" format="MM/dd/yyyy" />, resulting in ${assessmentStats['overallCount']} assessments (of ${nstic.web.assessment.Assessment.count()}).
         </div>

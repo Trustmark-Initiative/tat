@@ -90,7 +90,7 @@ class UrlMappings {
         "/binaries/upload"(controller:'binary', action:'upload')
         "/binaries/$id"(controller:'binary', action:'view')
 
-        "/forgot-password"(controller:'forgotPassword', action: 'index')
+//        "/forgot-password"(controller:'forgotPassword', action: 'index')
 
         "/users"(controller:'user', action: 'list')
         "/users/create"(controller: 'user', action: 'create')
@@ -156,7 +156,12 @@ class UrlMappings {
         "/public/trustmarks/$id"(controller: 'publicApi', action: 'view')
         "/public/trustmarks/find"(controller: 'publicApi', action: 'findMany')
         "/public/trustmarks/status/$id"(controller: 'publicApi', action: 'status')
+
+        "/public/documents"(controller: 'publicApi', action: 'documents')
+
         "/public/documents/$id"(controller: 'publicApi', action: 'findDocs')
+
+
         "/public/documents/pdf/$name"(controller:'publicApi', action: 'pdfByName')
 
         "/public/trustmarks/find-by-recipient/$recipientId"(controller: 'publicApi', action: 'findByRecipient')

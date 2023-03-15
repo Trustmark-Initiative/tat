@@ -2,12 +2,12 @@ package nstic.web
 
 import edu.gatech.gtri.trustmark.v1_0.impl.util.TrustmarkMailClientImpl
 import grails.converters.JSON
-import grails.plugin.springsecurity.annotation.Secured
 import nstic.TATPropertiesHolder
 import nstic.util.PasswordUtil
 import org.apache.commons.lang.StringUtils
+import org.springframework.security.access.prepost.PreAuthorize
 
-@Secured("permitAll")
+@PreAuthorize('permitAll()')
 class ForgotPasswordController {
 
     def index() {

@@ -1,4 +1,5 @@
 <%@ page import="nstic.web.User; nstic.web.Role" %>
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 <!DOCTYPE html>
 <html>
 	<head>
@@ -53,7 +54,7 @@
                                     <g:link controller="binary" action="view" id="${doc.binaryObjectId}" title="Download ${doc.filename}">
                                         <span class="glyphicon glyphicon-download"></span>
                                     </g:link>
-                                    <sec:ifAllGranted roles="ROLE_ADMIN">
+                                    <sec:authorize access="hasAuthority('tat-admin')">
                                         <g:link controller="documents" action="edit" id="${doc.id}" title="Edit document ${doc.filename}">
                                             <span class="glyphicon glyphicon-edit"></span>
                                         </g:link>
@@ -61,7 +62,7 @@
                                                 id="${doc.id}" title="Delete document ${doc.filename}" onclick="return confirm('Really delete?');">
                                             <span class="glyphicon glyphicon-remove"></span>
                                         </g:link>
-                                    </sec:ifAllGranted>
+                                    </sec:authorize>
                                 </td>
                                 <td>
                                     <g:link controller="binary" action="view" id="${doc.binaryObjectId}">
@@ -103,11 +104,11 @@
                 </tbody>
             </table>
             <div class="row" style="margin-bottom: 2em;">
-                <sec:ifAllGranted roles="ROLE_ADMIN">
+                <sec:authorize access="hasAuthority('tat-admin')">
                     <div class="col-md-6">
                         <a href="${createLink(controller:'documents', action:'add')}" class="btn btn-primary">Add Document</a>
                     </div>
-                </sec:ifAllGranted>
+                </sec:authorize>
                 <div class="col-md-6" style="text-align: right">
                     <g:paginate total="${documentsCountTotal}" />
                 </div>

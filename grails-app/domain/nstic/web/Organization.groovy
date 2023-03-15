@@ -2,6 +2,7 @@ package nstic.web
 
 import java.util.stream.Collectors
 
+
 class Organization {
 
     static transients = ['sortedComments', 'sortedArtifacts', 'sortedTrustmarkRecipientIdentifiers']
@@ -47,6 +48,10 @@ class Organization {
         table(name:'organization')
         identifier(column: 'short_name')
         primaryContact(column: 'primary_contact_ref')
+    }
+
+    static final Optional<Organization> findByIsTrustmarkProviderHelper(final Boolean isTrustmarkProvider) {
+        Optional<Organization>.ofNullable(findByIsTrustmarkProvider(isTrustmarkProvider))
     }
 
     public static Organization newOrganization(String uri, String identifier, String name, Boolean isTrustmarkProvider) {

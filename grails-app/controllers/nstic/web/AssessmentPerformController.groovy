@@ -6,7 +6,6 @@ import edu.gatech.gtri.trustmark.v1_0.io.TrustmarkDefinitionResolver
 import edu.gatech.gtri.trustmark.v1_0.model.ParameterKind
 import grails.converters.JSON
 import grails.converters.XML
-import grails.plugin.springsecurity.annotation.Secured
 import grails.gorm.transactions.Transactional
 import nstic.web.assessment.ArtifactData
 import nstic.web.assessment.Assessment
@@ -21,6 +20,9 @@ import nstic.web.td.TdParameter
 import org.apache.commons.lang.StringUtils
 import org.grails.help.ParamConversion
 import org.grails.help.ParamConversions
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.validation.ObjectError
 
 import javax.servlet.ServletException
@@ -29,18 +31,17 @@ import javax.servlet.ServletException
  * This controller handles everything related to performing an assessment.
  */
 @Transactional
-@Secured(["ROLE_USER", "ROLE_ADMIN"])
+@PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
 class AssessmentPerformController {
     public static final String TD_ISSUANCE_CRITERIA_YES_ALL = "yes(all)"
     public static final String TD_ISSUANCE_CRITERIA_NO_ALL  = "no(all)"
 
-    def springSecurityService
 
     /**
      * User has clicked on the "Being Assessment" button, to actually perform an assessment.
      */
     def startAssessment() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if(StringUtils.isEmpty(params.id)){
             log.warn("Cannot start assessment when missing id parameter")
             throw new ServletException("Missing assessment id parameter")
@@ -115,7 +116,7 @@ class AssessmentPerformController {
      * A debugging only method which will completely fill in an assessment with ideal answers.
      */
     def fillInAll() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if(StringUtils.isEmpty(params.id)){
             log.warn("Cannot view assessment performance when missing id parameter")
             throw new ServletException("Missing assessment id parameter")
@@ -175,7 +176,7 @@ class AssessmentPerformController {
      * Responsible for viewing an assessment's perform page.
      */
     def view() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if(StringUtils.isEmpty(params.id)){
             log.warn("Cannot view assessment performance when missing id parameter")
             throw new ServletException("Missing assessment id parameter")
@@ -316,7 +317,7 @@ class AssessmentPerformController {
      * Sets the status of a step as one of "Success" "Failure" or "N/A".
      */
     def setStepDataStatus() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if(StringUtils.isEmpty(params.id)){
             log.warn("Cannot set assessment step status when missing id parameter")
             throw new ServletException("Missing assessment id parameter")
@@ -384,7 +385,7 @@ class AssessmentPerformController {
      * An ajax method meant to allow for posting a global comment change to an Assessment.
      */
     def changeGlobalComment() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Assessment assessment = Assessment.get(params.id)
         if( !assessment )
             throw new ServletException("Missing or invalid 'id' parameter")
@@ -428,7 +429,7 @@ class AssessmentPerformController {
      * An ajax method (similar to changeGlobalComment) which is meant to set the comment on a particular step.
      */
     def setStepDataComment() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if(StringUtils.isEmpty(params.id)){
             log.warn("Cannot set assessment step comment when missing id parameter")
             throw new ServletException("Missing id parameter")
@@ -494,7 +495,7 @@ class AssessmentPerformController {
      * An ajax method (similar to changeGlobalComment) which is meant to set the value of a particular parameter.
      */
     def setParameterValue() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Assessment assessment = Assessment.get(params.id)
         if( !assessment )
             throw new ServletException("Missing or invalid 'id' parameter")
@@ -596,7 +597,7 @@ class AssessmentPerformController {
             @ParamConversion(paramName="requiredArtifactId", toClass=ArtifactData.class, storeInto = "artifactData")
     ])
     def createArtifact() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Assessment assessment = params.assessment
         AssessmentStepData stepData = params.stepData
         ArtifactData requiredArtifact = params.artifactData
@@ -637,7 +638,7 @@ class AssessmentPerformController {
      */
     def saveArtifact(CreateArtifactCommand command) {
         log.debug("Called save artifact, validating...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         def assessment = Assessment.get(command.assessmentId)
         if( !assessment ){
@@ -752,7 +753,7 @@ class AssessmentPerformController {
             @ParamConversion(paramName="id", toClass=Assessment.class, storeInto = "assessment"),
     ])
     def importAssessmentResults() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Assessment assessment = params.assessment
 
         log.info("Showing importAssessmentResults form[user=$user, assessment=$assessment...")
@@ -807,7 +808,7 @@ class AssessmentPerformController {
      */
     def saveAssessmentResults(CreateImportArtifactCommand command) {
         log.debug("Called saveAssessmentResults, validating...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         def assessment = Assessment.get(command.assessmentId)
         if( !assessment ){
@@ -927,7 +928,7 @@ class AssessmentPerformController {
      */
     @ParamConversion(paramName="id", toClass=Assessment.class, storeInto = "assessment")
     def changeAssessmentStatus() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Assessment assessment = params.assessment
 
         AssessmentStatus newStatus = AssessmentStatus.fromString(params.newStatus)
@@ -980,7 +981,7 @@ class AssessmentPerformController {
     ])
     def viewArtifact() {
         log.debug("Request to remove artifact...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         Assessment assessment = params.assessment
         AssessmentStepData stepData = params.stepData
@@ -1009,7 +1010,7 @@ class AssessmentPerformController {
             @ParamConversion(paramName="stepDataId", toClass=AssessmentStepData.class, storeInto = "stepData")
     ])
     def setFailureReason() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Assessment assessment = params.assessment
         AssessmentStepData stepData = params.stepData
         if( !assessment || !stepData ){
@@ -1083,7 +1084,7 @@ class AssessmentPerformController {
     ])
     def editArtifact() {
         log.debug("Request to edit artifact...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         Assessment assessment = params.assessment
         AssessmentStepData stepData = params.stepData
         ArtifactData artifactData = params.artifactData
@@ -1130,7 +1131,7 @@ class AssessmentPerformController {
     ])
     def updateArtifact(EditArtifactCommand command) {
         log.info("Updating an artifact...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         Assessment assessment = params.assessment
         AssessmentStepData stepData = params.stepData
@@ -1246,7 +1247,7 @@ class AssessmentPerformController {
     ])
     def deleteArtifact() {
         log.debug("Request to remove artifact...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         Assessment assessment = params.assessment
         AssessmentStepData stepData = params.stepData
@@ -1320,7 +1321,7 @@ class AssessmentPerformController {
     ])
     def createSubstep() {
         log.debug("Request to remove artifact...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         Assessment assessment = params.assessment
         // TODO We probably want to forward the user to a "re-assign" page instead of just throwing an error.
@@ -1356,7 +1357,7 @@ class AssessmentPerformController {
     ])
     def saveSubstep(CreateSubstepCommand command) {
         log.debug("Saving new substep...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         Assessment assessment = params.assessment
         // TODO We probably want to forward the user to a "re-assign" page instead of just throwing an error.
@@ -1420,7 +1421,7 @@ class AssessmentPerformController {
     ])
     def viewSubstep(){
         log.debug("Viewing existing substep...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         Assessment assessment = params.assessment
         AssessmentStepData stepData = params.stepData
@@ -1465,7 +1466,7 @@ class AssessmentPerformController {
     ])
     def editSubstep() {
         log.debug("Editing existing substep...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         Assessment assessment = params.assessment
         AssessmentStepData stepData = params.stepData
@@ -1529,7 +1530,7 @@ class AssessmentPerformController {
     ])
     def updateSubstep(EditSubstepCommand command) {
         log.debug("Editing existing substep...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         Assessment assessment = params.assessment
         // TODO We probably want to forward the user to a "re-assign" page instead of just throwing an error.

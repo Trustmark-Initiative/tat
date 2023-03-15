@@ -1,22 +1,23 @@
 package nstic.web
 
-import grails.plugin.springsecurity.annotation.Secured
 import nstic.web.assessment.Assessment
 import nstic.web.assessment.AssessmentLogEntry
 import org.apache.commons.lang.StringUtils
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 
 import javax.servlet.ServletException
 
 /**
  * Created by brad on 9/7/14.
  */
-@Secured(["ROLE_USER", "ROLE_ADMIN"])
+@PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
 class AssessmentLogController {
 
-    def springSecurityService
-
     def viewLog() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        
         if(StringUtils.isEmpty(params.id)){
             log.warn("Cannot display assessment log when missing id parameter")
             throw new ServletException("Missing id parameter")
@@ -67,7 +68,7 @@ class AssessmentLogController {
      * Views a log entry's data on a particular assessment.
      */
     def viewLogEntry() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.debug("User[$user] is requesting log entry[${params.entryId}] data on assessment[${params.id}]...")
 
         if(StringUtils.isEmpty(params.id)){

@@ -11,25 +11,8 @@
         </encoder>
     </appender>
 
-   <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-    <file>${LOG_HOME}/logFile.log</file>
-    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-      <!-- daily rollover -->
-      <fileNamePattern>${LOG_HOME}/logFile.%d{yyyy-MM-dd}.log</fileNamePattern>
-
-      <!-- keep 30 days' worth of history capped at 3GB total size -->
-      <maxHistory>7</maxHistory>
-      <totalSizeCap>1GB</totalSizeCap>
-    </rollingPolicy>
-
-    <encoder>
-      <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
-    </encoder>
-  </appender>
-
     <root level="ERROR">
         <appender-ref ref="STDOUT" />
-        <appender-ref ref="FILE" />
     </root>
 
 
@@ -43,21 +26,18 @@
     <logger name="nstic" level="DEBUG" />
 
     <logger name="edu.gatech.gtri.trustmark" level="INFO" />
-    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.io" level="INFO" />
+    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.io" level="DEBUG" />
 
-    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.util.TrustmarkMailClientImpl" level="INFO">
+    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.util.TrustmarkMailClientImpl" level="DEBUG">
       <appender-ref ref="STDOUT"/>
-      <appender-ref ref="FILE"/>
     </logger>
 
-    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.util" level="INFO">
+    <logger name="edu.gatech.gtri.trustmark.v1_0.impl.util" level="DEBUG">
       <appender-ref ref="STDOUT"/>
-      <appender-ref ref="FILE"/>
     </logger>
 
-    <logger name="edu.gatech.gtri.trustmark.v1_0.util" level="INFO">
+    <logger name="edu.gatech.gtri.trustmark.v1_0.util" level="DEBUG">
       <appender-ref ref="STDOUT"/>
-      <appender-ref ref="FILE"/>
     </logger>
 
     <!--<logger name="org.springframework.security" level="DEBUG" />-->

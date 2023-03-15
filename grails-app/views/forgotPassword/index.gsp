@@ -1,3 +1,4 @@
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 <!DOCTYPE html>
 <html>
 	<head>
@@ -15,7 +16,7 @@
             On this page, you can recover your password by submitting your information.
         </div>
 
-        <sec:ifNotLoggedIn>
+        <sec:authorize access="!isAuthenticated()">
             <div style="margin-top: 2em;">
 
                 <form class="form-horizontal">
@@ -70,10 +71,10 @@
 
             </script>
 
-        </sec:ifNotLoggedIn>
+        </sec:authorize>
 
-        <sec:ifLoggedIn>
+        <sec:authorize access="isAuthenticated()">
             <h3 class="text-danger">You are already logged in, please visit the "Profile" page and reset your password.</h3>
-        </sec:ifLoggedIn>
+        </sec:authorize>
 	</body>
 </html>

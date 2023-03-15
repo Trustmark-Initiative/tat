@@ -106,14 +106,10 @@ class ImportExportService {
                 JSONObject userJSON = new JSONObject();
                 userJSON.put("id", user.id);
                 userJSON.put("username", user.username);
-                userJSON.put("password", user.password);
-                userJSON.put("enabled", user.enabled);
-                userJSON.put("accountExpired", user.accountExpired);
-                userJSON.put("accountLocked", user.accountLocked);
-                userJSON.put("passwordExpired", user.passwordExpired);
+
                 JSONArray authorities = new JSONArray();
                 for( Role role : user.authorities ){
-                    authorities.put(role.authority);
+                    authorities.put(role.value);
                 }
                 userJSON.put("authorities", authorities);
                 userJSON.put("contactReference", user.contactInformation?.id ?: -1);

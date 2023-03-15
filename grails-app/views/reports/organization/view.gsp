@@ -1,4 +1,5 @@
 <%@ page import="nstic.util.TipTreeNode; nstic.web.tip.TrustInteroperabilityProfile; nstic.web.td.TrustmarkDefinition; nstic.web.assessment.*; org.apache.commons.io.FileUtils; nstic.web.*;" defaultCodec="none"  %>
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 <!DOCTYPE html>
 <html>
 <head>
@@ -90,7 +91,7 @@
         <h3>Organization Report: ${organization.name}</h3>
         <div>
             Generated <g:formatDate date="${Calendar.getInstance().getTime()}" format="MM/dd/yyyy" />,
-            By <sec:username /> <br/>
+            By ${user.username} <br/>
             Including Assessment Data from <g:formatDate date="${startDate}" format="MM/dd/yyyy" />
             to <g:formatDate date="${endDate}" format="MM/dd/yyyy" /> for ${organization.identifier},
             resulting in ${assessments.size()} assessments.

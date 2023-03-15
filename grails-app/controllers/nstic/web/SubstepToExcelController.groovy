@@ -1,7 +1,6 @@
 package nstic.web
 
 import grails.converters.JSON
-import grails.plugin.springsecurity.annotation.Secured
 import nstic.web.td.AssessmentStep
 import nstic.web.td.AssessmentStepArtifact
 import nstic.web.td.AssessmentSubStep
@@ -19,26 +18,28 @@ import org.apache.poi.ss.usermodel.Font
 import org.apache.poi.ss.usermodel.IndexedColors
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Sheet
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 
-@Secured(["ROLE_USER", "ROLE_ADMIN"])
+@PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
 class SubstepToExcelController {
 
-    def springSecurityService;
     def fileService;
 
     /**
      * Loads the substep resolution index page.
      */
     def index() {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         log.info("User[$user] is viewing the substep to excel generation page...");
 
 
     }//end index()
 
     def substepListing() {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         log.info("User[$user] is viewing the list of substeps...");
 
         log.debug("Finding all Assessments with Substeps...");
@@ -115,7 +116,7 @@ class SubstepToExcelController {
      * be downloaded.
      */
     def excelGenerate() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         log.info("Generating an Excel Spreadsheet...");
         List<Long> ids = []
 

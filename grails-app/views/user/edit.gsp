@@ -30,47 +30,34 @@
             <g:form class="form-horizontal" name="createUserForm" method="POST" action="update">
                 <g:hiddenField name="existingUserId" id="existingUserId" value="${userCommand?.existingUserId}" />
                 <div class="form-group">
-                    <label for="email" class="col-sm-2 control-label">Email address <br/><small>(&amp; Username)</small></label>
+                    <label for="username" class="col-sm-2 control-label">Username</label>
                     <div class="col-sm-10">
-                        <g:textField name="email" id="email" class="form-control" placeholder="user@example.com" value="${userCommand?.email}" />
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="password" class="col-sm-2 control-label">Password</label>
-                    <div class="col-sm-5">
-                        <g:passwordField name="password" id="password" class="form-control col-md-6" value="${userCommand?.password}" placeholder="Password" />
-                    </div>
-                    <div class="col-sm-5">
-                        <g:passwordField name="passwordAgain" id="passwordAgain" class="form-control col-md-6" value="${userCommand?.passwordAgain}" placeholder="Password (Again)" />
+                        <g:field type="text" readonly="readonly" class="form-control" name="username" id="username" value="${userCommand?.username ?: ''}" />
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="name" class="col-sm-2 control-label">Name</label>
                     <div class="col-sm-10">
-                        <g:textField name="name" id="name" class="form-control" placeholder="George Washington" value="${userCommand?.name}" />
+                        <g:field type="text" readonly="readonly" class="form-control" name="name" id="name" value="${userCommand?.name ?: ''}" />
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="phone" class="col-sm-2 control-label">Phone Number</label>
+                    <label for="email" class="col-sm-2 control-label">Email address</label>
                     <div class="col-sm-10">
-                        <g:textField name="phone" id="phone" class="form-control" placeholder="555-555-5555" value="${userCommand?.phone}" />
+                        <g:field type="text" readonly="readonly" class="form-control" name="email" id="email" value="${userCommand?.email ?: ''}" />
                     </div>
                 </div>
-                <div class="form-group" >
-                    <label for="mailingAddress" class="col-sm-2 control-label">Mailing address</label>
-                    <div class="col-sm-10">
-                        <g:textField name="mailingAddress" id="mailingAddress" class="form-control" placeholder="250 14th Stree NW, Atlanta, GA" value="${userCommand?.mailingAddress}" />
-                    </div>
-                </div>
-
                 <div class="form-group">
                     <label for="organizationId" class="col-sm-2 control-label">Organization</label>
                     <div class="col-sm-10">
-                        <g:select name="organizationId"
-                                  class="form-control"
-                                  from="${Organization.list()}"
-                                  value="${userCommand?.organizationId}"
-                                  optionKey="id" optionValue="name" />
+                        <g:if test="${user.organization == null}">
+                            <g:select name="organizationId" class="form-control" from="${Organization.list()}" noSelection="${['null':'Select an organization...']}"
+                                      value="${userCommand?.organizationId}" optionKey="id" optionValue="name" />
+                        </g:if>
+                        <g:else>
+                            <g:select name="organizationId" class="form-control" from="${Organization.list()}"
+                                      value="${userCommand?.organizationId}" optionKey="id" optionValue="name" />
+                        </g:else>
                     </div>
                 </div>
 
@@ -81,17 +68,17 @@
                         <g:hiddenField class="roleField" name="adminRole" id="adminRole" value="${userCommand?.adminRole ?: 'false'}" />
                         <g:hiddenField class="roleField" name="reportOnlyRole" id="reportOnlyRole" value="${userCommand?.reportOnlyRole ?: 'false'}" />
 
-                        <a id="reportOnlyRoleButton" href="javascript:changeRoleStatus('reportOnly')" class="btn btn-default">
+                        <a id="reportOnlyRoleButton" class="btn btn-default">
                             <span id="reportOnlyRoleStatusContainer"></span>
                             Report Viewer
                         </a>
 
-                        <a id="userRoleButton" href="javascript:changeRoleStatus('user')" class="btn btn-default">
+                        <a id="userRoleButton" class="btn btn-default">
                             <span id="userRoleStatusContainer"></span>
                             Contributor
                         </a>
 
-                        <a id="adminRoleButton" href="javascript:changeRoleStatus('admin')" class="btn btn-default">
+                        <a id="adminRoleButton" class="btn btn-default">
                             <span id="adminRoleStatusContainer"></span>
                             Admin
                         </a>
@@ -106,12 +93,6 @@
 
                         </span>
 
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="enabled" class="col-sm-2 control-label">Enabled</label>
-                    <div class="col-sm-10">
-                        <g:checkBox name="enabled" id="enabled" value="${userCommand?.enabled}" />
                     </div>
                 </div>
                 <div class="form-group">
@@ -157,14 +138,14 @@
 
         function updateRoleButtonView(role) {
             var hasRole = $('#'+role+'Role').val();
-            $('#'+role+'RoleButton').removeClass('btn-default');
-            $('#'+role+'RoleButton').removeClass('btn-success');
-            $('#'+role+'RoleButton').removeClass('btn-danger');
+            $('#'+role+'RoleButton').removeClass('alert alert-secondary');
+            $('#'+role+'RoleButton').removeClass('alert alert-success');
+            $('#'+role+'RoleButton').removeClass('alert alert-danger');
             if( hasRole === 'false' ){
-                $('#'+role+'RoleButton').addClass('btn-danger');
+                $('#'+role+'RoleButton').addClass('alert alert-danger');
                 $('#'+role+'RoleStatusContainer').html(falseStatusHtml())
             }else if( hasRole === 'true' ){
-                $('#'+role+'RoleButton').addClass('btn-success');
+                $('#'+role+'RoleButton').addClass('alert alert-success');
                 $('#'+role+'RoleStatusContainer').html(trueStatusHtml())
             }else{
                 alert("Invalid value for role '"+role+"': "+hasRole);

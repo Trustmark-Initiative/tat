@@ -20,6 +20,7 @@ class AssessmentToolProperties {
 
     final static String BASE_URL = "tf.base.url"
     final static String PUBLIC_TRUSTMARK_API = "tf.public.api"
+    final static String PUBLIC_API_PROTECTION = "api_client_authorization_required"
 
     private static Properties RESOURCES = new Properties()
     static {
@@ -46,6 +47,10 @@ class AssessmentToolProperties {
     //==================================================================================================================
     static String getFilesDirectory(){
         return getString("assessment.tool.filesdir", "/tmp/tfam")
+    }
+
+    static String getBaseUrl() {
+        return getProperties().getProperty(AssessmentToolProperties.BASE_URL)
     }
 
     static URL getRegistryUrl(){
@@ -105,22 +110,11 @@ class AssessmentToolProperties {
             accountData.orgs.add(org);
         }
 
-        Integer userCount = getNumber("user.count");
-        for( int i = 0; i < userCount; i++ ){
-            int usernum = i+1;
-
-            Map user = [
-                    username: getString("user.${usernum}.username"),
-                    password: getString("user.${usernum}.password"),
-                    contact: getString("user.${usernum}.contact"),
-                    org: getString("user.${usernum}.org"),
-                    roles: getString("user.${usernum}.roles", Role.ROLE_USER)
-            ]
-
-            accountData.users.add(user);
-        }
-
         return accountData;
+    }
+
+    static boolean getIsApiClientAuthorizationRequired() {
+        return getBoolean("api_client_authorization_required", false)
     }
 
 
@@ -203,7 +197,7 @@ class AssessmentToolProperties {
     private static boolean getBoolean(String property){
         return getBoolean(property, null);
     }
-    private static boolean getBoolean(String property, Number defaultValue){
+    private static boolean getBoolean(String property, boolean defaultValue){
         String value = getString(property, null);
         if( value ){
             try{

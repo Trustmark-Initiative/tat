@@ -1,18 +1,16 @@
 package nstic.web
 
 import grails.gorm.transactions.Transactional
-import grails.plugin.springsecurity.annotation.Secured
 import nstic.util.PasswordUtil
 import org.apache.commons.lang.StringUtils
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.validation.ObjectError
 
 import javax.servlet.ServletException
 
 @Transactional
-@Secured('ROLE_ADMIN')
+@PreAuthorize('hasAuthority("tat-admin")')
 class UserController {
-
-    def springSecurityService;
 
     def index() {
         redirect(action: 'list')
@@ -38,7 +36,7 @@ class UserController {
         log.info("Editing user @|cyan ${user.id}|@:@|green ${user.username}|@...")
         UserEditCommand editCmd = UserEditCommand.fromUser(user);
 
-        [userCommand: editCmd]
+        [userCommand: editCmd, user: user]
     }//end edit()
 
     def create(){
@@ -46,7 +44,7 @@ class UserController {
         [userCommand: new UserCommand()]
     }//end create()
 
-    @Secured("permitAll()")
+    @PreAuthorize('permitAll()')
     def createFromGrant() {
         log.info("Creating user form grant...");
         ContactGrant contactGrant = ContactGrant.findByGrantId(params.id);
@@ -83,18 +81,15 @@ class UserController {
             User user = new User();
             user.organization = contactGrant.organization;
             user.contactInformation = contactGrant.contactInformation;
-            user.password = params.password;
-            user.enabled = true;
-            user.passwordExpired = false;
-            user.accountExpired = false;
-            user.accountLocked = false;
             user.username = contactGrant.contactInformation.email;
             user.save(failOnError: true, flush: true);
 
-            Role reportOnlyRole = Role.findByAuthority(Role.ROLE_REPORTS_ONLY);
-            UserRole.create(user, reportOnlyRole, true);
+            // TODO: do we need this function? If so, how do we create a Role and assign it to the user?
+//            Role reportOnlyRole = Role.findByAuthority(Role.ROLE_REPORTS_ONLY);
+//            UserRole.create(user, reportOnlyRole, true);
 
-            springSecurityService.reauthenticate(user.username, params.password);
+            // TODO: Deal with springSecurityService.reauthenticate
+//            springSecurityService.reauthenticate(user.username, params.password);
 
             flash.message = "Successfully created your user account."
             return redirect(controller:'home', action: 'index');
@@ -105,51 +100,20 @@ class UserController {
     def update(UserEditCommand userCommand){
         log.info("Updating user @|cyan ${userCommand.email}|@...")
 
+        User user = User.findById(userCommand.existingUserId);
+
         if(!userCommand.validate()){
             log.warn "User edit form does not validate: "
             userCommand.errors.getAllErrors().each { ObjectError error ->
                 log.warn "    ${error.defaultMessage}"
             }
-            return render(view: 'edit', model: [userCommand: userCommand])
+            return render(view: 'edit', model: [userCommand: userCommand, user: user])
         }
 
-        User user = User.findById(userCommand.existingUserId);
-        if( user.username != userCommand.email ){
-            // User has updated their email address.  This affects their username to login as well.
-            User existingUser = User.findByUsername(userCommand.email);
-            if( existingUser ){
-                log.warn "Cannot change email[@|green ${user.username}|@] to @|yellow ${userCommand.email}|@, a user already exists with that email!";
-                userCommand.errors.reject('user.email.not.unique', [user.username, userCommand.email] as Object[],
-                        "Cannot change email ${user.username} to ${userCommand.email}.  A user with that email already exists.")
-                return render(view: 'edit', model: [userCommand: userCommand])
-            }
-            user.contactInformation.email = userCommand.email
-            user.username = userCommand.email
-        }
-        user.contactInformation.responder = userCommand.name
-        user.contactInformation.mailingAddress = userCommand.mailingAddress
-        user.contactInformation.phoneNumber = userCommand.phone
         user.organization = Organization.findById(userCommand.organizationId);
         // TODO associate contact information to org?
-        user.enabled = userCommand.enabled
-        if( userCommand.password && userCommand.password.length() > 0 ){
-            user.password = userCommand.password;
-        }
-        user.save(failOnError: true, flush: true);
 
-        UserRole.removeAll(user);
-        if( userCommand.reportOnlyRole ){
-            Role userRole = Role.findByAuthority(Role.ROLE_REPORTS_ONLY);
-            UserRole.create(user, userRole, true);
-        }
-        if( userCommand.userRole ){
-            Role userRole = Role.findByAuthority(Role.ROLE_USER);
-            UserRole.create(user, userRole, true);
-        }
-        if( userCommand.adminRole ){
-            Role userRole = Role.findByAuthority(Role.ROLE_ADMIN);
-            UserRole.create(user, userRole, true);
-        }
+        user.save(failOnError: true, flush: true);
 
         flash.message = "Successfully udpated user '${user.username}'"
         return redirect(action:'list');
@@ -176,28 +140,23 @@ class UserController {
         log.info "Saving user: ${userCommand.email}"
         User user = new User()
         user.username = userCommand.email
-        user.password = userCommand.password
         user.contactInformation = contactInformation
         user.organization = Organization.findById(userCommand.organizationId)
         // TODO We may need to associate the contact information with the organization, if it is not already.
-        user.enabled = true
-        user.passwordExpired = false
-        user.accountExpired = false
-        user.accountLocked = false
         user.save(failOnError: true, flush: true)
 
-        if( userCommand.reportOnlyRole ){
-            Role userRole = Role.findByAuthority(Role.ROLE_REPORTS_ONLY);
-            UserRole.create(user, userRole, true);
-        }
-        if( userCommand.userRole ){
-            Role userRole = Role.findByAuthority(Role.ROLE_USER);
-            UserRole.create(user, userRole, true);
-        }
-        if( userCommand.adminRole ){
-            Role userRole = Role.findByAuthority(Role.ROLE_ADMIN);
-            UserRole.create(user, userRole, true);
-        }
+//        if( userCommand.reportOnlyRole ){
+//            Role userRole = Role.findByAuthority(Role.ROLE_REPORTS_ONLY);
+//            UserRole.create(user, userRole, true);
+//        }
+//        if( userCommand.userRole ){
+//            Role userRole = Role.findByAuthority(Role.ROLE_USER);
+//            UserRole.create(user, userRole, true);
+//        }
+//        if( userCommand.adminRole ){
+//            Role userRole = Role.findByAuthority(Role.ROLE_ADMIN);
+//            UserRole.create(user, userRole, true);
+//        }
 
         flash.message = "Successfully created user '${user.username}'"
         return redirect(action:'list');
@@ -207,8 +166,6 @@ class UserController {
 
 class UserCommand {
 
-    String password
-    String passwordAgain
     String name
     String email
     String phone
@@ -228,15 +185,6 @@ class UserCommand {
                 }
             }
         })
-        password(nullable: false, blank: false, minSize: 6, validator: { val, obj ->
-            if( val != obj.passwordAgain ){
-                return "passwords.not.equal"
-            }
-            String invalid = PasswordUtil.isValid(val)
-            if( invalid )
-                return invalid;
-        })
-        passwordAgain(nullable: false, blank: false)
 
         name(nullable: false, blank: false)
         phone(nullable: false, blank: false, matches: '([0-9]{3}\\-[0-9]{3}\\-[0-9]{4})|([0-9]{10})')
@@ -261,27 +209,25 @@ class UserEditCommand {
     public static UserEditCommand fromUser( User user ){
         UserEditCommand cmd = new UserEditCommand();
         cmd.existingUserId = user.id
+        cmd.username = user.username
         cmd.name = user.contactInformation.responder;
-        cmd.email = user.contactInformation.email;
-        cmd.phone = user.contactInformation.phoneNumber;
-        cmd.mailingAddress = user.contactInformation.mailingAddress;
-        cmd.organizationId = user.organization.id;
+        cmd.email = user.contactEmail
+        cmd.phone = user.contactInformation?.phoneNumber;
+        cmd.mailingAddress = user.contactInformation?.mailingAddress;
+        cmd.organizationId = user.organization?.id;
         cmd.adminRole = user.isAdmin();
         cmd.userRole = user.isUser();
         cmd.reportOnlyRole = user.isReportOnly();
-        cmd.enabled = user.enabled;
         return cmd;
     }
 
     Integer existingUserId;
-    String password
-    String passwordAgain
+    String username
     String name
     String email
     String phone
     String mailingAddress
     Integer organizationId
-    Boolean enabled = Boolean.TRUE
     Boolean reportOnlyRole = Boolean.FALSE
     Boolean userRole = Boolean.FALSE
     Boolean adminRole = Boolean.FALSE
@@ -290,22 +236,11 @@ class UserEditCommand {
     static constraints = {
         existingUserId(nullable: false)
         email(nullable: false, blank: false, email: true)
-        password(nullable: true, blank: true)
-        passwordAgain(nullable: true, blank: true, validator: { val, obj ->
-            if( val != obj.passwordAgain ){
-                return "passwords.not.equal"
-            }
-            if( val?.length() > 0 ) {
-                String invalid = PasswordUtil.isValid(val)
-                if (invalid)
-                    return invalid;
-            }
-        })
 
         name(nullable: false, blank: false)
-        phone(nullable: false, blank: false, matches: '([0-9]{3}\\-[0-9]{3}\\-[0-9]{4})|([0-9]{10})')
-        mailingAddress(nullable: false, blank: false)
-        organizationId(nullable: false, validator: { val, obj, errors ->
+        phone(nullable: true, blank: false, matches: '([0-9]{3}\\-[0-9]{3}\\-[0-9]{4})|([0-9]{10})')
+        mailingAddress(nullable: true, blank: false)
+        organizationId(nullable: true, validator: { val, obj, errors ->
             Organization.withTransaction { tx ->
                 Organization org = Organization.findById(val);
                 if( !org ){

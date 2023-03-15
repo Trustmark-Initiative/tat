@@ -3,22 +3,22 @@ package nstic.web
 import grails.converters.JSON
 import grails.converters.XML
 import grails.gorm.transactions.Transactional
-import grails.plugin.springsecurity.annotation.Secured
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.validation.ObjectError
 
 import javax.servlet.ServletException
 
 @Transactional
-@Secured("ROLE_ADMIN")
+@PreAuthorize('hasAuthority("tat-admin")')
 class ContactInformationController {
-
-    def springSecurityService;
 
     def index() {
         redirect(action: 'list')
     }
 
-    @Secured(["ROLE_USER", "ROLE_ADMIN"])
+    @PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
     def list(){
         log.debug("Listing contacts...")
         if (!params.max)
@@ -126,7 +126,8 @@ class ContactInformationController {
 
 
     def typeahead() {
-        log.debug("User[@|blue ${springSecurityService.currentUser}|@] searching[@|cyan ${params.q}|@] via ContactInformation typeahead...")
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
+        log.debug("User[@|blue ${user}|@] searching[@|cyan ${params.q}|@] via ContactInformation typeahead...")
 
         if( params.org )
             log.debug("User has sent an organization also: @|blue ${params.org}|@")

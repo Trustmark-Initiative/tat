@@ -10,7 +10,6 @@ import com.googlecode.charts4j.Slice
 import grails.converters.JSON
 import grails.gorm.transactions.Transactional
 import grails.gsp.PageRenderer
-import grails.plugin.springsecurity.annotation.Secured
 import grails.validation.Validateable
 import groovy.json.JsonSlurper
 import nstic.assessment.ColorPalette
@@ -25,13 +24,15 @@ import nstic.web.tip.TrustInteroperabilityProfile
 import org.apache.commons.lang.StringUtils
 import org.json.JSONArray
 import org.json.JSONObject
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
+
 import javax.servlet.ServletException
 
 
 @Transactional
 class ReportsController {
 
-    def springSecurityService;
     def mailService;
     def reportsService
 
@@ -43,7 +44,7 @@ class ReportsController {
     }//end index()
 
     def share() {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         log.debug("User[${user.username}] sharing report...")
         if( request.method.toUpperCase() == 'GET' ) {
             log.debug("Displaying form...");
@@ -154,7 +155,7 @@ class ReportsController {
      * This is the overall link to perform the overall report
      */
     def overallReport(OverallReportCommand command) {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         log.info("User[${user}] hitting overall report...")
 
 
@@ -246,6 +247,7 @@ class ReportsController {
             return render(
                     view: '/reports/overall/view',
                     model: [
+                            user: user,
                             startDate: command.startDate,
                             endDate: command.endDate,
                             assessments: assessments,
@@ -270,7 +272,7 @@ class ReportsController {
      * Shows the user a form for picking the organizational report.
      */
     def organizationReport() {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         log.info("User[${user}] hitting org report...")
 
         String sessionId = session.getId()
@@ -366,6 +368,7 @@ class ReportsController {
     } // end organizationReport()
 
     def renderOrganizationReport() {
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         log.info("renderOrganizationReport...")
 
         String sessionId = session.getId()
@@ -532,6 +535,7 @@ class ReportsController {
         render(
             view: '/reports/organization/view',
             model: [
+                    user                                : user,
                     command                             : command,
                     startDate                           : command.startDate,
                     endDate                             : command.endDate,
@@ -548,7 +552,7 @@ class ReportsController {
 
     def initOrganizationReportState() {
         log.info("initOrganizationReportState...")
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
 
         String sessionId = session.getId()
 
@@ -586,7 +590,7 @@ class ReportsController {
      * Shows the user a form for picking the organizational report.
      */
     def tdReport(TrustmarkDefinitionReportCommand command) {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         log.info("User[${user}] hitting TD report...")
 
         List<TrustmarkDefinition> tds = [];
@@ -660,6 +664,7 @@ class ReportsController {
             return render(
                     view: '/reports/td/view',
                     model: [
+                            user: user,
                             command: command,
                             startDate: command.startDate,
                             endDate: command.endDate,
@@ -684,7 +689,7 @@ class ReportsController {
      * Shows the user a form for picking the TIP report.
      */
     def tipReport(TrustInteroperabilityProfileReportCommand command) {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         log.info("User[${user}] hitting TIP report...")
 
         List<TrustInteroperabilityProfile> tips = [];

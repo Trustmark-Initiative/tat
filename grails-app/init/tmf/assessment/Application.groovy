@@ -3,16 +3,20 @@ package tmf.assessment
 import grails.boot.GrailsApp
 import grails.boot.config.GrailsAutoConfiguration
 import org.grails.core.cfg.GroovyConfigPropertySourceLoader
+import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.context.EnvironmentAware
+import org.springframework.context.annotation.ComponentScan
 import org.springframework.core.env.Environment
-
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean
 import org.springframework.core.env.MapPropertySource
 import org.springframework.core.env.PropertiesPropertySource
 import org.springframework.core.env.PropertySource
 import org.springframework.core.io.FileSystemResource
-import org.springframework.core.io.Resource;
+import org.springframework.core.io.Resource
 
+
+@SpringBootApplication
+@ComponentScan("nstic")
 class Application extends GrailsAutoConfiguration implements EnvironmentAware {
 
     static void main(String[] args) {
@@ -23,7 +27,7 @@ class Application extends GrailsAutoConfiguration implements EnvironmentAware {
     @Override
     void setEnvironment(Environment environment) {
         info("Adding config.location.* properties to configuration...");
-        Enumeration<String> propertyNames = System.getProperties().propertyNames();
+        Enumeration<String> propertyNames = System.getProperties().propertyNames() as Enumeration<String>;
 
         while( propertyNames.hasMoreElements() ){
             String property = propertyNames.nextElement();
@@ -35,7 +39,7 @@ class Application extends GrailsAutoConfiguration implements EnvironmentAware {
                     String filename = resourceConfig.getFilename().toLowerCase();
                     if( filename.endsWith(".groovy") ){
                         GroovyConfigPropertySourceLoader loader = new GroovyConfigPropertySourceLoader();
-                        PropertySource props = loader.load(resourceConfig.getFilename(), resourceConfig, environment.getActiveProfiles()[0]);
+                        PropertySource props = loader.load(resourceConfig.getFilename(), resourceConfig, environment.getActiveProfiles()[0] as java.util.List<String>) as PropertySource;
                         environment.propertySources.addFirst(props);
                     }else if( filename.endsWith(".yaml") || filename.endsWith(".yml") ) {
                         YamlPropertiesFactoryBean propertyFactoryBean = new YamlPropertiesFactoryBean();
@@ -58,11 +62,10 @@ class Application extends GrailsAutoConfiguration implements EnvironmentAware {
         if( res ) {
             Properties props = new Properties()
             props.load(res)
-            environment.propertySources.addFirst( new MapPropertySource('tat_config.properties', props) )
+            environment.propertySources.addFirst( new MapPropertySource("tat_config.properties", props as Map<String, Object>) )
         }
 
     }
-
 
 
     private static final void info(String msg){

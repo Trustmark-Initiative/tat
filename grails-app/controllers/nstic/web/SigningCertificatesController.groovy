@@ -9,7 +9,6 @@ import assessment.tool.X509CertificateService
 import grails.converters.JSON
 import grails.converters.XML
 import grails.gorm.transactions.Transactional
-import grails.plugin.springsecurity.annotation.Secured
 import nstic.web.assessment.Trustmark
 import nstic.web.assessment.TrustmarkStatus
 import nstic.web.td.TrustmarkDefinition
@@ -18,6 +17,9 @@ import org.dom4j.DocumentException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.ldap.support.LdapNameBuilder
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.validation.ObjectError
 import sun.security.x509.X500Name
 
@@ -39,7 +41,7 @@ import java.time.Period
 import java.time.ZoneId
 
 @Transactional
-@Secured(["ROLE_USER", "ROLE_ADMIN"])
+@PreAuthorize('hasAnyAuthority("tat-contributor", "tat-admin")')
 class SigningCertificatesController {
 
     // certificate valid period in years
@@ -47,8 +49,6 @@ class SigningCertificatesController {
 
     // key length
     private static List<Integer> KEY_LENGTH = [2048, 4096]
-
-    def springSecurityService;
 
     def index() {
         redirect(action:'list')
@@ -202,7 +202,7 @@ class SigningCertificatesController {
      * revoked, indicating that it is no longer valid.
      */
     def revoke() {
-        User user = springSecurityService.currentUser
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName())
         if( StringUtils.isEmpty(params.id) )
             throw new ServletException("Missing required parameter 'id'.")
         if( StringUtils.isEmpty(params.reason) )
@@ -237,7 +237,7 @@ class SigningCertificatesController {
 
     def generateCertificate(GenerateSigningCertificateCommand cmd) {
 
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
         if( !cmd.validate() ){
             log.warn "Generate Certificate form does not validate: "
             cmd.errors.getAllErrors().each { ObjectError error ->
@@ -402,7 +402,7 @@ class SigningCertificatesController {
     }
 
     def importPkcs12File() {
-        User user = springSecurityService.currentUser;
+        User user = User.findByUsername(((OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication()).getName());
 
         log.info("importPkcs12File")
 
