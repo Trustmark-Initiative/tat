@@ -172,7 +172,7 @@ class TrustmarkService {
             List requiredArtifactProblems = []
             List requiredParameterProblems = []
             for (AssessmentStepData step : steps) {
-                if (step.result == null || step.result == AssessmentStepResult.Not_Known)
+                if (step.result == null || step.result.result == AssessmentStepResult.Not_Known)
                     stepsWithNoAnswer.add(step)
                 if (step.step.artifacts) {
                     Map<AssessmentStepArtifact, Boolean> artifactSatisfiedMap = [:]
@@ -224,7 +224,7 @@ class TrustmarkService {
                 // Now we can execute the issuance Criteria.
                 List<edu.gatech.gtri.trustmark.v1_0.model.AssessmentStepResult> results = []
                 for (AssessmentStepData step : steps) {
-                    results.add(new AssessmentStepResultImpl(step.step.identifier, step.step.stepNumber, step.result))
+                    results.add(new AssessmentStepResultImpl(step.step.identifier, step.step.stepNumber, step.result.result))
                 }
                 try {
                     TrustmarkDefinitionUtils tdUtils = FactoryLoader.getInstance(TrustmarkDefinitionUtils.class)

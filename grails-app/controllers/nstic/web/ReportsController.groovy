@@ -16,6 +16,7 @@ import nstic.assessment.ColorPalette
 import nstic.web.assessment.Assessment
 import nstic.web.assessment.AssessmentStatus
 import nstic.web.assessment.AssessmentStepData
+import nstic.web.assessment.AssessmentStepResponse
 import nstic.web.assessment.AssessmentStepResult
 import nstic.web.assessment.AssessmentTrustmarkDefinitionLink
 import nstic.web.assessment.Trustmark
@@ -474,7 +475,8 @@ class ReportsController {
         for (Assessment assessment : thisOrgsAssessments) {
 
             // Generate pie chart for rule status
-            def stepsByResult = assessment.steps.groupBy { it.result }.sort { stepResultOrder[it.key] }
+            def stepsByResult = assessment.steps.groupBy
+                { it.result }.sort { stepResultOrder[it.key] }
 
             // Generate pie chart for rule status
             log.info("Generate pie chart for rule status...")
@@ -482,11 +484,11 @@ class ReportsController {
             def chartPlots = stepsByResult.collect {
                 int currentCount = it.value.size();
                 double percent = 100.0d * currentCount / assessment.steps.size();
-                AssessmentStepResult res = it.key
+                AssessmentStepResponse res = it.key
                 Color color = ColorPalette.STEP_RESULT_UNKNOWN;
-                if (res == AssessmentStepResult.Satisfied) color = ColorPalette.STEP_RESULT_SATISFIED;
-                else if (res == AssessmentStepResult.Not_Satisfied) color = ColorPalette.STEP_RESULT_NOT_SATISFIED;
-                else if (res == AssessmentStepResult.Not_Applicable) color = ColorPalette.STEP_RESULT_NA;
+                if (res.result == AssessmentStepResult.Satisfied) color = ColorPalette.STEP_RESULT_SATISFIED;
+                else if (res.result == AssessmentStepResult.Not_Satisfied) color = ColorPalette.STEP_RESULT_NOT_SATISFIED;
+                else if (res.result == AssessmentStepResult.Not_Applicable) color = ColorPalette.STEP_RESULT_NA;
 
                 //Plots.newBarChartPlot(Data.newData(percent), color, result.toString() + " ("+currentCount+")" )
                 Plots.newBarChartPlot(Data.newData(percent), color)

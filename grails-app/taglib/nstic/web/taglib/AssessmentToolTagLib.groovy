@@ -138,6 +138,38 @@ class AssessmentToolTagLib {
         out << "<span style=\"color: $color;\" class=\"glyphicon glyphicon-$icon\" title=\"$title\"></span>";
     }
 
+    def assessmentStepResponseResult = { attrs, body ->
+        if( !attrs.result )
+            throw new ServletException("result is a required attribute for tag 'assessmentStepResult'.")
+
+        if( !attrs.description )
+            throw new ServletException("description is a required attribute for tag 'assessmentStepResult'.")
+
+        String title = attrs.description;
+        String icon = "";
+        String color = "";
+        if( attrs.result == AssessmentStepResult.Not_Known ){
+            icon = "question-sign";
+            color= "#${ColorPalette.STEP_RESULT_UNKNOWN.toString()}";
+        }else if( attrs.result == AssessmentStepResult.Satisfied ){
+            icon = "ok-sign";
+            color= "#${ColorPalette.STEP_RESULT_SATISFIED.toString()}";
+        }else if( attrs.result == AssessmentStepResult.Not_Satisfied ){
+            icon = "remove-sign";
+            color= "#${ColorPalette.STEP_RESULT_NOT_SATISFIED.toString()}";
+        }else if( attrs.result == AssessmentStepResult.Not_Applicable ){
+            icon = "minus-sign";
+            color= "#${ColorPalette.STEP_RESULT_NA.toString()}";
+        }else{
+            log.error("Encountered unknown Assessment Step Response: ${attrs.result}")
+            title = "Result Status is Not Known";
+            icon = "question-sign";
+            color= "#${ColorPalette.STEP_RESULT_UNKNOWN.toString()}";
+        }
+
+        out << "<span style=\"color: $color;\" class=\"glyphicon glyphicon-$icon\" title=\"$title\"></span>";
+    }
+
     /**
      * Generates a legend for assessment step result
      */
@@ -154,6 +186,23 @@ Unknown
 """;
     }//end assessmentStepStatusLegend()
 
+
+    def assessmentStepResponseTextOnly = { attrs, body ->
+        if( !attrs.result )
+            throw new ServletException("result is a required attribute for tag 'assessmentStepResult'.")
+
+        if( !attrs.name )
+            throw new ServletException("description is a required attribute for tag 'assessmentStepResult'.")
+
+        if( !attrs.description )
+            throw new ServletException("description is a required attribute for tag 'assessmentStepResult'.")
+
+        String title = attrs.name;
+        String desc = attrs.description;
+
+        out << "$title - $desc";
+
+    }
 
     def assessmentStepResultTextOnly = { attrs, body ->
         if( !attrs.result )
@@ -174,7 +223,7 @@ Unknown
             title = "Not Applicable"
             desc = "This step is not applicable.";
         }else{
-            log.error("Encountered unknown Assessment Step Result: ${attrs.result}")
+            log.error("Encountered unknown Assessment Step Result Text Only: ${attrs.result}")
             title = "Not Known"
             desc = "Result Status is Not Known";
         }
@@ -183,7 +232,6 @@ Unknown
         out << "$title - $desc";
 
     }
-
 
 
     /**
@@ -199,7 +247,7 @@ Unknown
             String title = ""
             String icon = ""
             String color = ""
-            if( stepData.result == AssessmentStepResult.Not_Applicable ){
+            if( stepData.result.result == AssessmentStepResult.Not_Applicable ){
                 title = "Required attachments not required, since this step is marked N/A"
                 icon = "minus";
                 color = "#" + ColorPalette.DEFAULT_BORDER.toString();
@@ -262,7 +310,7 @@ Unknown
             icon = "ok-sign"
             color = "#" + ColorPalette.SUCCESS_TEXT.toString();
         }else{
-            if( stepData.result == AssessmentStepResult.Not_Applicable ){
+            if( stepData.result.result == AssessmentStepResult.Not_Applicable ){
                 title = "Required attachments not required, since this step is marked N/A"
                 icon = "minus";
                 color = "#" + ColorPalette.DEFAULT_BORDER.toString();
@@ -303,7 +351,7 @@ Unknown
             icon = "ok-sign"
             color = "#" + ColorPalette.SUCCESS_TEXT.toString();
         }else{
-            if( stepData.result == AssessmentStepResult.Not_Applicable ){
+            if( stepData.result.result == AssessmentStepResult.Not_Applicable ){
                 title = "Required parameters not required, since this step is marked N/A"
                 icon = "minus";
                 color = "#" + ColorPalette.DEFAULT_BORDER.toString();

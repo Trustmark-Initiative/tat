@@ -2,6 +2,8 @@ package nstic.web
 
 import org.apache.commons.lang.StringUtils
 import org.gtri.fj.data.Option
+import org.gtri.fj.function.Effect0
+import org.gtri.fj.function.F0
 import org.json.JSONArray
 
 import java.util.stream.Collectors
@@ -42,13 +44,21 @@ class User {
     }
 
     User saveAndFlushHelper() {
-        User.withTransaction {
+        withTransaction {
             save(flush: true, failOnError: true)
         }
     }
 
+    static final <T> T withTransactionHelper(final F0<T> f0) {
+        return withTransaction({ return f0.f() })
+    }
+
+    static final void withTransactionHelper(final Effect0 effect0) {
+        withTransaction({ return effect0.f() })
+    }
+
     public static Boolean hasAdmin() {
-        List<User> users = User.findAll()
+        List<User> users = findAll()
 
         users.forEach(user -> {
             if (user.roleArrayJson) {

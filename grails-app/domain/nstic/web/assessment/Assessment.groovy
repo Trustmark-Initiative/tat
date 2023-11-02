@@ -5,7 +5,12 @@ import nstic.web.ContactInformation
 import nstic.web.Organization
 import nstic.web.User
 import nstic.web.td.TrustmarkDefinition
+import org.json.JSONArray
+import org.json.JSONObject
 import org.springframework.util.StringUtils
+
+import java.util.stream.Collectors
+import java.util.stream.IntStream
 
 /**
  * Represents an actual assessment performed on a trustmark.
@@ -99,10 +104,21 @@ class Assessment {
         List<AssessmentTrustmarkDefinitionLink> tds = []
         tds.addAll(this.tdLinks);
 
-        Collections.sort(tds,
-                {link1, link2 ->
-                    int tipOrder = link1.fromTip.id.compareTo(link2.fromTip.id)
-                    return tipOrder == 0 ? link1.trustmarkDefinition.id.compareTo(link2.trustmarkDefinition.id) : tipOrder; } as Comparator);
+        // get the TD uris in original import order
+        JSONObject jsonObject = new JSONObject(this.tdsAndTipsJSON);
+        JSONArray jsonArray = (JSONArray)jsonObject.get("tips");
+        List<String> tdUris =IntStream.range(0, jsonArray.length())
+                .mapToObj(jsonArray::getJSONObject)
+                .flatMap(tip -> {
+                    JSONArray stringArray = tip.getJSONArray("tdUris");
+                    return IntStream.range(0, stringArray.length())
+                            .mapToObj(stringArray::getString);
+                })
+                .collect(Collectors.toList());
+
+        // Sort the TDs based on the original TD ordering which was also ordered by the TIPs original order
+        Collections.sort(tds, Comparator.comparing(td -> tdUris.indexOf(((AssessmentTrustmarkDefinitionLink)td).trustmarkDefinition?.uri)))
+
         return tds;
     }
 
@@ -226,9 +242,9 @@ class Assessment {
         Integer total = stepDataSet.size();
         Integer satisfied = 0;
         stepDataSet.each{ AssessmentStepData stepData ->
-            if( stepData.result == AssessmentStepResult.Satisfied )
+            if( stepData.result.result == AssessmentStepResult.Satisfied )
                 satisfied++;
-            else if( stepData.result == AssessmentStepResult.Not_Applicable )
+            else if( stepData.result.result == AssessmentStepResult.Not_Applicable )
                 total--;
         }
 
@@ -247,9 +263,9 @@ class Assessment {
         Integer total = stepDataSet.size();
         Integer unsatisfied = 0;
         stepDataSet.each{ AssessmentStepData stepData ->
-            if( stepData.result == null || stepData.result == AssessmentStepResult.Not_Satisfied || stepData.result == AssessmentStepResult.Not_Known )
+            if( stepData.result == null || stepData.result.result == AssessmentStepResult.Not_Satisfied || stepData.result.result == AssessmentStepResult.Not_Known )
                 unsatisfied++;
-            else if( stepData.result == AssessmentStepResult.Not_Applicable )
+            else if( stepData.result.result == AssessmentStepResult.Not_Applicable )
                 total--;
         }
 
@@ -265,7 +281,7 @@ class Assessment {
         Integer count = 0;
         Set<AssessmentStepData> stepDataSet = this.steps;
         stepDataSet.each { AssessmentStepData stepData ->
-            if( results.contains(stepData.result) )
+            if( results.contains(stepData.result.result) )
                 count++;
         }
         return count;

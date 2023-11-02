@@ -113,6 +113,34 @@ class AssessmentToolProperties {
         return accountData;
     }
 
+    static List<Map> getDefaultAssessmentStepResponseData(){
+        def assessmentStepResponseData = []
+
+        // Add unknown response
+        Map unknownAssessmentStepResponse = [
+                              name: getString("assessment.step.response.unknown.name"),
+                             value: getString("assessment.step.response.unknown.value"),
+                        is_default: getString("assessment.step.response.unknown.is_default"),
+                       description: getString("assessment.step.response.unknown.description"),
+        ]
+        assessmentStepResponseData.add(unknownAssessmentStepResponse);
+
+        // Add custome repsonses
+        Integer assessmentStepResponseCount = getNumber("assessment.step.response.count").intValue();
+        for( int i = 0; i < assessmentStepResponseCount; i++ ){
+            int assessmentStepResponseIndex = i+1;
+            Map assessmentStepResponse = [
+                              name: getString("assessment.step.response.${assessmentStepResponseIndex}.name"),
+                             value: getString("assessment.step.response.${assessmentStepResponseIndex}.value"),
+                        is_default: getString("assessment.step.response.${assessmentStepResponseIndex}.is_default"),
+                       description: getString("assessment.step.response.${assessmentStepResponseIndex}.description"),
+            ]
+            assessmentStepResponseData.add(assessmentStepResponse);
+        }
+
+        return assessmentStepResponseData;
+    }
+
     static boolean getIsApiClientAuthorizationRequired() {
         return getBoolean("api_client_authorization_required", false)
     }

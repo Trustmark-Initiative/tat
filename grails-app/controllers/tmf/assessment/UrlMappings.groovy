@@ -42,8 +42,9 @@ class UrlMappings {
         "/assessments/$id/log"(controller:'assessmentLog', action: 'viewLog')
         "/assessments/$id/log/entries/$entryId"(controller:'assessmentLog', action: 'viewLogEntry')
 
-        "/assessments/$assessmentId/steps/$stepNumber/substeps/$substepId/assessor-comment"(controller:'substepResolution', action: 'updateAssessorComment')
-        "/assessments/$assessmentId/steps/$stepNumber/substeps/$substepId/result"(controller:'substepResolution', action: 'updateSubstepResult')
+//        Note: Deprecated until further review
+//        "/assessments/$assessmentId/steps/$stepNumber/substeps/$substepId/assessor-comment"(controller:'substepResolution', action: 'updateAssessorComment')
+//        "/assessments/$assessmentId/steps/$stepNumber/substeps/$substepId/result"(controller:'substepResolution', action: 'updateSubstepResult')
 
 
         // Each of these methods are distinguished with /perform since they are valid during the assessment process only.
@@ -55,11 +56,14 @@ class UrlMappings {
         "/perform/assessments/$id/steps/$stepDataId/set-failure-reason"(controller:'assessmentPerform', action:'setFailureReason')
         "/perform/assessments/$id/steps/$stepDataId/create-artifact"(controller:'assessmentPerform', action:'createArtifact')
         "/perform/assessments/$id/steps/$stepDataId/save-artifact"(controller:'assessmentPerform', action:'saveArtifact')
-        "/perform/assessments/$id/steps/$stepDataId/substeps/create"(controller:'assessmentPerform', action:'createSubstep')
-        "/perform/assessments/$id/steps/$stepDataId/substeps/save"(controller:'assessmentPerform', action:'saveSubstep')
-        "/perform/assessments/$id/steps/$stepDataId/substeps/$substepId"(controller:'assessmentPerform', action:'viewSubstep')
-        "/perform/assessments/$id/steps/$stepDataId/substeps/$substepId/edit"(controller:'assessmentPerform', action:'editSubstep')
-        "/perform/assessments/$id/steps/$stepDataId/substeps/$substepId/update"(controller:'assessmentPerform', action:'updateSubstep')
+
+//        Note: Deprecated until further review
+//        "/perform/assessments/$id/steps/$stepDataId/substeps/create"(controller:'assessmentPerform', action:'createSubstep')
+//        "/perform/assessments/$id/steps/$stepDataId/substeps/save"(controller:'assessmentPerform', action:'saveSubstep')
+//        "/perform/assessments/$id/steps/$stepDataId/substeps/$substepId"(controller:'assessmentPerform', action:'viewSubstep')
+//        "/perform/assessments/$id/steps/$stepDataId/substeps/$substepId/edit"(controller:'assessmentPerform', action:'editSubstep')
+//        "/perform/assessments/$id/steps/$stepDataId/substeps/$substepId/update"(controller:'assessmentPerform', action:'updateSubstep')
+
         "/perform/assessments/$id/steps/$stepDataId/artifacts/$artifactId"(controller:'assessmentPerform', action:'viewArtifact')
         "/perform/assessments/$id/steps/$stepDataId/artifacts/$artifactId/edit"(controller:'assessmentPerform', action:'editArtifact')
         "/perform/assessments/$id/steps/$stepDataId/artifacts/$artifactId/update"(controller:'assessmentPerform', action:'updateArtifact')

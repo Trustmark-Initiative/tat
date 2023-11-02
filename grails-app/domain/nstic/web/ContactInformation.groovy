@@ -26,6 +26,11 @@ class ContactInformation {
         notes(type: 'text', column: 'notes')
     }
 
+    ContactInformation saveAndFlushHelper() {
+        withTransaction {
+            save(flush: true, failOnError: true)
+        }
+    }
 
     public String toString() {
         return "Contact[$email]"

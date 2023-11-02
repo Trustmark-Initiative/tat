@@ -1,9 +1,12 @@
 package nstic.web;
 
+import org.gtri.fj.data.Option;
+
 import java.util.Arrays;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
+import static org.gtri.fj.data.List.arrayList;
 
 
 public enum Role {
@@ -35,5 +38,11 @@ public enum Role {
         return Arrays.asList(Role.values()).stream()
                 .filter(role -> role.getValue().equals(value))
                 .findAny();
+    }
+
+    public static Option<Role> fromValueOption(final String value) {
+        requireNonNull("value", value);
+
+        return arrayList(Role.values()).filter(role -> role.getValue().equals(value)).headOption();
     }
 }

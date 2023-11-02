@@ -8,4 +8,5 @@ databaseChangeLog = {
     include file: 'insert-norole-user-as-contributor-role.groovy'
     include file: 'replace-document-categories-with-human-formatted-strings.groovy'
     include file: 'remove-roles-and-shared-views-unused-tables.groovy'
+    include file: 'add-assessment-step-response.groovy'
 }

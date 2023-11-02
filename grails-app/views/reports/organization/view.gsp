@@ -456,10 +456,10 @@
                                         <%
                                             def tdStepList = stepListByTd[td]
                                             def stepCount = tdStepList.size()
-                                            def satisfiedStepCount = tdStepList.count {it.result == AssessmentStepResult.Satisfied}
-                                            def notSatisfiedStepCount = tdStepList.count {it.result == AssessmentStepResult.Not_Satisfied}
-                                            def notKnownStepCount = tdStepList.count {it.result == AssessmentStepResult.Not_Known}
-                                            def notApplicableStepCount = tdStepList.count {it.result == AssessmentStepResult.Not_Applicable}
+                                            def satisfiedStepCount = tdStepList.count {it.result.result == AssessmentStepResult.Satisfied}
+                                            def notSatisfiedStepCount = tdStepList.count {it.result.result == AssessmentStepResult.Not_Satisfied}
+                                            def notKnownStepCount = tdStepList.count {it.result.result == AssessmentStepResult.Not_Known}
+                                            def notApplicableStepCount = tdStepList.count {it.result.result == AssessmentStepResult.Not_Applicable}
                                             def omitAllStepBecauseSatisfiedOrNA = command.hideCompletedSteps && (stepCount == (satisfiedStepCount + notApplicableStepCount))
                                         %>
 
@@ -500,14 +500,14 @@
                                             </h5>
                                         </g:else>
                                         <g:each in="${tdStepList}" var="stepData">
-                                            <g:if test="${(stepData.result == AssessmentStepResult.Satisfied || stepData.result == AssessmentStepResult.Not_Applicable) && command.hideCompletedSteps}">
+                                            <g:if test="${(stepData.result.result == AssessmentStepResult.Satisfied || stepData.result.result == AssessmentStepResult.Not_Applicable) && command.hideCompletedSteps}">
                                                 <!-- Omitting step ${stepData.id} because it's Satisfied or N/A and we were told to hide those. -->
                                             </g:if>
                                             <g:else>
                                                 <div class="stepContainer">
                                                     <div class="row containsStepStatusAndNameContainer">
                                                         <div class="col-md-1 text-right" style="font-size: 120%; padding-right: 0;">
-                                                            <assess:assessmentStepResult result="${stepData.result}" />
+                                                            <assess:assessmentStepResponseResult result="${stepData.result.result}" description="${stepData.result.description}"/>
                                                             <assess:assessmentStepAttachmentStatus step="${stepData}" />
                                                         </div>
                                                         <div class="col-md-11">
@@ -580,8 +580,8 @@
                                                             <b>Assessor Findings</b>
                                                             <div style="padding-left: 1em;">
                                                                 <div class="statusSummary">
-                                                                    <assess:assessmentStepResult result="${stepData.result}" />
-                                                                    <assess:assessmentStepResultTextOnly result="${stepData.result}" />
+                                                                    <assess:assessmentStepResponseResult result="${stepData.result.result}" description="${stepData.result.description}"/>
+                                                                    <assess:assessmentStepResponseTextOnly result="${stepData.result.result}" name="${stepData.result.name}" description="${stepData.result.description}" />
                                                                     <g:if test="${stepData.lastResultUser}">
                                                                         (marked by ${stepData.lastResultUser?.contactInformation?.responder}, <g:formatDate date="${stepData.resultLastChangeDate}" format="yyyy-MM-dd" />)
                                                                     </g:if>

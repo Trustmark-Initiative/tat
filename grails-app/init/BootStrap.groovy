@@ -18,6 +18,8 @@ import nstic.web.SigningCertificateStatus
 import nstic.web.SystemVariable
 import nstic.web.TrustmarkMetadata
 import nstic.web.User
+import nstic.web.assessment.AssessmentStepResponse
+
 //import org.grails.web.util.WebUtils
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -330,6 +332,22 @@ ${grailsMailProps(config)}
         TrustmarkMetadata.withTransaction {
             if (TrustmarkMetadata.count() == 0) {
                 createDefaultTrustmarkMetadata(props)
+            }
+        }
+
+        AssessmentStepResponse.withTransaction {
+            if (AssessmentStepResponse.count() == 0) {
+                List<Map> assessmentStepResponses = AssessmentToolProperties.getDefaultAssessmentStepResponseData()
+
+                for( Map asr : assessmentStepResponses ?: [] ) {
+                    AssessmentStepResponse assessmentStepResponse = AssessmentStepResponse.newAssessmentStepResponse(
+                            asr.name as String, asr.description as String,
+                            Boolean.valueOf(asr.is_default as String),
+                            asr.value as String)
+
+                    log.debug("Saving AssessmentStepResponse[@|cyan ${asr.name}|@]...")
+                    assessmentStepResponse.save(failOnError: true)
+                }
             }
         }
 

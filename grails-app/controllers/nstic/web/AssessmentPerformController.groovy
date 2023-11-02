@@ -11,6 +11,7 @@ import nstic.web.assessment.ArtifactData
 import nstic.web.assessment.Assessment
 import nstic.web.assessment.AssessmentStatus
 import nstic.web.assessment.AssessmentStepData
+import nstic.web.assessment.AssessmentStepResponse
 import nstic.web.assessment.AssessmentStepResult
 import nstic.web.assessment.AssessmentSubStepData
 import nstic.web.assessment.ParameterValue
@@ -144,7 +145,7 @@ class AssessmentPerformController {
         log.info("Filling in assessment #${assessment.id}...")
         for( AssessmentStepData stepData : assessment.getSortedSteps() ){
             log.debug("    Setting data for step: ${stepData.step.name}")
-            stepData.result = AssessmentStepResult.Satisfied
+            stepData.result = AssessmentStepResponse.getDefaultResponseByResult(AssessmentStepResult.Satisfied)
             stepData.lastResultUser = user
             stepData.resultLastChangeDate = Calendar.getInstance().getTime()
 
@@ -255,7 +256,7 @@ class AssessmentPerformController {
                     prevStep = sortedSteps.get(i-1)
 
                     for (int j = i - 1; j >= 0; j-- ) {
-                        if (sortedSteps.get(j).result == AssessmentStepResult.Not_Known) {
+                        if (sortedSteps.get(j).result.result == AssessmentStepResult.Not_Known) {
                             prevUnknownStep = sortedSteps.get(j)
                             break
                         }
@@ -265,7 +266,7 @@ class AssessmentPerformController {
                     nextStep = sortedSteps.get(i+1)
 
                     for (int j = i + 1; j < sortedSteps.size(); j++ ) {
-                        if (sortedSteps.get(j).result == AssessmentStepResult.Not_Known) {
+                        if (sortedSteps.get(j).result.result == AssessmentStepResult.Not_Known) {
                             nextUnknownStep = sortedSteps.get(j)
                             break
                         }
@@ -308,7 +309,8 @@ class AssessmentPerformController {
                 nextStep: nextStep,
                 prevStep: prevStep,
                 nextUnknownStep: nextUnknownStep,
-                prevUnknownStep: prevUnknownStep
+                prevUnknownStep: prevUnknownStep,
+                allAssessmentStepResponses: AssessmentStepResponse.findAll()
         ]
 
     }//end view()
@@ -326,7 +328,7 @@ class AssessmentPerformController {
             log.warn("Cannot set assessment step status when missing stepId parameter")
             throw new ServletException("Missing assessment stepId parameter")
         }
-        if(StringUtils.isEmpty(params.status)){
+        if(StringUtils.isEmpty(params.statusId)){
             log.warn("Cannot set assessment step status when missing status parameter")
             throw new ServletException("Missing assessment status parameter")
         }
@@ -344,8 +346,8 @@ class AssessmentPerformController {
         }
 
         AssessmentStepData stepData = findByStepId(assessment, Long.parseLong(params.stepId))
-        AssessmentStepResult newStatus = AssessmentStepResult.fromString(params.status)
-        AssessmentStepResult oldStatus = stepData.result
+        AssessmentStepResponse newStatus = AssessmentStepResponse.findById(Long.parseLong(params.statusId))
+        AssessmentStepResponse oldStatus = stepData.result
         stepData.result = newStatus
         stepData.resultLastChangeDate = Calendar.getInstance().getTime()
         stepData.lastResultUser = user
@@ -353,14 +355,14 @@ class AssessmentPerformController {
 
         assessment.logg.addEntry(
                 "Step Status Change",
-                "User ${user?.contactInformation?.responder} set step number ${params.stepNumber} status to ${newStatus}",
+                "User ${user?.contactInformation?.responder} set step number ${params.stepNumber} status to ${newStatus.result}",
                 "User ${user?.contactInformation?.responder} [id: ${user?.username}] has set step number ${params.stepNumber} "+
                     "[name=${stepData.step.name}] status to ${newStatus} from ${oldStatus}.",
                 [user       : [id: user.id, username: user.username],
                  assessment : [id: assessment.id],
                  stepData: [id: stepData.id, step: [id: stepData.step.id, name: stepData.step.name]],
-                 oldStatus: oldStatus,
-                 newStatus: newStatus]
+                 oldStatus: oldStatus.result,
+                 newStatus: newStatus.result]
             )
 
         log.debug("Step data status updated successfully....")
@@ -856,16 +858,16 @@ class AssessmentPerformController {
             String issuanceCriteria = tdFromApi.getIssuanceCriteria()
 
             // default to Unknown
-            stepData.result = AssessmentStepResult.Not_Known
+            stepData.result = AssessmentStepResponse.getDefaultResponseByResult(AssessmentStepResult.Not_Known)
 
             if (equalsIgnoreCaseAndWhitespace(issuanceCriteria, TD_ISSUANCE_CRITERIA_NO_ALL)) {
-                stepData.result = AssessmentStepResult.Not_Satisfied
+                stepData.result = AssessmentStepResponse.getDefaultResponseByResult(AssessmentStepResult.Not_Satisfied)
             } else if (equalsIgnoreCaseAndWhitespace(issuanceCriteria, TD_ISSUANCE_CRITERIA_YES_ALL)) {
 
                 if (stepData.hasRequiredParameters) {
-                    stepData.result = AssessmentStepResult.Not_Known
+                    stepData.result = AssessmentStepResponse.getDefaultResponseByResult(AssessmentStepResult.Not_Known)
                 } else {
-                    stepData.result = AssessmentStepResult.Satisfied
+                    stepData.result = AssessmentStepResponse.getDefaultResponseByResult(AssessmentStepResult.Satisfied)
                     stepsStatisfiedCount++;
                 }
             }

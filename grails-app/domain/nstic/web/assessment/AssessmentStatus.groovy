@@ -1,5 +1,7 @@
 package nstic.web.assessment
 
+import java.util.concurrent.ConcurrentHashMap
+
 /**
  * Created by brad on 4/1/14.
  *
@@ -7,25 +9,42 @@ package nstic.web.assessment
  * any given time.
  */
 public enum AssessmentStatus {
-    UNKNOWN,            // A failure state, should not ever be set at runtime.  Used during transmission to indicate a null or bad value.
-    CREATED,            // The assessment was created
-    WAITING,            // The assessment is in the "queue" not actively being assessed, but not waiting on anything either.
-    IN_PROGRESS,        // The assessment is currently in progress
-    PENDING_ASSESSED,   // We are in a holding pattern, the assessed organization must complete an action
-    PENDING_ASSESSOR,   // We are in a holding pattern, the assessing organization must complete an action
-    ABORTED,            // Indicates the abandonment or complete dismissal of an assessment.
-    FAILED,             // The assessment is completed has failed.
-    SUCCESS;            // This assessment is completed and is successful.
 
+    UNKNOWN("Unknown"), // Initially set value to indicate it's never been changed.
+    CREATED("Created"),
+    WAITING("Waiting"),
+    IN_PROGRESS("In Progress"),
+    PENDING_ASSESSED("Pending Assessed"),
+    PENDING_ASSESSOR("Pending Assessor"),
+    ABORTED("Aborted"),
+    FAILED("Failed"),
+    SUCCESS("Success");
 
-    public static AssessmentStatus fromString( String value ){
-        if( value ){
-            for( AssessmentStatus status : AssessmentStatus.values() ){
-                if( status.toString().equalsIgnoreCase(value?.trim()) ){
-                    return status;
-                }
-            }
+    private final String name
+    private static final Map<String, AssessmentStatus> ENUM_MAP;
+
+    AssessmentStatus(String name) {
+        this.name = name
+    }
+
+    public String getName() {
+        return this.name
+    }
+
+    static {
+        Map<String, AssessmentStatus> map = new ConcurrentHashMap<String, AssessmentStatus>();
+        for (AssessmentStatus instance : AssessmentStatus.values()) {
+            map.put(instance.getName().toLowerCase(), instance);
         }
-        return null;
+        ENUM_MAP = Collections.unmodifiableMap(map);
+    }
+
+    @Override
+    public String toString() {
+        return name
+    }
+
+    public static AssessmentStatus fromString(String name) {
+        return ENUM_MAP.get(name.toLowerCase())
     }
 }
