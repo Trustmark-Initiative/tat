@@ -497,11 +497,11 @@ LIMIT 10
                 statistics['stepsNotSatisfyingArtifactRequirement'] = statistics['stepsNotSatisfyingArtifactRequirement'] + 1
             }
 
-            if( stepData.result == AssessmentStepResult.Not_Applicable ){
+            if( stepData.result.result == AssessmentStepResult.Not_Applicable ){
                 statistics['stepsMarkedNa'] = statistics['stepsMarkedNa'] + 1
-            }else if( stepData.result == AssessmentStepResult.Not_Satisfied ){
+            }else if( stepData.result.result == AssessmentStepResult.Not_Satisfied ){
                 statistics['stepsMarkedNo'] = statistics['stepsMarkedNo'] + 1
-            }else if( stepData.result == AssessmentStepResult.Satisfied ){
+            }else if( stepData.result.result == AssessmentStepResult.Satisfied ){
                 statistics['stepsMarkedYes'] = statistics['stepsMarkedYes'] + 1
             }else{
                 statistics['stepsNotMarked'] = statistics['stepsNotMarked'] + 1
@@ -1110,7 +1110,7 @@ LIMIT 10
                 AssessmentStepData stepData = new AssessmentStepData()
                 stepData.assessment = assessment
                 stepData.step = assessmentStep
-                stepData.result = AssessmentStepResult.Not_Known
+                stepData.result = AssessmentStepResponse.getDefaultResponseByResult(AssessmentStepResult.Not_Known)
                 stepData.save(failOnError: true, flush: true)
                 assessment.addToSteps(stepData)
                 stepCount++

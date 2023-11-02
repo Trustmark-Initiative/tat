@@ -30,6 +30,7 @@
                 <g:hiddenField id="defaultSigningCertificateId" name="defaultSigningCertificateId" value="${command?.defaultSigningCertificateId}" />
                 <g:hiddenField id="policyUrl" name="policyUrl" value="${command?.policyUrl}" />
                 <g:hiddenField id="relyingPartyAgreementUrl" name="relyingPartyAgreementUrl" value="${command?.relyingPartyAgreementUrl}" />
+                <g:hiddenField name="organizationId" id="organizationId" value="${command?.organizationId}" />
 
                 <fieldset>
                     <legend style="margin-bottom: 0em;">Identification</legend>
@@ -53,10 +54,10 @@
                     <legend style="margin-bottom: 0em;">Metadata</legend>
                     <div class="text-muted" style="margin-top: 0em; margin-bottom: 1em; font-size: 90%;">The actual metadata used during Trustmark generation.</div>
 
-                    <div class="form-group ${command.errors.hasFieldErrors('organizationId') ? 'has-error' : ''}">
-                        <label for="organizationId" class="col-sm-2 control-label">Provider Organization</label>
+                    <div class="form-group ${command.errors.hasFieldErrors('organizationName') ? 'has-error' : ''}">
+                        <label for="organizationName" class="col-sm-2 control-label">Provider Organization</label>
                         <div class="col-sm-10">
-                            <g:select name="organizationId" id="organizationId" class="form-control" optionKey="id" optionValue="name" from="${nstic.web.Organization.findAll()}" value="${command.organizationId}" />
+                            <g:textField name="organizationName" id="organizationName" class="form-control" value="${command?.organizationName}" readonly="readonly" />
                             <span class="help-block">This organization's information will be used as the "Provider" of the Trustmark.</span>
                         </div>
                     </div>
@@ -415,7 +416,7 @@
 
             $(document).ready(function(){
 
-                var orgId = $('select[name="organizationId"]').val();
+                var orgId = '${command?.organizationId}';
 
                 console.log('Initially selected organization: ' + orgId);
 

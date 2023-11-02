@@ -63,6 +63,23 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <div class="col-sm-offset-2 col-sm-10">
+                        <div class="radio-inline">
+                            <label for="organizational-report-option">
+                                <input id="organizational-report-option" class="tdCheckbox" checked = "checked" type="radio" name="report-types" onclick="toggleReportTypeOptions(this)"/>
+                                Organizational Report Overview
+                            </label>
+                        </div>
+                        <div class="radio-inline">
+                            <label for="assessment-report-option">
+                                <input id="assessment-report-option" class="tdCheckbox" type="radio" name="report-types" onclick="toggleReportTypeOptions(this)"/>
+                                Assessment Report
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="collapse" id="optionsCollapseContainer">
                     <div class="well">
 
@@ -108,10 +125,12 @@
                     <div class="col-sm-offset-2 col-sm-10">
                         <g:submitButton name="do it" value="Run Report" class="btn btn-default" />
 
-                        <a class="btn btn-default" data-toggle="collapse" href="#optionsCollapseContainer" aria-expanded="false" aria-controls="optionsCollapseContainer">
+                        <a id="organizational-report-options" class="btn btn-default" data-toggle="collapse" href="#optionsCollapseContainer"
+                           aria-expanded="false" aria-controls="optionsCollapseContainer">
                             Options...
                         </a>
                     </div>
+
                 </div>
                 <br>
                 <div id="organizationReportStatusMessage"></div>
@@ -121,8 +140,32 @@
                     var CANCEL_LOOP = false;
 
                     $(document).ready(function(){
-
+                        updateReportTypeOptions()
                     })
+
+                    function toggleReportTypeOptions(elem) {
+
+                        // enable/disable options button
+                        if (elem.id === "organizational-report-option") {
+                            $('#organizational-report-options').removeAttr('disabled');
+                            localStorage.setItem('report-types-selected-option', 'organizational-report-option')
+                        } else {
+                            $('#organizational-report-options').attr('disabled', 'disabled');
+                            localStorage.setItem('report-types-selected-option', 'assessment-report-option')
+                        }
+                    }
+
+                    function updateReportTypeOptions() {
+
+                        const savedReportTypeOption = localStorage.getItem('report-types-selected-option');
+                        if (savedReportTypeOption === 'organizational-report-option') {
+                            $('#organizational-report-option').prop('checked', true);
+                            $('#organizational-report-options').removeAttr('disabled');
+                        } else {
+                            $('#assessment-report-option').prop('checked', true);
+                            $('#organizational-report-options').attr('disabled', 'disabled');
+                        }
+                    }
 
                     let selectedOrganizationId = function() {
                         var organizationId = $("select#organization option").filter(":selected").val();
@@ -138,12 +181,40 @@
 
                         var organizationId = selectedOrganizationId();
 
-                        initOrganizationReportState();
+                        // based on radio button selection run report or excel export
+                        var organizationalReport = true;
 
-                        STOP_LOOP = false;
-                        organizationReportStatusLoop(organizationId);
+                        $('.tdCheckbox').each( function(index){
+                            var tdCheckbox = $(this);
+                            var currentId = tdCheckbox.attr('id');
+                            if( tdCheckbox.is(":checked") ){
+                                if (currentId === "organizational-report-option") {
+                                    organizationalReport = true;
+                                } else {
+                                    organizationalReport = false;
+                                }
+                            }
+                        });
 
-                        startOrganizationReport();
+                        if (organizationalReport) {
+                            initOrganizationReportState();
+
+                            STOP_LOOP = false;
+                            organizationReportStatusLoop(organizationId);
+
+                            startOrganizationReport();
+                        } else {
+                            startAssessmentReport();
+                        }
+                    }
+
+                    let startAssessmentReport = function() {
+
+                        var organizationId = selectedOrganizationId();
+
+                        var redirectUrl = '${createLink(controller: 'assessmentToExcel')}';
+
+                        window.location.href = redirectUrl + "?id=" + organizationId;
                     }
 
                     let initOrganizationReportState = function () {
@@ -303,7 +374,6 @@
                             '</div></div>';
                     }
                 </script>
-
             </g:form>
 
         </div>

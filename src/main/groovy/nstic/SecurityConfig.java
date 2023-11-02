@@ -1,8 +1,10 @@
 package nstic;
 
 import assessment.tool.UserService;
+import edu.gatech.gtri.trustmark.grails.OidcLoginCustomizer;
 import nstic.util.AssessmentToolProperties;
 
+import nstic.web.Role;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,30 +16,21 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
-import org.springframework.security.oauth2.client.oidc.authentication.OidcIdTokenDecoderFactory;
 import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler;
-import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
-import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
-import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2UserAuthority;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 import org.springframework.security.web.SecurityFilterChain;
 
-import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
-
-import org.gtri.fj.data.List;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.firewall.HttpFirewall;
 import org.springframework.security.web.firewall.StrictHttpFirewall;
+
+import static org.gtri.fj.data.Option.somes;
 
 
 @Configuration
@@ -61,55 +54,37 @@ public class SecurityConfig {
             final HttpSecurity httpSecurity)
             throws Exception {
 
-        final OAuth2UserService oauth2UserService = new DefaultOAuth2UserService();
-
         httpSecurity
-                .csrf().disable()
-                .authorizeHttpRequests(authorize -> authorize
-                        .regexMatchers("/").permitAll()
-                        .regexMatchers("/assets/.*").permitAll()
-                        .anyRequest().authenticated())
-                .oauth2Login(oauth2 -> oauth2
-                        .userInfoEndpoint( userInfo -> userInfo
-                                .userAuthoritiesMapper(this.userAuthoritiesMapper())
-                                .userService( oauth2UserRequest -> {
+            .csrf().disable()
+            .authorizeHttpRequests(authorize -> authorize
+                .regexMatchers("/").permitAll()
+                .regexMatchers("/assets/.*").permitAll()
+                .regexMatchers("/public/documents").permitAll()
+                .antMatchers("/publicApi/findDocs/**").permitAll()
+                .antMatchers("/publicApi/trustmarks/**").permitAll()
+                .anyRequest().authenticated())
 
-                                    final OAuth2User oAuth2User = oauth2UserService.loadUser(oauth2UserRequest);
-
-                                    java.util.List rolesList = oAuth2User.getAttribute(ROLES_CLAIM);
-
-                                    List roles = List.iterableList(rolesList);
-
-                                    final java.util.List<GrantedAuthority> grantedAuthorityJavaList = new ArrayList<>(oAuth2User.getAuthorities());
-                                    final List<GrantedAuthority> grantedAuthorityList = List.list(new ArrayList<>(grantedAuthorityJavaList));
-
-                                    final DefaultOAuth2User defaultOAuth2User = new DefaultOAuth2User(
-                                            grantedAuthorityList.toJavaList(),
-                                            oAuth2User.getAttributes(),
-                                            "preferred_username");
-
-                                    userService().insertOrUpdateHelper(
-                                            defaultOAuth2User.getName(),
-                                            (String) defaultOAuth2User.getAttributes().get("family_name"),
-                                            (String) defaultOAuth2User.getAttributes().get("given_name"),
-                                            (String) defaultOAuth2User.getAttributes().get("email"),
-                                            roles
-                                    );
-
-                                    return defaultOAuth2User;
-                                })
-
-                        )
-                        .loginPage("/") // landing page
-                        .authorizationEndpoint(authorization -> authorization
-                        .baseUri("/oauth2/authorize-client"))
-                        )
-                        .logout(logout -> logout
-                                .logoutSuccessHandler(oidcLogoutSuccessHandler())
-                        );
+            .oauth2Login(new OidcLoginCustomizer(defaultOAuth2User -> {
+                userService().insertOrUpdateHelper(
+                        defaultOAuth2User.getName(),
+                        (String)defaultOAuth2User.getAttributes().get("family_name"),
+                        (String)defaultOAuth2User.getAttributes().get("given_name"),
+                        (String)defaultOAuth2User.getAttributes().get("email"),
+                        somes(org.gtri.fj.data.List.iterableList(
+                                defaultOAuth2User.getAuthorities()).map(
+                                        GrantedAuthority::getAuthority).map(
+                                                Role::fromValueOption)));
+            }, "/", "/oauth2/authorize-client"))
+            .logout()
+            .logoutUrl("/logout")
+            .logoutSuccessHandler(oidcLogoutSuccessHandler())
+            .invalidateHttpSession(true)
+            .clearAuthentication(true)
+            .deleteCookies("JSESSIONID");
 
         return httpSecurity.build();
     }
+
 
     @Bean
     @Order(2)
@@ -140,13 +115,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @Bean
-    public JwtDecoderFactory<ClientRegistration> idTokenDecoderFactory() {
-        OidcIdTokenDecoderFactory idTokenDecoderFactory = new OidcIdTokenDecoderFactory();
-        idTokenDecoderFactory.setJwsAlgorithmResolver(clientRegistration -> MacAlgorithm.HS256);
-        return idTokenDecoderFactory;
-    }
-
     private LogoutSuccessHandler oidcLogoutSuccessHandler() {
 
         OidcClientInitiatedLogoutSuccessHandler oidcLogoutSuccessHandler =
@@ -155,7 +123,7 @@ public class SecurityConfig {
 
         String redirectUrl = AssessmentToolProperties.getBaseUrl();
 
-        oidcLogoutSuccessHandler.setPostLogoutRedirectUri(URI.create(redirectUrl));
+        oidcLogoutSuccessHandler.setPostLogoutRedirectUri(redirectUrl);
 
         return oidcLogoutSuccessHandler;
     }

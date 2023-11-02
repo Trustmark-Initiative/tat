@@ -26,7 +26,8 @@ class AssessmentStepData {
     ]
 
     AssessmentStep step;
-    AssessmentStepResult result = AssessmentStepResult.Not_Known;
+    AssessmentStepResponse result
+
     /**
      * User who last changed the result for this step.
      */
@@ -103,6 +104,7 @@ class AssessmentStepData {
         table(name:'assessment_step_data')
         assessment(column: 'assessment_ref')
         step(column: 'td_assessment_step_ref')
+        result(column: 'assessment_step_response_ref')
         assessorComment(type:'text', column: 'assessor_comment')
 
         orgClaimsNonConformance(column: 'ORG_CLAIMS_NON_CONFORMANCE')
@@ -116,7 +118,7 @@ class AssessmentStepData {
     //  Helper Methods
     //==================================================================================================================
     public Boolean getCompletelySatisfied() {
-        return result && result == AssessmentStepResult.Satisfied && areAllAttachmentsSatisfied() && areAllRequiredParametersFilled()
+        return result && result.result == AssessmentStepResult.Satisfied && areAllAttachmentsSatisfied() && areAllRequiredParametersFilled()
     }//end isCompletelySatisfied()
 
     public Boolean getHasRequiredAttachments() {
@@ -124,7 +126,7 @@ class AssessmentStepData {
     }
 
     public Boolean getAreAllAttachmentsSatisfied() {
-        if( this.result == AssessmentStepResult.Not_Applicable )
+        if( this.result.result == AssessmentStepResult.Not_Applicable )
             return true;
 
         Map<ArtifactData, Boolean> satisifedMap = [:];
@@ -151,7 +153,7 @@ class AssessmentStepData {
     }
 
     public TdParameter getFirstUnfilledRequiredParameter() {
-        if (this.result != AssessmentStepResult.Not_Applicable) {
+        if (this.result.result != AssessmentStepResult.Not_Applicable) {
             for (TdParameter parameter : this.step.parameters) {
                 if (parameter.required && !this.isParameterFilled(parameter)) {
                     return parameter;
@@ -191,7 +193,7 @@ class AssessmentStepData {
     public Map toJsonMap(boolean shallow = false) {
         def json = [
                 id: this.id,
-                result: this.result?.toString(),
+                result: this.result?.toJsonMap(),
                 lastUpdated: this.lastUpdated?.getTime(),
                 comment: this.assessorComment,
                 assessment: [

@@ -313,7 +313,7 @@
                     <li style="margin-left: 5px;" class="${stepData.step.id == currentStepData.step.id ? 'currentStep': ''}">
                         <a href="${createLink(controller: 'assessmentPerform', action: 'view', id: assessment.id, params: [stepId: stepData.step.id])}">
 
-                            <assess:assessmentStepResult result="${stepData.result ?: AssessmentStepResult.Not_Known}"/>
+                            <assess:assessmentStepResult result="${stepData.result.result ?: AssessmentStepResult.Not_Known}" description="${stepData.result.description}"/>
 
                             <span id="step${stepData.id}Container">
                                 <% int MAX_SIZE = 40; %>
@@ -385,30 +385,15 @@
 
                         <div class="assStepFormData">
                             <ul class="nav nav-pills">
-                                <li id="Not_Known" class="stepDataStatus ${(currentStepData.result == null || currentStepData.result == AssessmentStepResult.Not_Known) ? 'active' : ''}">
-                                    <a href="javascript:setStepDataStatus('${assessment.id}', '${currentStepData.step.id}', '${AssessmentStepResult.Not_Known}')">
-                                        <assess:assessmentStepResult result="${AssessmentStepResult.Not_Known}"/>
-                                        Unknown
-                                    </a>
-                                </li>
-                                <li id="Satisfied" class="stepDataStatus ${currentStepData.result == AssessmentStepResult.Satisfied ? 'active' : ''}">
-                                    <a href="javascript:setStepDataStatus('${assessment.id}', '${currentStepData.step.id}', '${AssessmentStepResult.Satisfied}')">
-                                        <assess:assessmentStepResult result="${AssessmentStepResult.Satisfied}"/>
-                                        Satisfied
-                                    </a>
-                                </li>
-                                <li id="Not_Satisfied" class="stepDataStatus ${currentStepData.result == AssessmentStepResult.Not_Satisfied ? 'active' : ''}">
-                                    <a href="javascript:setStepDataStatus('${assessment.id}', '${currentStepData.step.id}', '${AssessmentStepResult.Not_Satisfied}')">
-                                        <assess:assessmentStepResult result="${AssessmentStepResult.Not_Satisfied}"/>
-                                        Not Satisfied
-                                    </a>
-                                </li>
-                                <li id="Not_Applicable" class="stepDataStatus ${currentStepData.result == AssessmentStepResult.Not_Applicable ? 'active' : ''}">
-                                    <a href="javascript:setStepDataStatus('${assessment.id}', '${currentStepData.step.id}', '${AssessmentStepResult.Not_Applicable}')">
-                                        <assess:assessmentStepResult result="${AssessmentStepResult.Not_Applicable}"/>
-                                        Not Applicable
-                                    </a>
-                                </li>
+                                <g:each in="${allAssessmentStepResponses}" var="assessmentStepResponse">
+                                    <li id="${assessmentStepResponse.name.replaceAll("\\s", "")}"
+                                        class="stepDataStatus ${currentStepData.result == assessmentStepResponse ? 'active' : ''}">
+                                        <a href="javascript:setStepDataStatus('${assessment.id}', '${currentStepData.step.id}', '${assessmentStepResponse.id}', '${assessmentStepResponse.name}')">
+                                            <assess:assessmentStepResponseResult result="${assessmentStepResponse.result}" description="${assessmentStepResponse.description}"/>
+                                            ${assessmentStepResponse.name}
+                                        </a>
+                                    </li>
+                                </g:each>
                             </ul>
 
                             <div class="textCommentContainer" style="margin-top: 1em;">
@@ -838,8 +823,9 @@
         }
     }
 
-    function setStepDataStatus(assessmentId, currentStepDataStepId, assessmentStepResult) {
-        console.log("setStepDataStatus! [assessmentId, currentStepDataStepId, assessmentStepResult]", assessmentId, currentStepDataStepId, assessmentStepResult);
+    function setStepDataStatus(assessmentId, currentStepDataStepId, assessmentStepResponseId, assessmentStepResponseName) {
+        console.log("setStepDataStatus! [assessmentId, currentStepDataStepId, assessmentStepResponseId, assessmentStepResponseName]", assessmentId,
+            currentStepDataStepId, assessmentStepResponseId, assessmentStepResponseName);
 
         var url = '${createLink(controller: 'assessmentPerform', action: 'setStepDataStatus')}';
         $.ajax({
@@ -849,26 +835,29 @@
                 format: 'json',
                 id: assessmentId,
                 stepId: currentStepDataStepId,
-                status: assessmentStepResult
+                statusId: assessmentStepResponseId
             },
             success: function (data) {
                 console.log("Finished parameter value update, response: " + JSON.stringify(data, null, '   '));
                 if (data && data.status && data.status === "SUCCESS") {
-                    console.log("Successfully updated the set step data status value. [assessmentId, currentStepDataStepId, assessmentStepResult]", assessmentId, currentStepDataStepId, assessmentStepResult);
+                    console.log("Successfully updated the set step data status value. [assessmentId, currentStepDataStepId, assessmentStepResponseId]",
+                        assessmentId, currentStepDataStepId, assessmentStepResponseId);
 
                     // deactivate all status links
                     $(".stepDataStatus").removeClass( "active" );
 
                     // activate the selected status link
-                    $("#" + assessmentStepResult).addClass( "active" );
+                    $("#" + assessmentStepResponseName.replace(/\s+/g, '')).addClass( "active" );
                 }
             },
             error: function () {
-                console.log("An error occurred updating the set step data status value. [assessmentId, currentStepDataStepId, assessmentStepResult]", assessmentId, currentStepDataStepId, assessmentStepResult);
+                console.log("An error occurred updating the set step data status value. [assessmentId, currentStepDataStepId, assessmentStepResponseName]",
+                    assessmentId, currentStepDataStepId, assessmentStepResponseName);
                 alert("An error occurred updating the set step data status value.")
             }
         });
     }
+
 </script>
 
 </div>

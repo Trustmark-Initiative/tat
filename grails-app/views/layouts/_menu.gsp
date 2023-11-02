@@ -54,13 +54,13 @@
                             </sec:authorize>
                         </ul>
                     </li>
+                    <li>
+                        <a href="${createLink(controller:'profile', id: UserService.currentUserName())}" title="Manage Your User Profile">
+                            <span class="glyphicon glyphicon-user"></span>
+                            Profile
+                        </a>
+                    </li>
                 </sec:authorize>
-                <li>
-                    <a href="${createLink(controller:'profile', id: UserService.currentUserName())}" title="Manage Your User Profile">
-                        <span class="glyphicon glyphicon-user"></span>
-                        Profile
-                    </a>
-                </li>
                 <sec:authorize access="hasAuthority('tat-admin') or hasAuthority('tat-contributor')">
                     <li>
                         <a href="${createLink(controller:'reports', action: 'organizationReport')}" title="Generate Organizational Reports">
@@ -77,7 +77,9 @@
                         Administration <b class="caret"></b>
                     </a>
                     <ul class="dropdown-menu" role="menu">
-                        <li><a href="${createLink(controller: 'admin', action: 'importExportView')}">Import/Export</a></li>
+%{--                        Note: Deprecated until further review--}%
+%{--                        <li><a href="${createLink(controller: 'admin', action: 'importExportView')}">Import/Export</a></li>--}%
+
                         <li><a href="${createLink(controller: 'error')}">Error Tests</a></li>
                         <li><a href="${createLink(controller: 'tdAndTipUpdate')}">TPAT Management</a></li>
                         <li><a href="${createLink(controller: 'email', action: 'settings')}">Email</a></li>
@@ -101,7 +103,14 @@
                     </ul>
                 </li>
                 <g:if test="${(nstic.web.User.hasAdmin())}">
-                    <li><a href="${createLink(controller: 'login')}">Login</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" onClick="document.location.href=ensureTrailingSlash('${grailsApplication.config.tf.base.url}');">Login</a></li>
+                    <script type="text/javascript">
+                        function ensureTrailingSlash(url) {
+                            url += url.endsWith('/') ? '' : '/';
+                            url += 'oauth2/authorize-client/keycloak';
+                            return url
+                        }
+                    </script>
                 </g:if>
             </sec:authorize>
         </ul>

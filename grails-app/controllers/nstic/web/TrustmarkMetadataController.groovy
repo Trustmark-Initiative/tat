@@ -67,7 +67,17 @@ class TrustmarkMetadataController {
     def create() {
         log.debug("Showing create TrustmarkMetadata form...");
         // TODO List all organizations?
-        [command: new CreateTrustmarkMetadataCommand()]
+        CreateTrustmarkMetadataCommand createTrustmarkMetadataCommand = new CreateTrustmarkMetadataCommand()
+        Organization provider = Organization.findByIsTrustmarkProvider(true)
+
+        if (provider == null) {
+            log.warn("A provider organization has not been configured.")
+            throw new InvalidRequestError("A provider organization has not been configured.");
+        }
+
+        createTrustmarkMetadataCommand.organizationId = provider.id
+        createTrustmarkMetadataCommand.organizationName = provider.name
+        [command: createTrustmarkMetadataCommand]
     }//end create()
 
     def save(CreateTrustmarkMetadataCommand command){
@@ -132,7 +142,6 @@ class TrustmarkMetadataController {
         metadata.relyingPartyAgreementUrl = command.relyingPartyAgreementUrl;
         metadata.timePeriodNoExceptions = command.timePeriodNoExceptions;
         metadata.timePeriodWithExceptions = command.timePeriodWithExceptions;
-        metadata.provider = Organization.get(command.organizationId);
 
         metadata.defaultSigningCertificateId = command.defaultSigningCertificateId
 
@@ -314,6 +323,7 @@ class EditTrustmarkMetadataCommand {
     Integer timePeriodNoExceptions;
     Integer timePeriodWithExceptions;
     Long organizationId;
+    String organizationName;
     Integer defaultSigningCertificateId
 
 
@@ -330,6 +340,7 @@ class EditTrustmarkMetadataCommand {
         this.timePeriodNoExceptions = metadata.timePeriodNoExceptions;
         this.timePeriodWithExceptions = metadata.timePeriodWithExceptions;
         this.organizationId = metadata.provider.id;
+        this.organizationName = metadata.provider.name
         this.defaultSigningCertificateId = metadata.defaultSigningCertificateId
     }
 
@@ -426,7 +437,7 @@ class EditTrustmarkMetadataCommand {
             }
 
         })
-        organizationId(nullable: false)
+        organizationName(nullable: false)
         defaultSigningCertificateId(nullable: false)
     }
 
@@ -446,6 +457,7 @@ class CreateTrustmarkMetadataCommand {
     Integer timePeriodNoExceptions;
     Integer timePeriodWithExceptions;
     Long organizationId;
+    String organizationName;
     Long defaultSigningCertificateId
 
     private static boolean doesUrlExist(URL url) {
@@ -552,6 +564,7 @@ class CreateTrustmarkMetadataCommand {
 
         })
         organizationId(nullable: false)
+        organizationName(nullable: false)
         defaultSigningCertificateId(nullable: false)
     }
 

@@ -167,7 +167,7 @@
                                             assessment.getStepDataByNumber(assessmentStep.stepNumber);
                                     %>
                                     <td class="orgIdResultStatusCol">
-                                        <assess:assessmentStepResult result="${orgMatchingStep.result}" />
+                                        <assess:assessmentStepResult result="${orgMatchingStep.result.result}"  description="${orgMatchingStep.result.description}"/>
                                     </td>
                                 </g:if>
                                 <g:else>

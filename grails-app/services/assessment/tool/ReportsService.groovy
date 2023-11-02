@@ -219,8 +219,8 @@ class ReportsService {
                 int currentTDIndex = 0
                 for (TrustmarkDefinition td : tds) {
                     def steps = assessment.getStepListByTrustmarkDefinition(td)
-                    def stepSatisfiedCount = steps.count { it.result == AssessmentStepResult.Satisfied }
-                    def stepNotApplicableCount = steps.count { it.result == AssessmentStepResult.Not_Applicable }
+                    def stepSatisfiedCount = steps.count { it.result.result == AssessmentStepResult.Satisfied }
+                    def stepNotApplicableCount = steps.count { it.result.result == AssessmentStepResult.Not_Applicable }
                     def stepApplicableCount = steps.size() - stepNotApplicableCount
                     if (stepSatisfiedCount == stepApplicableCount) {
                         ++fullySatisfiedTdCount

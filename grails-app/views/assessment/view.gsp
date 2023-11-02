@@ -263,7 +263,14 @@
                     <div id="assessment-trustmarks"style="max-height: 20em; overflow-y: scroll;">
                     </div>
                     <div style="margin-top: 0.5em;">
-                        <a href="${createLink(controller: 'trustmark', action: 'create', params:[assessmentId: assessment.id])}" class="btn btn-primary">Grant</a>
+                        <g:if test="${!assessment.getIsComplete() || assessment.status == AssessmentStatus.ABORTED}">
+                            <span id="grant-tooltip" class="d-inline-block" data-toggle="tooltip" title="To grant trustmarks the assessment must be completed and marked as Success.">
+                                <a href="#" class="btn btn-primary disabled" style="pointer-events: none;">Grant</a>
+                            </span>
+                        </g:if>
+                        <g:else>
+                            <a href="${createLink(controller: 'trustmark', action: 'create', params:[assessmentId: assessment.id])}" class="btn btn-primary">Grant</a>
+                        </g:else>
                             <g:if test="${trustmarks && !trustmarks.isEmpty()}">
                                 <a href="javascript:revokeAllTrustmarks();" class="btn btn-default" title="Revoke all trustmarks issued in this assessment.">Revoke All</a>
                                 <span id="revokeAllTrustmarksStatusMessage" />
@@ -303,7 +310,9 @@
 
                             <div class="stepHeader">
                                 <h4 class="step-title">
-                                    <assess:assessmentStepResult result="${assStepData.result}" />
+%{--                                    <assess:assessmentStepResult result="${assStepData.result}" />--}%
+                                    <assess:assessmentStepResponseResult result="${assStepData.result.result}" description="${assStepData.result.description}"/>
+
                                     <g:if test="${stepDataArtifactStatus.get(assStepData)?.distinctRequiredArtifactsCount > 0}">
                                         <span>
                                             <span class="glyphicon glyphicon-paperclip" title="${stepDataArtifactStatus.get(assStepData)?.allSatisfied ? 'Required Attachments Satisfied' : 'Required Attachments Not Satisfied'}">
@@ -358,8 +367,8 @@
 
                                 <h5>Assessor Findings</h5>
                                 <div>
-                                    <assess:assessmentStepResult result="${assStepData.result}" />
-                                    <assess:assessmentStepResultTextOnly result="${assStepData.result}" />
+                                    <assess:assessmentStepResponseResult result="${assStepData.result.result}" description="${assStepData.result.description}"/>
+                                    <assess:assessmentStepResponseTextOnly result="${assStepData.result.result}" name="${assStepData.result.name}" description="${assStepData.result.description}" />
                                 </div>
                                 <div class="assessorCommentContainer">
                                     <div>
@@ -367,7 +376,7 @@
                                         <g:if test="${assStepData.assessorComment && assStepData.assessorComment?.trim().length() > 0}">
                                             ${assStepData.assessorComment}
                                         </g:if><g:else>
-                                            <em>No Comment.  Only marked result as '${assStepData.result ?: nstic.web.assessment.AssessmentStepResult.Not_Known}'</em>
+                                            <em>No Comment.  Only marked result as '${assStepData.result.result ?: nstic.web.assessment.AssessmentStepResult.Not_Known}'</em>
                                         </g:else>
                                     </div>
                                 </div>
@@ -418,6 +427,8 @@
             getTrustmarks(${assessment.id});
 
             getAssessmentLogEntries(${assessment.id});
+
+            $('#grant-tooltip').tooltip();
         });
 
         $(".confirmLink").click(function(e) {
