@@ -1,4 +1,4 @@
-<%@ page import="nstic.web.assessment.Assessment; nstic.web.assessment.AssessmentStepData; nstic.web.assessment.AssessmentStatus; org.apache.commons.io.FileUtils; nstic.web.assessment.Trustmark" defaultCodec="none" %>
+<%@ page import="groovy.json.JsonBuilder; grails.converters.JSON; nstic.web.assessment.Assessment; nstic.web.assessment.AssessmentStepData; nstic.web.assessment.AssessmentStatus; org.apache.commons.io.FileUtils; nstic.web.assessment.Trustmark" defaultCodec="none" %>
 <!DOCTYPE html>
 <html>
 	<head>
@@ -62,6 +62,41 @@
             }
         </style>
 
+        <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+        <script type="text/javascript">
+            google.charts.load('current', {'packages':['corechart']});
+            google.charts.setOnLoadCallback(drawChart);
+
+            function drawChart() {
+                var chartData = <%= (new JsonBuilder(chartData)).toString() %>;
+                console.log("chartData: ", chartData);
+
+                var data = new google.visualization.DataTable();
+                data.addColumn('string', 'Status');
+                data.addColumn('number', 'Percentage');
+                data.addColumn({type: 'string', role: 'style'}); // Adding color as a role
+
+                var rows = [];
+                <% chartData.each { item ->
+                    out << "rows.push(['${item[0]}', ${item[1]}, '${item[2]}']);\n"
+                } %>
+
+                data.addRows(rows);
+
+                var options = {
+                    width: 600,
+                    height: 200,
+                    chartArea: {
+                        top     : "5%"
+                    },
+                    is3D: true
+                };
+
+                var chart = new google.visualization.PieChart(document.getElementById('stepchart'));
+                chart.draw(data, options);
+            }
+
+        </script>
 	</head>
 	<body>
         <div class="row">
@@ -132,7 +167,8 @@
             <div class="alert alert-success">${flash.message}</div>
         </g:if>
 
-        <img src="${charts['stepChart'].toURLForHTML()}" />
+        <div style="margin-top: 25px; margin-bottom: 2px; padding-bottom: 0; text-align: center; font-weight: bold">Assessment Step Status (${statistics.totalStepCount} Steps)</div>
+        <div id="stepchart" style="width: 100%; padding-top: 0; display: flex; justify-content: center; align-items: center"></div>
 
         <div class="pageContent">
 

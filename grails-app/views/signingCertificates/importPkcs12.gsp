@@ -139,9 +139,6 @@
                     return false;
                 });
 
-                function isEmtpy(str) {
-                    return (!str || str.length === 0);
-                }
             </script>
 
         </div>

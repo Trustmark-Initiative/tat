@@ -516,32 +516,19 @@ LIMIT 10
             return tm1.issueDateTime.compareTo(tm2.issueDateTime)
         } as Comparator)
 
-
-        def charts = [:]
-        Slice stepsMarkedYesSlice = Slice.newSlice( percent(statistics.stepsMarkedYes, statistics.totalStepCount), ColorPalette.SUCCESS_TEXT, "Satisfied ("+ statistics.stepsMarkedYes+")" )
-        Slice stepsMarkedNoSlice = Slice.newSlice( percent(statistics.stepsMarkedNo, statistics.totalStepCount), ColorPalette.ERROR_TEXT, "Not Satisfied ("+ statistics.stepsMarkedNo+")" )
-        Slice stepsMarkedNASlice = Slice.newSlice( percent(statistics.stepsMarkedNa, statistics.totalStepCount), ColorPalette.WARNING_TEXT, "N/A ("+ statistics.stepsMarkedNa+")" )
-        Slice stepsNotMarkedSlice = Slice.newSlice( percent(statistics.stepsNotMarked, statistics.totalStepCount), ColorPalette.DEFAULT_BORDER, "Unknown ("+ statistics.stepsNotMarked+")" )
-        PieChart stepChart = GCharts.newPieChart(stepsMarkedYesSlice, stepsMarkedNoSlice, stepsMarkedNASlice, stepsNotMarkedSlice)
-
-        // charts4j uses the chart.apis.google.com default endpoint which does not support HTTPS, so using Chrome,
-        // all HTTP requests will be redirected to HTTPS. Instead, use the endpoint chart.googleapis.com/chart which
-        // does support HTTPS thus preventing redirection.
-        stepChart.setURLEndpoint("https://chart.googleapis.com/chart")
-
-        stepChart.setTitle("Assessment Step Status ("+statistics.totalStepCount+" Steps)")
-        stepChart.setSize(400, 125)
-        stepChart.setThreeD(true)
-        charts.put('stepChart', stepChart)
-        // TODO HEre is a comment.
-
+        def stepChart = [
+                ["Satisfied ("+ statistics.stepsMarkedYes+")", percent(statistics.stepsMarkedYes, statistics.totalStepCount), '#' + ColorPalette.SUCCESS_TEXT.toString()], // Using a placeholder color
+                ["Not Satisfied ("+ statistics.stepsMarkedNo+")", percent(statistics.stepsMarkedNo, statistics.totalStepCount), '#' + ColorPalette.ERROR_TEXT.toString()],
+                ["N/A ("+ statistics.stepsMarkedNa+")", percent(statistics.stepsMarkedNa, statistics.totalStepCount), '#' + ColorPalette.WARNING_TEXT.toString()],
+                ["Unknown ("+ statistics.stepsNotMarked+")", percent(statistics.stepsNotMarked, statistics.totalStepCount), '#' + ColorPalette.DEFAULT_BORDER.toString()]
+        ]
 
         withFormat {
             html {
                 [assessment: assessment, assessmentSteps: assessmentSteps, logEntries: logEntries,
                     trustmarks: trustmarks,
                     logEntryCount: logEntryCount, user: user, stepDataArtifactsMap: stepDataArtifactsMap,
-                    stepDataArtifactStatus: stepDataArtifactStatus, statistics: statistics, charts: charts]
+                    stepDataArtifactStatus: stepDataArtifactStatus, statistics: statistics, chartData: stepChart]
             }
             json {
                 render assessment.toJsonMap(true) as JSON

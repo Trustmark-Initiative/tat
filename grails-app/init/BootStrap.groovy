@@ -7,6 +7,7 @@ import nstic.SystemVariableDefinition
 import nstic.util.AssessmentToolProperties
 import nstic.util.DefaultMetadataUtils
 import nstic.util.QuartzConfig
+import nstic.util.X500PrincipalWrapper
 import nstic.web.BinaryObject
 import nstic.web.ContactInformation
 import nstic.web.Organization
@@ -24,7 +25,6 @@ import nstic.web.assessment.AssessmentStepResponse
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.apache.commons.lang.StringUtils
-import sun.security.x509.X500Name
 
 import javax.servlet.ServletContext
 import java.security.KeyPair
@@ -451,7 +451,7 @@ ${grailsMailProps(config)}
 
             BigInteger sn = new BigInteger(serialNumber)
 
-            X500Name x500Name = new X500Name(distinguishedName)
+            X500PrincipalWrapper x500Principal = new X500PrincipalWrapper(distinguishedName)
 
             X509CertificateService x509CertificateService = new X509CertificateService()
 
@@ -483,13 +483,13 @@ ${grailsMailProps(config)}
 
             SigningCertificate signingCertificate = new SigningCertificate()
             signingCertificate.distinguishedName = distinguishedName
-            signingCertificate.commonName = x500Name.commonName
-            signingCertificate.localityName = x500Name.locality
-            signingCertificate.stateOrProvinceName = x500Name.state
-            signingCertificate.countryName = x500Name.country
+            signingCertificate.commonName = x500Principal.commonName
+            signingCertificate.localityName = x500Principal.locality
+            signingCertificate.stateOrProvinceName = x500Principal.state
+            signingCertificate.countryName = x500Principal.country
 //            signingCertificate.emailAddress = org.primaryContact.email
-            signingCertificate.organizationName = x500Name.organization
-            signingCertificate.organizationalUnitName = x500Name.organizationalUnit
+            signingCertificate.organizationName = x500Principal.organization
+            signingCertificate.organizationalUnitName = x500Principal.organizationalUnit
             signingCertificate.serialNumber = certificate.serialNumber.toString()
             signingCertificate.thumbPrint = thumbprint
             signingCertificate.thumbPrintWithColons = thumbprintWithColons
@@ -506,7 +506,7 @@ ${grailsMailProps(config)}
 
             // URL: create a unique filename to create the downloadable file
             // filename: commonName-thumbprint.pem
-            String filename = x500Name.commonName + "-" + thumbprint + ".pem"
+            String filename = x500Principal.commonName + "-" + thumbprint + ".pem"
             signingCertificate.filename = filename
 
             String baseUrl = props.getProperty("tf.base.url") ?: "http://localhost:8080/trustmark-assessments"

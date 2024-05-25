@@ -5,7 +5,7 @@ import edu.gatech.gtri.trustmark.grails.OidcLoginCustomizer;
 import nstic.util.AssessmentToolProperties;
 
 import nstic.web.Role;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -17,7 +17,10 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
 import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
@@ -38,8 +41,35 @@ import static org.gtri.fj.data.Option.somes;
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    @Autowired
-    private ClientRegistrationRepository clientRegistrationRepository;
+    @Value("${spring.security.oauth2.client.provider.keycloak.issuer-uri}")
+    private String issuerUri;
+
+    @Value("${spring.security.oauth2.client.registration.keycloak.client-id}")
+    private String clientId;
+
+    @Value("${spring.security.oauth2.client.registration.keycloak.redirect-uri}")
+    private String redirectUri;
+
+    @Value("${spring.security.oauth2.client.registration.keycloak.scope}")
+    private String scope;
+
+    @Bean
+    public ClientRegistrationRepository clientRegistrationRepository() {
+        ClientRegistration clientRegistration = ClientRegistration.withRegistrationId("keycloak")
+                .clientId(clientId)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .redirectUri(redirectUri)
+                .scope(scope)
+                .authorizationUri(issuerUri + "/protocol/openid-connect/auth")
+                .tokenUri(issuerUri + "/protocol/openid-connect/token")
+                .userInfoUri(issuerUri + "/protocol/openid-connect/userinfo")
+                .userNameAttributeName("preferred_username")
+                .jwkSetUri(issuerUri + "/protocol/openid-connect/certs")
+                .clientName("Keycloak")
+                .build();
+
+        return new InMemoryClientRegistrationRepository(clientRegistration);
+    }
 
     @Bean
     UserService userService() {
@@ -119,7 +149,7 @@ public class SecurityConfig {
 
         OidcClientInitiatedLogoutSuccessHandler oidcLogoutSuccessHandler =
                 new OidcClientInitiatedLogoutSuccessHandler(
-                        this.clientRegistrationRepository);
+                        this.clientRegistrationRepository());
 
         String redirectUrl = AssessmentToolProperties.getBaseUrl();
 
