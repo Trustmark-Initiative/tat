@@ -98,22 +98,48 @@
         }
 
         function drawPieChart() {
-            console.log("drawPieChart...")
-            console.log("charts: ", <%= (new JsonBuilder(charts)).toString() %> );
+            console.log("drawPieChart...");
+            var charts = <%= (new JsonBuilder(charts)).toString() %>;
+            console.log("charts: ", charts);
 
-            var data = google.visualization.arrayToDataTable([
-                ['Status', 'Percentage'],
-                <g:each in="${charts['statusChart']}" var="slice">
-                ['${slice[0]}', ${slice[1]}],
-                </g:each>
-            ]);
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Status');
+            data.addColumn('number', 'Percentage');
+
+            var rows = [];
+            var colors = [];
+            <% charts['statusChart'].each { slice ->
+                // Push the row data
+                out << "rows.push(['${slice[0]}', ${slice[1]}]);\n"
+                // Push the color data
+                out << "colors.push('${slice[2]}');\n"
+            } %>
+
+            console.log("rows: ", rows); // Log the contents of the rows array
+            console.log("colors: ", colors); // Log the contents of the colors array
+
+            data.addRows(rows);
 
             var options = {
                 title: 'Assessment Status Distribution (of ${orgsAssessmentSize})',
                 width: 600,
                 height: 200,
                 chartArea: {
-                    top     : "5%"
+                    left: "10%",
+                    top: "5%",
+                    width: "80%",
+                    height: "80%"
+                },
+                colors: colors, // Set the colors for the slices
+                is3D: true,
+                pieSliceText: 'percentage', // Show percentage on slices
+                sliceVisibilityThreshold: 0, // Ensure all slices are shown
+                legend: {
+                    position: 'labeled', // Show labels with percentages in the legend
+                    textStyle: { fontSize: 12 }
+                },
+                tooltip: {
+                    text: 'percentage' // Show percentage in the tooltip
                 }
             };
 

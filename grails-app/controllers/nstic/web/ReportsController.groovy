@@ -537,7 +537,24 @@ class ReportsController {
             int currentCount = it.value.size()
             double percent = 100.0d * currentCount / thisOrgsAssessments.size()
             String label = "" + it.key + " (${currentCount})"
-            [label, percent]
+
+            String color = ""
+
+            if (it.key == AssessmentStatus.SUCCESS) color = "#" + Color.GREEN.toString()
+            else if (it.key == AssessmentStatus.ABORTED) color = "#" + Color.RED.toString()
+            else if (it.key == AssessmentStatus.PENDING_ASSESSOR) color = "#" + Color.BLUE.toString()
+            else if (it.key == AssessmentStatus.PENDING_ASSESSED) color = "#" + Color.YELLOW.toString()
+            else if (it.key == AssessmentStatus.WAITING) color = "#" + Color.LIGHTYELLOW.toString()
+            else if (it.key == AssessmentStatus.IN_PROGRESS) color = "#" + Color.CYAN.toString()
+            else if (it.key == AssessmentStatus.FAILED) color = "#" + Color.PINK.toString()
+
+//            AssessmentStatus.UNKNOWN
+            else color = "#" + Color.ORANGE.toString()
+
+            log.debug("label: ${label}, percent: ${percent}, color: ${color}")
+
+
+            [label, percent, color]
         }
 
         charts.put('statusChart', pieChartData)

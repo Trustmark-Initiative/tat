@@ -74,12 +74,19 @@
                 var data = new google.visualization.DataTable();
                 data.addColumn('string', 'Status');
                 data.addColumn('number', 'Percentage');
-                data.addColumn({type: 'string', role: 'style'}); // Adding color as a role
 
                 var rows = [];
-                <% chartData.each { item ->
-                    out << "rows.push(['${item[0]}', ${item[1]}, '${item[2]}']);\n"
+                var colors = [];
+                var slices = {};
+                <% chartData.eachWithIndex { item, index ->
+                    // Properly set the percentage in Groovy
+                    def percentage = (item[1] == 0) ? 0.0001 : item[1];
+                    out << "rows.push(['${item[0]}', ${percentage}]);\n"
+                    out << "colors.push('${item[2]}');\n"
+                    out << "slices[${index}] = {color: '${item[2]}', textStyle: {color: 'black', fontSize: 12}};\n"
                 } %>
+
+                console.log("rows: ", rows); // Log the contents of the rows array
 
                 data.addRows(rows);
 
@@ -87,9 +94,13 @@
                     width: 600,
                     height: 200,
                     chartArea: {
-                        top     : "5%"
+                        top: "5%"
                     },
-                    is3D: true
+                    is3D: true,
+                    colors: colors,
+                    slices: slices,
+                    pieSliceText: 'percentage',
+                    sliceVisibilityThreshold: 0 // Ensure all slices are shown
                 };
 
                 var chart = new google.visualization.PieChart(document.getElementById('stepchart'));
