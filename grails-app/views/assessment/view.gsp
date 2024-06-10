@@ -1,4 +1,4 @@
-<%@ page import="nstic.web.assessment.Assessment; nstic.web.assessment.AssessmentStepData; nstic.web.assessment.AssessmentStatus; org.apache.commons.io.FileUtils; nstic.web.assessment.Trustmark" defaultCodec="none" %>
+<%@ page import="groovy.json.JsonBuilder; grails.converters.JSON; nstic.web.assessment.Assessment; nstic.web.assessment.AssessmentStepData; nstic.web.assessment.AssessmentStatus; org.apache.commons.io.FileUtils; nstic.web.assessment.Trustmark" defaultCodec="none" %>
 <!DOCTYPE html>
 <html>
 	<head>
@@ -62,6 +62,52 @@
             }
         </style>
 
+        <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+        <script type="text/javascript">
+            google.charts.load('current', {'packages':['corechart']});
+            google.charts.setOnLoadCallback(drawChart);
+
+            function drawChart() {
+                var chartData = <%= (new JsonBuilder(chartData)).toString() %>;
+                console.log("chartData: ", chartData);
+
+                var data = new google.visualization.DataTable();
+                data.addColumn('string', 'Status');
+                data.addColumn('number', 'Percentage');
+
+                var rows = [];
+                var colors = [];
+                var slices = {};
+                <% chartData.eachWithIndex { item, index ->
+                    // Properly set the percentage in Groovy
+                    def percentage = (item[1] == 0) ? 0.0001 : item[1];
+                    out << "rows.push(['${item[0]}', ${percentage}]);\n"
+                    out << "colors.push('${item[2]}');\n"
+                    out << "slices[${index}] = {color: '${item[2]}', textStyle: {color: 'black', fontSize: 12}};\n"
+                } %>
+
+                console.log("rows: ", rows); // Log the contents of the rows array
+
+                data.addRows(rows);
+
+                var options = {
+                    width: 600,
+                    height: 200,
+                    chartArea: {
+                        top: "5%"
+                    },
+                    is3D: true,
+                    colors: colors,
+                    slices: slices,
+                    pieSliceText: 'percentage',
+                    sliceVisibilityThreshold: 0 // Ensure all slices are shown
+                };
+
+                var chart = new google.visualization.PieChart(document.getElementById('stepchart'));
+                chart.draw(data, options);
+            }
+
+        </script>
 	</head>
 	<body>
         <div class="row">
@@ -132,7 +178,8 @@
             <div class="alert alert-success">${flash.message}</div>
         </g:if>
 
-        <img src="${charts['stepChart'].toURLForHTML()}" />
+        <div style="margin-top: 25px; margin-bottom: 2px; padding-bottom: 0; text-align: center; font-weight: bold">Assessment Step Status (${statistics.totalStepCount} Steps)</div>
+        <div id="stepchart" style="width: 100%; padding-top: 0; display: flex; justify-content: center; align-items: center"></div>
 
         <div class="pageContent">
 

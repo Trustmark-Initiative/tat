@@ -1,6 +1,15 @@
 package assessment.tool
 
-import sun.security.x509.*
+import org.bouncycastle.asn1.x500.X500Name
+import org.bouncycastle.asn1.x509.BasicConstraints
+import org.bouncycastle.asn1.x509.ExtendedKeyUsage
+import org.bouncycastle.asn1.x509.KeyPurposeId
+import org.bouncycastle.asn1.x509.KeyUsage
+import org.bouncycastle.cert.X509v3CertificateBuilder
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
+import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
+import org.bouncycastle.operator.ContentSigner
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
 
 import javax.xml.bind.DatatypeConverter
 import java.security.cert.*
@@ -31,49 +40,43 @@ class X509CertificateService {
     X509Certificate generateCertificate(String dn, KeyPair pair, int days, String algorithm,
                                         BigInteger serialNumber = null) {
 
-        PrivateKey privkey = pair.getPrivate()
-        X509CertInfo info = new X509CertInfo()
-        Date from = new Date()
-        Date to = new Date(from.getTime() + days * 86400000l)
-        CertificateValidity interval = new CertificateValidity(from, to)
+        PrivateKey privkey = pair.getPrivate();
+        Date notBefore = new Date();
+        Date notAfter = new Date(notBefore.getTime() + days * 86400000L);
 
-        BigInteger sn = null
+        BigInteger sn;
         if (serialNumber != null) {
-            sn = serialNumber
+            sn = serialNumber;
         } else {
-            sn = new BigInteger(64, new SecureRandom())
+            sn = new BigInteger(64, new SecureRandom());
         }
 
-        X500Name owner = new X500Name(dn)
+        X500Name issuer = new X500Name(dn);
+        X500Name subject = new X500Name(dn);
 
-        info.set(X509CertInfo.VALIDITY, interval)
-        info.set(X509CertInfo.SERIAL_NUMBER, new CertificateSerialNumber(sn))
-        info.set(X509CertInfo.SUBJECT, owner)
-        info.set(X509CertInfo.ISSUER, owner)
-        info.set(X509CertInfo.KEY, new CertificateX509Key(pair.getPublic()))
-        info.set(X509CertInfo.VERSION, new CertificateVersion(CertificateVersion.V3))
-        AlgorithmId algo = new AlgorithmId(AlgorithmId.md5WithRSAEncryption_oid)
-        info.set(X509CertInfo.ALGORITHM_ID, new CertificateAlgorithmId(algo))
+        X509v3CertificateBuilder builder = new JcaX509v3CertificateBuilder(
+                issuer,
+                sn,
+                notBefore,
+                notAfter,
+                subject,
+                pair.getPublic()
+        );
 
         // Key usage extensions
-        KeyUsageExtension keyUsageExtension = new KeyUsageExtension()
-        keyUsageExtension.set(KeyUsageExtension.DIGITAL_SIGNATURE, true)
-        keyUsageExtension.set(KeyUsageExtension.NON_REPUDIATION, true)
-        keyUsageExtension.set(KeyUsageExtension.KEY_CERTSIGN, true)
+        KeyUsage keyUsage = new KeyUsage(KeyUsage.digitalSignature | KeyUsage.nonRepudiation | KeyUsage.keyCertSign);
+        builder.addExtension(org.bouncycastle.asn1.x509.Extension.keyUsage, true, keyUsage);
 
-        CertificateExtensions certificateExtensions = new CertificateExtensions()
-        certificateExtensions.set(keyUsageExtension.getExtensionId().toString(), keyUsageExtension)
-        info.set(X509CertInfo.EXTENSIONS, certificateExtensions)
+        // Extended key usage extensions
+        ExtendedKeyUsage extendedKeyUsage = new ExtendedKeyUsage(KeyPurposeId.id_kp_serverAuth);
+        builder.addExtension(org.bouncycastle.asn1.x509.Extension.extendedKeyUsage, false, extendedKeyUsage);
 
-        // Sign the cert to identify the algorithm that's used.
-        X509CertImpl cert = new X509CertImpl(info)
-        cert.sign(privkey, algorithm)
+        // Basic constraints extension
+        BasicConstraints basicConstraints = new BasicConstraints(true);
+        builder.addExtension(org.bouncycastle.asn1.x509.Extension.basicConstraints, true, basicConstraints);
 
-        // Update the algorithm, and resign.
-        algo = (AlgorithmId) cert.get(X509CertImpl.SIG_ALG)
-        info.set(CertificateAlgorithmId.NAME + "." + CertificateAlgorithmId.ALGORITHM, algo)
-        cert = new X509CertImpl(info)
-        cert.sign(privkey, algorithm)
+        ContentSigner signer = new JcaContentSignerBuilder(algorithm).build(privkey);
+        X509Certificate cert = new JcaX509CertificateConverter().getCertificate(builder.build(signer));
 
         return cert
     }

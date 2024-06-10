@@ -3,6 +3,7 @@ package nstic.web
 import edu.gatech.gtri.trustmark.v1_0.impl.util.TrustmarkMailClientImpl
 import nstic.TATPropertiesHolder
 import nstic.util.AssessmentToolProperties
+import nstic.util.X500PrincipalWrapper
 import nstic.web.SigningCertificateStatus
 
 import assessment.tool.X509CertificateService
@@ -21,7 +22,6 @@ import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.validation.ObjectError
-import sun.security.x509.X500Name
 
 import javax.naming.Name
 import javax.servlet.ServletException
@@ -497,14 +497,15 @@ class SigningCertificatesController {
         SigningCertificate signingCertificate = new SigningCertificate()
         signingCertificate.distinguishedName = certificate.subjectDN.name
 
-        X500Name x500Name = new X500Name(certificate.getSubjectX500Principal().getName());
-        signingCertificate.commonName = x500Name.getCommonName();
-        signingCertificate.localityName = x500Name.locality
-        signingCertificate.stateOrProvinceName = x500Name.state
-        signingCertificate.countryName = x500Name.country
+        X500PrincipalWrapper x500Principal = new X500PrincipalWrapper(certificate.getSubjectX500Principal().getName())
+
+        signingCertificate.commonName = x500Principal.getCommonName();
+        signingCertificate.localityName = x500Principal.locality
+        signingCertificate.stateOrProvinceName = x500Principal.state
+        signingCertificate.countryName = x500Principal.country
         signingCertificate.emailAddress = org.primaryContact.email
-        signingCertificate.organizationName = x500Name.organization
-        signingCertificate.organizationalUnitName = x500Name.organizationalUnit
+        signingCertificate.organizationName = x500Principal.organization
+        signingCertificate.organizationalUnitName = x500Principal.organizationalUnit
         signingCertificate.serialNumber = certificate.serialNumber.toString()
         signingCertificate.thumbPrint = x509CertificateService.getThumbPrint(certificate)
         signingCertificate.thumbPrintWithColons = x509CertificateService.getThumbPrintWithColons(certificate)
@@ -616,17 +617,13 @@ class SigningCertificatesController {
         KeyPair keyPair = keyPairGenerator.generateKeyPair()
 
         // distinguished name
-        X500Name x500Name = null
+        String distinguishedName = null
         if (StringUtils.isNotEmpty(cmd.distinguishedName)) {
-            x500Name = new X500Name(cmd.distinguishedName)
+            distinguishedName = cmd.distinguishedName
         } else {
             // Create a distinguished name from the command
-            String distinguishedName = signingCertificateCommandToDistinguishedName(cmd)
-
-            x500Name = new X500Name(distinguishedName)
+            distinguishedName = signingCertificateCommandToDistinguishedName(cmd)
         }
-
-        String distinguishedName = x500Name.getName()
 
         X509CertificateService x509CertificateService = new X509CertificateService()
 
@@ -652,7 +649,7 @@ class SigningCertificatesController {
             builder.add("L", cmd.localityName)
         }
         if (StringUtils.isNotEmpty(cmd.stateOrProvinceName)) {
-            builder.add("S", cmd.stateOrProvinceName)
+            builder.add("ST", cmd.stateOrProvinceName)
         }
         if (StringUtils.isNotEmpty(cmd.countryName)) {
             builder.add("C", cmd.countryName)

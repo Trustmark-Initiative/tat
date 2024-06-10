@@ -385,11 +385,8 @@ class ReportsController {
         def thisOrgsAssessments = Assessment.getAll(result["assessmentIds"])
 
         // get dates
-        BigInteger startDateInMilliseconds = new BigInteger(result["startDate"])
-        Date startDate = new Date(startDateInMilliseconds.longValue())
-
-        BigInteger endDateInMilliseconds = new BigInteger(result["endDate"])
-        Date endDate = new Date(endDateInMilliseconds.longValue())
+        Date startDate = new Date(result["startDate"])
+        Date endDate = new Date(result["endDate"])
 
         boolean hideCompletedAssessments = result["hideCompletedAssessments"]
         boolean hideCompletedSteps = result["hideCompletedSteps"]
@@ -464,12 +461,21 @@ class ReportsController {
 
         // charts
         def charts = [:]
+        def colorsData = [:]
 
         def stepResultOrder = [
                 (AssessmentStepResult.Satisfied)     : 1,
                 (AssessmentStepResult.Not_Satisfied) : 2,
                 (AssessmentStepResult.Not_Known)     : 3,
                 (AssessmentStepResult.Not_Applicable): 4,
+        ]
+
+        // Map to convert string representation back to enum
+        def stringToEnumMap = [
+                'Satisfied': AssessmentStepResult.Satisfied,
+                'Not Satisfied': AssessmentStepResult.Not_Satisfied,
+                'Not Known': AssessmentStepResult.Not_Known,
+                'Not Applicable': AssessmentStepResult.Not_Applicable
         ]
 
         for (Assessment assessment : thisOrgsAssessments) {
@@ -481,55 +487,77 @@ class ReportsController {
             // Generate pie chart for rule status
             log.info("Generate pie chart for rule status...")
 
-            def chartPlots = stepsByResult.collect {
-                int currentCount = it.value.size();
-                double percent = 100.0d * currentCount / assessment.steps.size();
-                AssessmentStepResponse res = it.key
-                Color color = ColorPalette.STEP_RESULT_UNKNOWN;
-                if (res.result == AssessmentStepResult.Satisfied) color = ColorPalette.STEP_RESULT_SATISFIED;
-                else if (res.result == AssessmentStepResult.Not_Satisfied) color = ColorPalette.STEP_RESULT_NOT_SATISFIED;
-                else if (res.result == AssessmentStepResult.Not_Applicable) color = ColorPalette.STEP_RESULT_NA;
+            def aggregatedData = [:].withDefault { [count: 0, percent: 0.0, color: ''] }
 
-                //Plots.newBarChartPlot(Data.newData(percent), color, result.toString() + " ("+currentCount+")" )
-                Plots.newBarChartPlot(Data.newData(percent), color)
+            stepsByResult.each { key, value ->
+                int currentCount = value.size()
+                double percent = 100.0d * currentCount / assessment.steps.size()
+                AssessmentStepResponse res = key
+                String color = ""
+
+                if (res.result == AssessmentStepResult.Satisfied) color = "#" + ColorPalette.STEP_RESULT_SATISFIED.toString()
+                else if (res.result == AssessmentStepResult.Not_Satisfied) color = "#" + ColorPalette.STEP_RESULT_NOT_SATISFIED.toString()
+                else if (res.result == AssessmentStepResult.Not_Applicable) color = "#" + ColorPalette.STEP_RESULT_NA.toString()
+                else color = "#" + ColorPalette.STEP_RESULT_UNKNOWN.toString()
+
+                def aggregated = aggregatedData[res.result.toString()]
+                aggregated.count += currentCount
+                aggregated.percent += percent
+                aggregated.color = color
             }
 
-            BarChart stepResultChart = GCharts.newBarChart(chartPlots);
+            def chartData = aggregatedData.collect { key, value ->
+                String label = "${key} (${value.count})"
+                [label, value.percent, value.color]
+            }
 
-            // charts4j uses the chart.apis.google.com default endpoint which does not support HTTPS, so using Chrome,
-            // all HTTP requests will be redirected to HTTPS. Instead, use the endpoint chart.googleapis.com/chart which
-            // does support HTTPS thus preventing redirection.
-            stepResultChart.setURLEndpoint("https://chart.googleapis.com/chart");
+            log.debug("Aggregated bar chart data: ${chartData.inspect()}")
 
-            stepResultChart.setSize(500, 50);
-            stepResultChart.setHorizontal(true);
-            stepResultChart.setDataStacked(true);
-            stepResultChart.setTitle("Assessment Step Results (of ${assessment.steps.size()} Steps)")
-            charts.put(assessment.id + "_STEP_CHART", stepResultChart)
+            // sort aggregated data
+            chartData = chartData.sort { a, b ->
+                def aKey = a[0].split(' \\(')[0] // Extract the status part for sorting
+                def bKey = b[0].split(' \\(')[0] // Extract the status part for sorting
+                stepResultOrder[stringToEnumMap[aKey]] <=> stepResultOrder[stringToEnumMap[bKey]]
+            }
+
+            log.debug("Aggregated and sorted bar chart data: ${chartData.inspect()}")
+
+            charts.put(assessment.id + "_STEP_CHART", chartData)
+
+            def assessmentColors = chartData.collect { it[2] }
+
+            colorsData.put(assessment.id + "_STEP_CHART", assessmentColors)
         }
 
         log.debug("Generating pie chart for status...")
 
         def assessmentsByStatus = thisOrgsAssessments.groupBy { it.status }
-        def slices = assessmentsByStatus.collect {
+
+        def pieChartData = assessmentsByStatus.collect {
             int currentCount = it.value.size()
-            double percent = 100.0d * currentCount / thisOrgsAssessments.size();
-            String text = "" + it.key + " (${currentCount})";
-            Slice.newSlice((int) percent, text);
+            double percent = 100.0d * currentCount / thisOrgsAssessments.size()
+            String label = "" + it.key + " (${currentCount})"
+
+            String color = ""
+
+            if (it.key == AssessmentStatus.SUCCESS) color = "#" + Color.GREEN.toString()
+            else if (it.key == AssessmentStatus.ABORTED) color = "#" + Color.RED.toString()
+            else if (it.key == AssessmentStatus.PENDING_ASSESSOR) color = "#" + Color.BLUE.toString()
+            else if (it.key == AssessmentStatus.PENDING_ASSESSED) color = "#" + Color.YELLOW.toString()
+            else if (it.key == AssessmentStatus.WAITING) color = "#" + Color.LIGHTYELLOW.toString()
+            else if (it.key == AssessmentStatus.IN_PROGRESS) color = "#" + Color.CYAN.toString()
+            else if (it.key == AssessmentStatus.FAILED) color = "#" + Color.PINK.toString()
+
+//            AssessmentStatus.UNKNOWN
+            else color = "#" + Color.ORANGE.toString()
+
+            log.debug("label: ${label}, percent: ${percent}, color: ${color}")
+
+
+            [label, percent, color]
         }
 
-        log.info("statusChart slices: ${slices.size()}")
-
-        PieChart statusChart = GCharts.newPieChart(slices);
-
-        // charts4j uses the chart.apis.google.com default endpoint which does not support HTTPS, so using Chrome,
-        // all HTTP requests will be redirected to HTTPS. Instead, use the endpoint chart.googleapis.com/chart which
-        // does support HTTPS thus preventing redirection.
-        statusChart.setURLEndpoint("https://chart.googleapis.com/chart");
-
-        statusChart.setSize(600, 200);
-        statusChart.setTitle("Assessment Status Distribution (of ${thisOrgsAssessments.size()})")
-        charts.put('statusChart', statusChart)
+        charts.put('statusChart', pieChartData)
 
         log.info("charts size: ${charts.size()}")
 
@@ -547,7 +575,9 @@ class ReportsController {
                     fullySatisfiedTipCountByAssessmentId: fullySatisfiedTipCountByAssessmentId,
                     fullySatisfiedTdCountByAssessmentId : fullySatisfiedTdCountByAssessmentId,
                     organization                        : command.organization,
-                    charts                              : charts
+                    charts                              : charts,
+                    colorsData                          : colorsData,
+                    orgsAssessmentSize                  : thisOrgsAssessments.size()
             ]);
 
     }

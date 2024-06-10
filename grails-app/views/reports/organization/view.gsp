@@ -1,4 +1,4 @@
-<%@ page import="nstic.util.TipTreeNode; nstic.web.tip.TrustInteroperabilityProfile; nstic.web.td.TrustmarkDefinition; nstic.web.assessment.*; org.apache.commons.io.FileUtils; nstic.web.*;" defaultCodec="none"  %>
+<%@ page import="groovy.json.JsonBuilder; grails.converters.JSON; nstic.util.TipTreeNode; nstic.web.tip.TrustInteroperabilityProfile; nstic.web.td.TrustmarkDefinition; nstic.web.assessment.*; org.apache.commons.io.FileUtils; nstic.web.*;" defaultCodec="none"  %>
 <%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 <!DOCTYPE html>
 <html>
@@ -80,9 +80,151 @@
             margin-left: 1em;
         }
 
-
+        .chart-container {
+            margin-left: 0;
+            padding-left: 0;
+        }
 
     </style>
+
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+        google.charts.load('current', {'packages':['corechart', 'bar']});
+        google.charts.setOnLoadCallback(drawCharts);
+
+        function drawCharts() {
+            drawPieChart();
+            drawBarCharts();
+        }
+
+        function drawPieChart() {
+            console.log("drawPieChart...");
+            var charts = <%= (new JsonBuilder(charts)).toString() %>;
+            console.log("charts: ", charts);
+
+            var data = new google.visualization.DataTable();
+            data.addColumn('string', 'Status');
+            data.addColumn('number', 'Percentage');
+
+            var rows = [];
+            var colors = [];
+            <% charts['statusChart'].each { slice ->
+                // Push the row data
+                out << "rows.push(['${slice[0]}', ${slice[1]}]);\n"
+                // Push the color data
+                out << "colors.push('${slice[2]}');\n"
+            } %>
+
+            console.log("rows: ", rows); // Log the contents of the rows array
+            console.log("colors: ", colors); // Log the contents of the colors array
+
+            data.addRows(rows);
+
+            var options = {
+                title: 'Assessment Status Distribution (of ${orgsAssessmentSize})',
+                width: 600,
+                height: 200,
+                chartArea: {
+                    left: "10%",
+                    top: "5%",
+                    width: "80%",
+                    height: "80%"
+                },
+                colors: colors, // Set the colors for the slices
+                is3D: true,
+                pieSliceText: 'percentage', // Show percentage on slices
+                sliceVisibilityThreshold: 0, // Ensure all slices are shown
+                legend: {
+                    position: 'labeled', // Show labels with percentages in the legend
+                    textStyle: { fontSize: 12 }
+                },
+                tooltip: {
+                    text: 'percentage' // Show percentage in the tooltip
+                }
+            };
+
+            var chart = new google.visualization.PieChart(document.getElementById('statusChart'));
+            chart.draw(data, options);
+        }
+
+        function drawBarCharts() {
+            console.log("drawBarCharts...")
+            console.log("charts: ", <%= (new JsonBuilder(charts)).toString() %> );
+            console.log("colorsData: ", <%= (new JsonBuilder(colorsData)).toString() %> );
+
+            <g:each in="${assessments}" var="assessment">
+                console.log("Assessment: ${assessment.assessmentName.encodeAsJavaScript()}");
+
+                var data = new google.visualization.DataTable();
+                data.addColumn('string', 'Label'); // Dummy label
+
+                var resultTypes = ['Satisfied', 'Not Satisfied', 'Not Applicable', 'Not Known'];
+                var row = ['']; // Dummy label value for the row
+
+                // Initialize row with zeros
+                var rowValues = [0, 0, 0, 0];
+
+                resultTypes.forEach(function(resultType) {
+                    data.addColumn('number', resultType);
+                });
+
+                console.log("chart: ", <%= (new JsonBuilder(charts[assessment.id + '_STEP_CHART'])).toString() %> );
+
+                <g:each in="${charts[assessment.id + '_STEP_CHART']}" var="bar">
+                    <g:if test="${bar[0].contains('Satisfied') && !bar[0].contains('Not Satisfied')}">
+                        rowValues[0] = ${bar[1]};
+                    </g:if>
+                    <g:if test="${bar[0].contains('Not Satisfied')}">
+                        rowValues[1] = ${bar[1]};
+                    </g:if>
+                    <g:if test="${bar[0].contains('Not Known')}">
+                        rowValues[2] = ${bar[1]};
+                    </g:if>
+                    <g:if test="${bar[0].contains('Not Applicable')}">
+                        rowValues[3] = ${bar[1]};
+                    </g:if>
+                </g:each>
+
+                // Add row values to the row
+                row = row.concat(rowValues);
+                data.addRow(row);
+
+                var colors = [<g:each in="${colorsData[assessment.id + '_STEP_CHART']}" var="color">
+                    '${color}'<g:if test="${!color.equals(colorsData[assessment.id + '_STEP_CHART'].last())}">,</g:if>
+                    </g:each>];
+
+                var options = {
+                    title: 'Assessment Step Results (of ${assessment.steps.size()} Steps)',
+                    width: 500,
+                    height: 50,
+                    bars: 'horizontal',
+                    isStacked: 'percent', // Stack as percentage
+                    colors: colors,
+                    chartArea: {
+                        bottom  : 0,
+                        left    : 0,
+                        top     : 0,
+                        width   : "100%",
+                        height  : "80%"
+                    },
+                    hAxis: {
+                        baselineColor: 'transparent',
+                        gridlines: { color: 'transparent' },
+                        textPosition: 'none' // Remove horizontal percentage labels
+                    },
+                    vAxis: {
+                        baselineColor: 'transparent',
+                        textPosition: 'none' // Remove vertical labels
+                    },
+                    legend: { position: 'none' }
+                };
+
+                var chart = new google.visualization.BarChart(document.getElementById('${assessment.id}_STEP_CHART'));
+                chart.draw(data, options);
+            </g:each>
+        }
+
+    </script>
 </head>
 <body>
 
@@ -98,7 +240,8 @@
         </div>
 
         <div style="margin-top: 25px;">
-            <img src="${charts['statusChart'].toURLForHTML()}" />
+            <div style="margin-top: 25px; margin-bottom: 2px; padding-bottom: 0; text-align: center; font-weight: bold">Assessment Status Distribution (of ${orgsAssessmentSize})</div>
+            <div id="statusChart" style="width: 100%; padding-top: 0; display: flex; justify-content: center; align-items: center"></div>
         </div>
 
         <div style="margin-top: 25px;">
@@ -332,7 +475,14 @@
                                         </a>
                                     </small>
                                 </h3>
-                                <img src="${charts[assessment.id+"_STEP_CHART"].toURLForHTML()}" />
+
+                                <div style="margin-top: 25px; margin-bottom: 0; padding-bottom: 0; text-align: center; font-weight: bold">
+                                    Assessment Step Results (of ${assessment.steps.size()} Steps)
+                                </div>
+                                <div style="margin-top: 0;" class="chart-container">
+                                    <div id="${assessment.id+"_STEP_CHART"}"></div>
+                                </div>
+
                                 <div>
                                     <span class="assessmentStepResultStatusSummary">
                                         ${assessment.getCountOfSteps(AssessmentStepResult.Satisfied)} satisfied,
